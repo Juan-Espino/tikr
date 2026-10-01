@@ -12,8 +12,8 @@ export default function HomePage() {
           Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
         </h1>
 
-        {tasks?.map(({ _id, isCompleted }) => (
-          <div key={_id}>{isCompleted}</div>
+        {tasks?.map(({ _id, text }) => (
+          <div key={_id}>{text}</div>
         ))}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
           <Link
