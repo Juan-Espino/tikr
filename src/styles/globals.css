@@ -1,6 +1,263 @@
 @import "tailwindcss";
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("https://cdn.fontshare.com/wf/XMXWOHABYLQDJ42L65EFRYNVRY37HQCB/B2O4O6V3JMFM2WDCYQI3A47L5U4THDUL/WN5274VQ3AUBDFP74GB4EC4XYJ3EKVNE.woff2")
+    format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+:root {
+  color-scheme: dark;
+  --background: #080808;
+  --foreground: #e7e5e4;
+  --card: #111111;
+  --primary: #e7e5e4;
+  --primary-foreground: #080808;
+  --muted: #1c1c1a;
+  --muted-foreground: #a8a29e;
+  --border: #2b2b28;
+  --ring: #a8a29e;
+  --destructive: #f87171;
+}
+@theme inline {
+  --font-sans: var(--font-manrope-sans), sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+}
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Cabinet Grotesk", var(--font-sans);
+  font-weight: 700;
+}
+button:not(:disabled),
+summary {
+  cursor: pointer;
+}
+button,
+input,
+select {
+  min-height: 36px;
+}
+:focus-visible {
+  outline: 2px solid #a8a29e;
+  outline-offset: 4px;
+}
+input,
+select {
+  accent-color: #e7e5e4;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
 
-@theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+@media (prefers-reduced-motion: no-preference) {
+  .hero-globe-entrance {
+    animation: hero-globe 800ms cubic-bezier(0.22, 1, 0.36, 1) 1520ms backwards;
+  }
+  .hero-headline > span {
+    animation: hero-word 180ms ease-out backwards;
+  }
+  .hero-headline > span:nth-child(2) {
+    animation-delay: 140ms;
+  }
+  .hero-headline > span:nth-child(3) {
+    animation: hero-accent 480ms ease-out 280ms backwards;
+  }
+  .hero-headline > span:nth-child(4) {
+    animation-delay: 760ms;
+  }
+  .hero-headline > span:nth-child(5) {
+    animation-delay: 900ms;
+  }
+  .hero-headline > span:nth-child(6) {
+    animation: hero-accent 480ms ease-out 1040ms backwards;
+  }
+}
+@keyframes hero-word {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes hero-accent {
+  0% {
+    opacity: 0;
+    color: #4ade80;
+  }
+  20% {
+    opacity: 1;
+    color: #4ade80;
+  }
+  55%,
+  100% {
+    opacity: 1;
+    color: #f5f5f4;
+  }
+}
+
+@keyframes hero-globe {
+  0% {
+    visibility: hidden;
+    opacity: 0;
+    transform: scale(4);
+  }
+  1% {
+    visibility: visible;
+  }
+  100% {
+    visibility: visible;
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .history-chart .recharts-line {
+    animation: chart-reveal 900ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+}
+@keyframes chart-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .history-chart .recharts-line.chart-line-exiting {
+    animation: chart-hide 900ms cubic-bezier(0.25, 1, 0.5, 1) both;
+    pointer-events: none;
+  }
+}
+
+@keyframes chart-hide {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .benchmark-legend-entering {
+    animation: benchmark-legend-in 900ms ease-out both;
+  }
+  .benchmark-legend-exiting {
+    animation: benchmark-legend-out 900ms ease-out both;
+  }
+}
+@keyframes benchmark-legend-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes benchmark-legend-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.supporting-copy,
+.text-muted-foreground:not(button):not(input):not(select):not(textarea) {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.8;
+  letter-spacing: 0.035em;
+}
+
+.piggy-coin-1 {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .piggy-coin {
+    animation: piggy-deposit 3.6s ease-in infinite both;
+  }
+  .piggy-coin-1 {
+    visibility: visible;
+    animation-delay: 1.8s;
+  }
+}
+@keyframes piggy-deposit {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  12%,
+  24% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(100px);
+  }
+  51%,
+  100% {
+    opacity: 0;
+    transform: translateY(100px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-popup {
+    opacity: 1;
+    scale: 1;
+    transition:
+      opacity 220ms cubic-bezier(0.25, 1, 0.5, 1),
+      scale 220ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .dialog-backdrop {
+    opacity: 1;
+    transition: opacity 220ms ease-out;
+  }
+  .dialog-popup[data-starting-style],
+  .dialog-popup[data-ending-style] {
+    opacity: 0;
+    scale: 0.97;
+  }
+  .dialog-backdrop[data-starting-style],
+  .dialog-backdrop[data-ending-style] {
+    opacity: 0;
+  }
+  .dialog-popup[data-ending-style],
+  .dialog-backdrop[data-ending-style] {
+    transition-duration: 160ms;
+  }
 }

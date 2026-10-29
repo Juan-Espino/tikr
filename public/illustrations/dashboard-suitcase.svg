@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 230" fill="none">
+  <defs>
+    <pattern id="lining-grid" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M10 0H0V10" stroke="#78716c" stroke-opacity="0.35" stroke-width="0.65" />
+    </pattern>
+  </defs>
+  <style>
+    @media (prefers-reduced-motion: no-preference) {
+      .portfolio-card { animation: card-float 5s ease-in-out infinite; }
+    }
+    @keyframes card-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+  </style>
+
+  <!-- The case stays open: a front-facing lid and a shallow perspective tray. -->
+  <path d="M67 18h126c13 0 21 8 21 21l-3 87c0 10-6 16-16 16H65c-10 0-16-6-16-16l-3-87c0-13 8-21 21-21Z" fill="#1c1c1a" stroke="#a8a29e" stroke-width="2" />
+  <path d="M67 23h126c10 0 16 6 16 16l-3 86c0 8-4 12-12 12H66c-8 0-12-4-12-12l-3-86c0-10 6-16 16-16Z" fill="#080808" stroke="#e7e5e4" stroke-opacity="0.65" />
+  <path d="M68 28h124c8 0 12 4 12 12l-3 83c0 6-3 9-9 9H68c-6 0-9-3-9-9l-3-83c0-8 4-12 12-12Z" fill="url(#lining-grid)" stroke="#44403c" stroke-width="0.8" />
+  <path d="M61 105h138M64 112h132" stroke="#78716c" stroke-opacity="0.45" stroke-width="0.8" />
+
+  <!-- Hinge and the dark, gridded interior of the lower compartment. -->
+  <path d="M53 136h154l17 46c4 11-1 19-13 19H49c-12 0-17-8-13-19Z" fill="#1c1c1a" stroke="#a8a29e" stroke-width="1.6" />
+  <path d="M56 143h148l14 41c2 6-1 9-8 9H50c-7 0-10-3-8-9Z" fill="#080808" stroke="#e7e5e4" stroke-opacity="0.6" />
+  <g stroke="#78716c" stroke-opacity="0.35" stroke-width="0.65">
+    <path d="M57 149h146M55 155h150M53 163h154M50 172h160M47 183h166" />
+    <path d="m65 145-12 45m25-45-10 45m23-45-7 45m20-45-5 45m18-45-2 45m15-45v45m13-45 2 45m11-45 5 45m8-45 7 45m6-45 10 45m3-45 12 45" />
+  </g>
+  <path d="M59 140h142" stroke="#78716c" stroke-width="3" stroke-linecap="round" />
+  <path d="m52 118 6 29m150-29-6 29" stroke="#a8a29e" stroke-width="1.5" />
+
+  <!-- A matte silver front rim, two latches and a centered carry handle. -->
+  <path d="M35 187c1 9 6 13 16 13h158c10 0 15-4 16-13v11c0 9-5 13-15 13H50c-10 0-15-4-15-13Z" fill="#292928" stroke="#a8a29e" stroke-width="1.2" />
+  <path d="M48 204h164" stroke="#78716c" stroke-width="0.8" />
+  <rect x="77" y="198" width="11" height="11" rx="2" fill="#1c1c1a" stroke="#a8a29e" />
+  <rect x="172" y="198" width="11" height="11" rx="2" fill="#1c1c1a" stroke="#a8a29e" />
+  <path d="M80 201h5m90 0h5" stroke="#e7e5e4" stroke-width="0.8" />
+  <path d="M105 205v10c0 5 3 8 8 8h34c5 0 8-3 8-8v-10h-6v9c0 2-1 3-3 3h-32c-2 0-3-1-3-3v-9Z" fill="#292928" stroke="#a8a29e" stroke-width="1.2" stroke-linejoin="round" />
+
+  <!-- Always visible and floating in front of the lid; static for reduced motion. -->
+  <g class="portfolio-card">
+    <rect x="83" y="65" width="94" height="94" rx="8" fill="#111111" stroke="#a8a29e" stroke-width="1.25" />
+    <path d="M95 79h28" stroke="#e7e5e4" stroke-width="2" stroke-linecap="round" />
+    <path d="M95 86h17" stroke="#78716c" stroke-width="1.25" stroke-linecap="round" />
+    <path d="M95 105h70M95 120h70M95 135h70" stroke="#2b2b28" stroke-width="0.7" />
+    <path d="m95 132 12-10 10 4 13-15 10 5 13-17 12 4" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M95 147h8" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" />
+    <path d="M108 147h18" stroke="#78716c" stroke-width="1" stroke-linecap="round" />
+  </g>
+</svg>
