@@ -50,7 +50,7 @@ Core promise: build a hypothetical portfolio, explore its history, and compare a
 
 - Results: ending hypothetical value, total return, VOO difference in percentage points, largest historical decline/drawdown with plain-language explanation, and allocation breakdown.
 - Calculate metrics from the same series used by the chart. Keep hypothetical/past-performance limitations visible.
-- Cards: name/pin, period return, ending value, VOO difference, chart, asset count, per-card VOO toggle, and actions menu. Opening a card opens the workspace.
+- Dashboard cards are square and show the name, asset count, period percentage change, signed dollar change, chart, and a small legend. Opening a card opens the workspace, where portfolio management actions are available. One shared VOO ETF control above the cards toggles the benchmark across the dashboard.
 - Shared dashboard timeframe selector. Pinned portfolios first, then most recently updated; pinned tie-breaking needs a defined implementation rule.
 - Empty dashboard offers creation and an example. Deletion needs confirmation or undo.
 
@@ -80,7 +80,7 @@ Model, exact cooldown, Unicode length rules, failure/cache-hit accounting, retri
 
 ## Intended stack and data constraint
 
-Next.js, TypeScript, Tailwind CSS, shadcn/ui, Convex, Better Auth with Google, Groq, Vercel, and v0 for initial UI exploration. Verified application baseline: package.json declares Next.js 15, React 19, TypeScript 5, Tailwind CSS 4, and Convex; the app has a Convex provider and starter task UI. Better Auth, Groq, shadcn/ui, and Manrope are planned, not present in the inspected manifest/layout. Deployment has not been verified.
+Next.js, TypeScript, Tailwind CSS, shadcn/ui, Convex, Better Auth with Google, Groq, Vercel, and v0 for initial UI exploration. Current isolated frontend worktree: Next.js 15, React 19, TypeScript 5, Tailwind CSS 4, and the existing Convex provider are retained. The local demo adds Manrope, a copied shadcn/Base UI button foundation and Recharts. Better Auth, Groq, real history, and durable portfolio storage remain unimplemented. Deployment has not been verified. The original main-checkout baseline remains the starter.
 
 Market data must be free for the intended use. Free API access alone does not establish permission for public display, caching, derived analytics, or AI processing.
 
@@ -107,10 +107,14 @@ Cache shared history where permitted instead of refetching per card. Distinguish
 
 ## Open decisions and validation
 
-1. Review any v0 output against the existing app at `C:\Users\JuanE\Code\React Projects\tikr`; see `plan.md`.
+1. Review the integrated local v0 demo described in `plan.md`; the original main checkout is at `C:\Users\JuanE\Code\React Projects\tikr`; see `plan.md`.
 2. Prove a free permitted data source and verified discovery catalog.
 3. Specify exact return/dividend/date/precision/missing-history policies.
 4. Confirm AI defaults, identity requirements, and model after testing.
 5. Set practical portfolio/holding limits, duplicate-symbol rules, name validation, and numeric ranges.
 6. Define initial users, operating budget, and success signals. Proposed validation: can a beginner build alternatives and explain one historical tradeoff?
 7. Portfolio Visualizer and Testfolio were discussed as competitive references. Beginner-friendly experimentation is a positioning hypothesis, not validated differentiation.
+
+- Valid changes to holdings, weights, starting amount, and timeframe immediately recalculate the portfolio, comparisons, metrics, and individual asset returns. Incomplete edits retain the last valid result with a clear status. No Run simulation action is required.
+
+- The chart tooltip includes the active portfolio and up to two selected comparison portfolios in one panel; VOO remains excluded from the tooltip. Each row shows its color, USD value, and percentage change for the hovered date.
