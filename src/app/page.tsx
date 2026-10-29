@@ -1,4 +1,4 @@
-import TikrApp from "~/components/tikr-app";
+import LandingPage from "./_components/landing-page";
 export default function Page() {
-  return <TikrApp view="landing" />;
+  return <LandingPage />;
 }

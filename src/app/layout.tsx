@@ -1,4 +1,5 @@
 import "~/styles/globals.css";
+import { DemoPortfoliosProvider } from "~/providers/demo-portfolios-provider";
 
 import { type Metadata } from "next";
 import { Manrope } from "next/font/google";
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${manrope.variable}`}>
       <body>
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ConvexClientProvider>
+          <DemoPortfoliosProvider>{children}</DemoPortfoliosProvider>
+        </ConvexClientProvider>
       </body>
     </html>
   );

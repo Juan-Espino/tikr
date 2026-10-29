@@ -1,4 +1,4 @@
-import TikrApp from "~/components/tikr-app";
+import SignInPage from "./_components/sign-in-page";
 export default function Page() {
-  return <TikrApp view="login" />;
+  return <SignInPage />;
 }
