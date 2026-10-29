@@ -258,3 +258,11 @@ Exit: verified deployment, reproducible release checks, known limitations, owner
 ## PR preparation (2026-10-29)
 
 - Remote main was verified at ffcd0cd, matching this worktree's base. `pnpm.cmd check`, the five existing demo fixture tests, and `pnpm.cmd build` passed. The owner reported reviewing the primary journey, mobile layouts, and accessibility/motion; the latest deletion navigation, landing storage notice, and dashboard picker refinements still need browser verification. Real authentication, licensed history, Groq, server ownership, and deployment remain deferred.
+
+## Route ownership refactor (2026-10-29)
+
+- Each App Router entry now renders its own client page: landing, dashboard, sign-in, and dynamic portfolio. Removed `TikrApp` and its `view` switch. Dashboard cards and portfolio editor/comparison components live alongside their routes under private `_components` folders.
+- Root layout hosts a shared demo portfolio provider for hydration, browser persistence, drafts, save/delete operations, and notices. Page-specific timeframe, chart toggles, comparison selection and editor state remain local to the appropriate page. Shared shell renders navigation and storage feedback without deciding which page to show.
+- Portfolio URL IDs resolve against the hydrated store; absent IDs retain the recovery UI. Delete state updates and dashboard navigation share a React transition. No Convex functions, credentials, main-checkout changes, commits, or pushes are part of this refactor.
+- Verification: lint/TypeScript passed without warnings and all five financial fixture tests passed. Production build verification is recorded below. Browser regression of refresh/back/forward, invalid links, draft handoff, storage recovery, and deletion remains pending for the new provider lifecycle.
+- Final production build passed after the route refactor. The build emits all four intended routes, with route-specific bundles. No browser interaction results are claimed for this change.

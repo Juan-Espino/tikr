@@ -118,3 +118,7 @@ Cache shared history where permitted instead of refetching per card. Distinguish
 - Valid changes to holdings, weights, starting amount, and timeframe immediately recalculate the portfolio, comparisons, metrics, and individual asset returns. Incomplete edits retain the last valid result with a clear status. No Run simulation action is required.
 
 - The chart tooltip includes the active portfolio and up to two selected comparison portfolios in one panel; VOO remains excluded from the tooltip. Each row shows its color, USD value, and percentage change for the hovered date.
+
+## Frontend route organization (2026-10-29)
+
+The landing, dashboard, sign-in and portfolio URLs have separate App Router page entry points and route-specific UI components. Browser-local demo portfolios and drafts are shared through a provider; interactive chart and editor state remains page-local. This reorganizes the implementation without adding production persistence or authentication.

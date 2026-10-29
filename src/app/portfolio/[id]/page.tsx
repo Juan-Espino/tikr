@@ -1,9 +1,9 @@
-import TikrApp from "~/components/tikr-app";
+import PortfolioPage from "./_components/portfolio-page";
 export default async function Page({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <TikrApp view="portfolio" portfolioId={id} />;
+  return <PortfolioPage id={id} />;
 }

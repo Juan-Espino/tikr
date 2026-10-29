@@ -1,4 +1,4 @@
-import TikrApp from "~/components/tikr-app";
+import Dashboard from "./_components/dashboard";
 export default function Page() {
-  return <TikrApp view="dashboard" />;
+  return <Dashboard />;
 }
