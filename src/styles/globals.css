@@ -202,39 +202,6 @@ select {
   letter-spacing: 0.035em;
 }
 
-.piggy-coin-1 {
-  visibility: hidden;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .piggy-coin {
-    animation: piggy-deposit 3.6s ease-in infinite both;
-  }
-  .piggy-coin-1 {
-    visibility: visible;
-    animation-delay: 1.8s;
-  }
-}
-@keyframes piggy-deposit {
-  0% {
-    opacity: 0;
-    transform: translateY(-16px);
-  }
-  12%,
-  24% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(100px);
-  }
-  51%,
-  100% {
-    opacity: 0;
-    transform: translateY(100px);
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   .dialog-popup {
     opacity: 1;

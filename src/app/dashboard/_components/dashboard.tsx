@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import Image from "next/image";
+import { CandlestickGlobe } from "~/components/candlestick-globe";
 
 import { Button } from "~/components/ui/button";
 import { RangePicker } from "~/components/range-picker";
@@ -62,16 +62,8 @@ export default function Dashboard() {
           </Button>
         </div>
         {portfolios.length === 0 ? (
-          <section className="border-border bg-card mt-8 flex min-h-96 flex-col items-center justify-center rounded-xl border px-5 py-10 text-center md:px-7 md:py-12">
-            <Image
-              src="/illustrations/dashboard-suitcase.svg"
-              alt=""
-              aria-hidden="true"
-              width={260}
-              height={230}
-              unoptimized
-              className="h-auto w-56 max-w-full"
-            />
+          <section className="border-border bg-background mt-8 flex min-h-96 flex-col items-center justify-center rounded-xl border px-5 py-10 text-center md:px-7 md:py-12">
+            <CandlestickGlobe />
             <p className="text-muted-foreground mt-4 text-sm">
               Your portfolios will appear here.
             </p>
