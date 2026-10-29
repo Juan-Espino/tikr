@@ -1,19 +1,7 @@
 "use client";
 import { ArrowRight } from "lucide-react";
 import { WireframeGlobe } from "./wireframe-globe";
-function Logo() {
-  return (
-    <div className="flex items-center gap-2 text-[17px] font-semibold tracking-[-0.04em]">
-      <span className="grid size-5 grid-cols-2 gap-[3px]">
-        <i className="rounded-[3px] bg-stone-200" />
-        <i className="rounded-[3px] bg-stone-500" />
-        <i className="rounded-[3px] bg-stone-500" />
-        <i className="rounded-[3px] bg-stone-200" />
-      </span>
-      Tikr
-    </div>
-  );
-}
+import { TikrLogo } from "./tikr-logo";
 
 function AppHeader({
   onLogin,
@@ -25,7 +13,7 @@ function AppHeader({
   return (
     <header className="flex items-center justify-between px-5 py-5 md:px-10">
       <button onClick={onDashboard} aria-label="Go to dashboard">
-        <Logo />
+        <TikrLogo />
       </button>
       <nav className="flex items-center gap-4 text-[12px] text-stone-400 md:flex">
         <button onClick={onDashboard} className="hover:text-stone-100">
@@ -121,7 +109,7 @@ export function Login({
           aria-label="Go to landing page"
           className="self-start"
         >
-          <Logo />
+          <TikrLogo />
         </button>
         <div className="m-auto w-full max-w-sm py-14">
           <p className="supporting-copy mb-4 text-[11px] tracking-[.18em] text-stone-600 uppercase">

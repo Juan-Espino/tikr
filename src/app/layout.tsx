@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   title: "Tikr | Historical portfolio lab",
   description:
     "Build hypothetical portfolios with an explicitly labeled local sample-data demo.",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  icons: {
+    icon: [
+      { url: "/brand/bear-head-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/bear-head-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/brand/bear-head-180.png",
+  },
 };
 
 const manrope = Manrope({

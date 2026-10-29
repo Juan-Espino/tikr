@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
+import { TikrLogo } from "~/components/tikr-logo";
 
 import { newPortfolio } from "~/lib/demo";
 
@@ -63,7 +64,7 @@ export function AppShell({
           className="text-lg font-semibold"
           onClick={() => router.push("/")}
         >
-          Tikr
+          <TikrLogo />
         </button>
         <span className="text-muted-foreground text-xs">
           Local demo · synthetic sample data

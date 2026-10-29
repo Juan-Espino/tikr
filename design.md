@@ -139,3 +139,22 @@ Desktop/mobile, keyboard/focus, contrast, touch charts, reduced motion, long nam
 - Dashboard timeframe refinement: left-align the picker on desktop and mobile, with options expanding to the right; retain space for the expanded control on desktop.
 
 - Dashboard desktop control order: Resume draft, Show VOO, then the left-aligned timeframe picker. Mobile keeps the picker on its own row first.
+
+## Bear mascot (2026-10-29)
+Owner selected a relaxed, slightly grinning bear on a vintage cruiser longboard, riding a gently descending graph. Full-scene and transparent rider assets live in public/brand. A simplified SVG bear-head derivative and raster icon sizes are prepared for owner review. The empty dashboard now uses a continuous sideways skating loop with pause and a static reduced-motion fallback, replacing the briefcase there.
+
+- Owner approved the bear-head preview with black aviator frames, amber lenses and a slimmer grin. Use the approved raster mark with the Tikr wordmark on landing, sign-in and app headers, and for favicon exports.
+
+- Dashboard bear rider uses a low crouch and amber aviators. It cruises left to right and turns back at each edge; a pause control and static reduced-motion state remain available.
+
+- Dashboard rider now kneels with one leg bent and one knee on the deck, skating fully offscreen before turning and returning.
+
+- Dashboard bear uses thicker legs and a monochrome board; the loop waits two seconds offscreen at each end. A standing, arms-out balancing pose is available as an alternate rider.
+
+- Dashboard bear rides standing to the right and kneeling to the left, switching poses offscreen. Both share the fur-tuft silhouette and monochrome board.
+
+- Dashboard empty-state illustration now uses a static wireframe globe grid with gray dots at grid intersections and softly glowing red and green candlesticks. Tiky is absent from this illustration; prior skating assets are retained.
+
+- Dashboard empty-state refinement: match the surrounding #080808 background. Show the entire wireframe globe, with dots at grid intersections and a slow rotation; decorative glowing candlesticks stay fixed in front. Reduced motion keeps the globe static.
+
+- Empty portfolio now uses the same rotating wireframe globe as the dashboard, overlaid with three outlined holdings tiles. The decorative charts are green rising, neutral, and red falling. Tiles gently float; reduced motion displays a static arrangement. Existing guidance remains.

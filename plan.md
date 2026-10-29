@@ -266,3 +266,22 @@ Exit: verified deployment, reproducible release checks, known limitations, owner
 - Portfolio URL IDs resolve against the hydrated store; absent IDs retain the recovery UI. Delete state updates and dashboard navigation share a React transition. No Convex functions, credentials, main-checkout changes, commits, or pushes are part of this refactor.
 - Verification: lint/TypeScript passed without warnings and all five financial fixture tests passed. Production build verification is recorded below. Browser regression of refresh/back/forward, invalid links, draft handoff, storage recovery, and deletion remains pending for the new provider lifecycle.
 - Final production build passed after the route refactor. The build emits all four intended routes, with route-specific bundles. No browser interaction results are claimed for this change.
+
+## Bear branding assets (2026-10-29)
+Created full-scene PNG, transparent rider PNG, clean SVG head and 16/24/32/48/180/192/512px exports. Connected favicon metadata and dashboard BearCruiser component. Animation is a 12-second horizontal translation with offscreen reset, manual pause, and reduced-motion fallback. Lint and TypeScript passed. Transparency metadata verified; small-icon export inspected. Browser motion, responsive appearance and owner review of the simplified head remain pending. No backend, deployment, commit or main-checkout changes.
+
+- Bear identity update: installed the approved aviator-head preview and refreshed icon exports; shared wordmark appears on landing, sign-in and the app shell. Lint and TypeScript passed; 32px export visually inspected. Browser appearance remains unverified.
+
+- Updated the dashboard rider to a generated crouching bear with aviators. Its six-second loop travels between stage edges and flips at each turnaround; pause and reduced motion are retained. pnpm check passed. Browser motion and narrow-screen appearance remain to be verified.
+
+- Refined the dashboard rider pose to a kneeling crouch and moved both turnarounds offscreen. Pause and reduced motion remain; pnpm check passed. Browser motion review remains pending.
+
+- Generated monochrome-board kneeling and standing rider illustrations; dashboard defaults to kneeling, with a standing component option. Loop crosses in three seconds per direction and waits two seconds offscreen at each end. pnpm check passed; browser motion and responsive review remain pending.
+
+- Matched kneeling bear fur to the standing pose and combined both in the dashboard loop, switching offscreen. Pause and static reduced-motion fallback remain. pnpm check passed; browser motion review remains pending.
+
+- Replaced the dashboard skating animation with the generated static candlestick globe illustration at the owner's request. Lint and TypeScript passed. Responsive visual review remains pending; the candlesticks are decorative, not market data.
+
+- Replaced the static cropped candlestick image in the dashboard with a complete orthographic wireframe globe and independently fixed decorative candlesticks. The globe rotates at the landing globe's rate, pauses offscreen or when hidden, and respects reduced motion; the empty section uses the page background. pnpm check passed. Responsive visual and motion review remains pending.
+
+- Replaced the empty portfolio pig with the shared dashboard wireframe globe and a decorative three-tile overlay; removed unused pig coin styles. pnpm check passed; desktop/mobile and motion visual review remain pending.
