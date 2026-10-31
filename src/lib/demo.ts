@@ -2,8 +2,8 @@ import { z } from "zod";
 
 export const assets = [
   {
-    ticker: "VOO",
-    name: "Vanguard S&P 500 ETF",
+    ticker: "SPY",
+    name: "State Street SPDR S&P 500 ETF Trust",
     type: "ETF",
     category: "Broad market",
   },
@@ -37,7 +37,11 @@ export const ranges = ["1W", "1M", "YTD", "1Y", "5Y", "Max"] as const;
 export type Range = (typeof ranges)[number];
 export type Holding = { ticker: string; weight: string };
 const holdingSchema = z.object({
-  ticker: z.string().refine((t) => assets.some((a) => a.ticker === t)),
+  ticker: z
+    .string()
+    // Preserve browser-local demo portfolios saved before the SPY switch.
+    .transform((ticker) => (ticker === "VOO" ? "SPY" : ticker))
+    .refine((t) => assets.some((a) => a.ticker === t)),
   weight: z.string().max(12),
 });
 export const portfolioSchema = z.object({
@@ -105,7 +109,7 @@ export function examples(): Portfolio[] {
     {
       ...newPortfolio(),
       name: "Long-term core",
-      holdings: equalWeights(["VOO", "MSFT", "SCHD"]),
+      holdings: equalWeights(["SPY", "MSFT", "SCHD"]),
       pinned: true,
     },
     {
@@ -116,7 +120,7 @@ export function examples(): Portfolio[] {
     {
       ...newPortfolio(),
       name: "Quiet compounding",
-      holdings: equalWeights(["VOO", "SCHD"]),
+      holdings: equalWeights(["SPY", "SCHD"]),
     },
   ];
 }

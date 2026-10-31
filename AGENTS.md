@@ -22,11 +22,11 @@ Convex agent skills for common tasks can be installed by running
 
 Keep confirmed requirements distinct from assistant proposals. Explicit owner decisions override older documentation; reconcile the affected documents. A v0 prompt does not prove implementation exists.
 
-## Application baseline (2026-10-25)
+## Application baseline (2026-10-30)
 
 Correct repository: `C:\Users\JuanE\Code\React Projects\tikr`, branch `main`. This is a runnable-app source tree, not the unrelated outer repository with an unmapped gitlink.
 
-Verified source: Create T3 App starter, Next.js App Router, React, TypeScript, Tailwind 4, Convex provider, and task demo. `src/app/layout.tsx` uses Geist/starter metadata, not the approved Manrope design. Better Auth, Groq, and shadcn/ui are planned and absent from the inspected manifest. Do not claim portfolio functionality or production connections are complete.
+Verified source: the portfolio demo frontend and App Router refactor are merged into `main` at `06b8ef3`. Landing, dashboard, sign-in, and portfolio pages share a browser-local portfolio/draft provider. The UI includes Manrope, charts, Base UI-backed component foundations, and the wireframe globe. The existing Convex provider remains, but portfolio persistence still uses localStorage. Better Auth, Groq, licensed market history, and server-enforced portfolio ownership are not implemented. Frontend completion is not production readiness.
 
 Use pnpm: the manifest specifies `pnpm@10.11.0` and `pnpm-lock.yaml` is tracked. Preserve the Convex managed instructions above. Before Convex code changes, read `convex/_generated/ai/guidelines.md`. Generated files should not be edited as application source. `CLAUDE.md` contains parallel Convex guidance; it was not modified by the documentation transfer.
 
@@ -42,7 +42,7 @@ Use pnpm: the manifest specifies `pnpm@10.11.0` and `pnpm-lock.yaml` is tracked.
 ## Product invariants
 
 - Historical simulation only: no predictions or trade execution.
-- VOO is an explicitly named ETF benchmark. Compared series share dates, starting amount, and methodology.
+- SPY is the explicitly named ETF benchmark, replacing VOO by owner decision on 2026-10-30. Compared series share dates, starting amount, and methodology.
 - Equal weights by default; manual weights must be positive and total exactly 100% before finalization/backtesting. Handle rounding deterministically.
 - Never omit missing holdings/history silently or invent earlier prices. Statistics must agree with charts.
 - Google-only authentication; preserve guest drafts and enforce portfolio ownership server-side.
@@ -65,7 +65,7 @@ Commands below are taken from the inspected manifest; their availability is not 
 - `pnpm check`: configured lint plus TypeScript check.
 - `pnpm format:check`: configured Prettier check for TS/TSX/JS/JSX/MDX; it does not include plain Markdown files.
 
-No test script is defined. Do not invent a passing test command or silently add a broad test framework. Use the actual scripts; report failures without fixing unrelated code under a documentation-only request. Setup, Convex connection, authentication, and deployment need separate verification.
+No test script is defined in package.json, but the existing fixture suite is run with `node --experimental-strip-types --test tests/demo.test.mjs`. It validates demo calculations and storage rules, not a licensed historical-data integration. Do not invent passing checks or silently add a broad test framework. Report failures without fixing unrelated code under a documentation-only request. Convex connectivity, real authentication, and deployment need separate verification.
 
 For Markdown changes, check whitespace, final newlines, document references, and confirmed/proposed labels. Run `git diff --check`; inspect untracked files directly before staging because normal Git diff omits them. Inspect final status for unrelated changes.
 

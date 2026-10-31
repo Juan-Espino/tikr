@@ -16,17 +16,17 @@ import {
 export function PortfolioCard({
   p,
   range,
-  voo,
+  spy,
   onOpen,
 }: {
   p: Portfolio;
   range: Range;
-  voo: boolean;
+  spy: boolean;
   onOpen: () => void;
 }) {
-  const [showBenchmark, setShowBenchmark] = useState(voo);
+  const [showBenchmark, setShowBenchmark] = useState(spy);
   useEffect(() => {
-    if (voo) {
+    if (spy) {
       setShowBenchmark(true);
       return;
     }
@@ -36,9 +36,9 @@ export function PortfolioCard({
     }
     const timer = window.setTimeout(() => setShowBenchmark(false), 900);
     return () => window.clearTimeout(timer);
-  }, [voo]);
+  }, [spy]);
   const points = series(p.holdings, range, 10000);
-  const benchmark = series(equalWeights(["VOO"]), range, 10000);
+  const benchmark = series(equalWeights(["SPY"]), range, 10000);
   const stats = metrics(points);
   const change = stats.ending - 10000;
   const changeAmount = new Intl.NumberFormat("en-US", {
@@ -86,10 +86,10 @@ export function PortfolioCard({
             ...(showBenchmark
               ? [
                   {
-                    name: "VOO ETF benchmark",
+                    name: "SPY ETF benchmark",
                     points: benchmark,
                     kind: "benchmark" as const,
-                    exiting: !voo,
+                    exiting: !spy,
                   },
                 ]
               : []),

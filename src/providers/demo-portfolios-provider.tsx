@@ -36,6 +36,11 @@ function usePortfolioStore() {
           throw new Error("Invalid saved portfolio");
         setPortfolios(stored.portfolios);
         setDraft(stored.draft);
+        if (/"ticker"\s*:\s*"VOO"/.test(raw)) {
+          setNotice(
+            "The demo now uses SPY. Previous VOO sample holdings were updated to SPY; your saved portfolios and draft were preserved.",
+          );
+        }
       }
     } catch {
       setStorageBlocked(true);

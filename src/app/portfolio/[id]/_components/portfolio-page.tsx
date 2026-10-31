@@ -87,7 +87,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     persistDraft(p);
   }
   const [editorOpen, setEditorOpen] = useState(false);
-  const [voo, setVoo] = useState(true);
+  const [spy, setSpy] = useState(true);
   const [dollars, setDollars] = useState(false);
   const [comparison, setComparison] = useState<string[]>([]);
   const [result, setResult] = useState<Portfolio | null>(() =>
@@ -96,7 +96,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
       : null,
   );
   const visibleComparisonLines = useExitingSelections([
-    ...(voo ? ["benchmark"] : []),
+    ...(spy ? ["benchmark"] : []),
     ...comparison.map((id) => `portfolio:${id}`),
   ]);
   const valid =
@@ -123,7 +123,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     ? series(result.holdings, result.range, Number(result.amount))
     : [];
   const benchmark = result
-    ? series(equalWeights(["VOO"]), result.range, Number(result.amount))
+    ? series(equalWeights(["SPY"]), result.range, Number(result.amount))
     : [];
   const stats = metrics(activePoints);
   const resultsOutdated =
@@ -260,15 +260,15 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             <div className="my-5 flex flex-wrap items-center gap-3">
               <Button
                 variant="outline"
-                aria-pressed={voo}
-                onClick={() => setVoo((value) => !value)}
+                aria-pressed={spy}
+                onClick={() => setSpy((value) => !value)}
                 className={
-                  voo
+                  spy
                     ? "!bg-card hover:!bg-muted"
                     : "!bg-background hover:!bg-muted"
                 }
               >
-                Show VOO
+                Show SPY
               </Button>
               <Button
                 variant="outline"
@@ -306,7 +306,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                     ["Ending value", money(stats.ending)],
                     ["Total return", percent(stats.return)],
                     [
-                      "Difference vs VOO",
+                      "Difference vs SPY",
                       `${(stats.return - metrics(benchmark).return).toFixed(2)} pp`,
                     ],
                   ].map(([label, value]) => (
@@ -334,10 +334,10 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                     ...(visibleComparisonLines.includes("benchmark")
                       ? [
                           {
-                            name: "VOO ETF benchmark",
+                            name: "SPY ETF benchmark",
                             points: benchmark,
                             kind: "benchmark" as const,
-                            exiting: !voo,
+                            exiting: !spy,
                           },
                         ]
                       : []),

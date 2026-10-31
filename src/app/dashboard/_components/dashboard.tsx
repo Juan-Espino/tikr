@@ -23,7 +23,7 @@ function Disclosure() {
 export default function Dashboard() {
   const { portfolios, setPortfolios, draft, open } = useDemoPortfolios();
   const [range, setRange] = useState<Range>("1Y");
-  const [voo, setVoo] = useState(true);
+  const [spy, setSpy] = useState(true);
   return (
     <AppShell centered>
       {" "}
@@ -54,11 +54,11 @@ export default function Dashboard() {
           )}
           <Button
             variant="outline"
-            aria-pressed={voo}
-            onClick={() => setVoo((current) => !current)}
-            className={`order-3 sm:order-2 ${voo ? "!bg-card hover:!bg-muted" : "!bg-background hover:!bg-muted"}`}
+            aria-pressed={spy}
+            onClick={() => setSpy((current) => !current)}
+            className={`order-3 sm:order-2 ${spy ? "!bg-card hover:!bg-muted" : "!bg-background hover:!bg-muted"}`}
           >
-            Show VOO
+            Show SPY
           </Button>
         </div>
         {portfolios.length === 0 ? (
@@ -94,7 +94,7 @@ export default function Dashboard() {
                   p={p}
                   range={range}
                   onOpen={() => open(p)}
-                  voo={voo}
+                  spy={spy}
                 />
               ))}
           </div>

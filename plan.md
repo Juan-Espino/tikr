@@ -1,15 +1,54 @@
 # Tikr delivery plan
 
-Last checked: 2026-10-25.
+Main-checkout handoff (2026-10-30): owner requested integrating the reviewed worktree changes into C:\Users\JuanE\Code\React Projects\tikr. Applied SPY frontend/fixtures and reconciled research/product/design/AGENTS updates while preserving pre-existing main edits and staged state. No branch merge commit, commit, push or PR created. Main HEAD remains 7b56909; changes await owner review and commit. Main fixture suite passed 6/6; uncached lint and standalone TypeScript passed after restoring frozen-lockfile dependencies. Cached lint initially reported stale type errors. Browser/build review not repeated.
+
+Current worktree update (2026-10-30): fast-forwarded research/free-services-feasibility to local main at `7b56909`, importing the branding/globe changes. Preserved and reconciled uncommitted SPY frontend changes and research/coordinator documents; main checkout left untouched. No new commit or push. Prior synchronization notes below describe earlier states. Current task: verify combined checks and let owner review the updated worktree.
+
+Combined verification passed: `pnpm.cmd check` (lint and TypeScript), all six existing/updated fixture tests, and `git diff --check`. No unmerged files remain. Browser review and production build were not repeated for this synchronization; next step is owner review of the updated worktree.
+
+Worktree synchronization (2026-10-30): owner clarified to update only this research worktree from the local main checkout, leaving main untouched. Both committed trees are at 06b8ef3, so no source merge was needed. Reconciled main's uncommitted AGENTS/product/design/plan updates into this worktree while preserving SPY and research changes; retained its original free-services outline alongside local findings. Remote-tracking origin/main is separately at 7b56909 (branding merge); it was not imported by this local-checkout synchronization. No commit, push, branch move or write to the main checkout.
+
+Frontend benchmark switch (2026-10-30): owner selected SPY to replace VOO. Updated dashboard/workspace controls, comparison labels, chart legends, benchmark series, sample catalog/fund name, examples and existing fixtures. Legacy browser-local demo VOO holdings migrate to SPY with a visible notice, preserving portfolio/draft fields. Real FMP history/auth/backend integration remains unimplemented; synthetic-data disclosures stay in place. Verification pending below.
+
+Verification: initial tests/check were blocked by absent node_modules. Restored exact existing dependencies with `pnpm.cmd install --frozen-lockfile`; manifest and lockfile unchanged. `pnpm.cmd check` passed lint and TypeScript; `node --experimental-strip-types --test tests/demo.test.mjs` passed 6/6, including legacy saved portfolio/draft migration and unknown-symbol rejection. Targeted frontend Prettier applied; `git diff --check` passed. Remaining source VOO literals are compatibility handling/notice and its regression fixture. Browser interaction review and production build were not run for this ticker switch. Next: owner review of SPY labels, then separate real-data validation/integration planning.
+
+Owner-run SPY dividend-adjusted endpoint succeeded for October 26–29, 2026. This proves short-range endpoint entitlement, not corporate-action correctness or five-year adjusted coverage. Next: five-year adjusted SPY and AAPL checks, then action/date methodology validation. Public licensing remains separate.
+
+Five-year SPY check: owner reports success for the requested five-year range. SPY remains the leading replacement benchmark candidate. Next data task is dividend-adjusted endpoint entitlement/methodology and date-completeness validation; private technical feasibility is improved, public licensing remains unresolved.
+
+SPY feasibility evidence (2026-10-30): owner-run FMP request returned four daily records covering October 26–29. SPY short-range access verified by supplied response; next step is five-year SPY depth/count and dividend-method validation. No benchmark integration or full-feasibility claim; no need to test other ETFs unless SPY fails subsequent checks.
+
+Benchmark decision update (2026-10-30): owner accepts another S&P 500-tracking ETF instead of mandatory VOO; product.md reconciled. Owner-run FMP AAPL history reaches 2021, VOO denied by premium-symbol restriction. Next private feasibility step: short-date SPY, IVV, then SPYM entitlement checks, then five-year/action validation for a successful candidate. No general ETF exclusion inferred and no benchmark chosen. Public-use license gate remains open; no backend changes.
+
+Latest data research: FMP standard license rejected based on explicit terms 2.2.1/2.2.2 covering complimentary multi-user apps; Finnhub standard terms also reject sharing derived results. Additional leads OHLC, Financial Datasets and GetMarketHistory do not establish free required coverage/rights. Owner supplied Stooq's personal-use notice and 518 MB U.S. daily listing. Full evidence and unsent FMP permission draft are in free-services-plan.md. M2 is blocked on data permission/entitlement evidence, not implementation. No permitted zero-cost public path proven; next evidence is an applicable written grant or owner-approved scope/budget change. No provider contacted, account created, history downloaded, or backend changed.
+
+## Data-feasibility research checkpoint (2026-10-30)
+
+Selected research worktree HEAD verified at `06b8ef3`. Owner's current merge-history report supersedes older isolated-frontend/main-untouched descriptions below; historical verification records are preserved. Portfolios remain browser-local, history remains synthetic, and branding `cc71128` is outside this research task.
+
+Stage 1 preliminary official-source evidence is recorded in `free-services-plan.md`. No candidate yet demonstrates a permitted zero-cost public history/catalog path. Findings await owner review; M2 stays open. Next task: review licensing blockers and acceptable scope, then continue evidence gathering before selecting or integrating a provider. No application checks were rerun, dependencies installed, provider contacted, or backend integration changed.
+
+Owner follow-up: current scope is strictly non-commercial with no planned ads/subscriptions; five-year history support is required, and alternatives should be researched. Recorded in product.md. Alternative screening in free-services-plan.md found depth failures (Marketstack/EODHD), storage/chart restrictions (Tiingo), public-sharing restrictions (SimFin), obsolete history (WIKI), and unreadable primary evidence (Stooq/Finnhub). No permitted free path demonstrated; M2 remains open. Next: owner review of these findings and unresolved primary-source permissions. No shorter-history concession, vendor selection or paid fallback adopted.
+
+Hybrid history discussion: importing five years once and using a separately permitted recent-history updater is technically plausible. Illustrative compact storage estimates and reconciliation hazards are recorded in free-services-plan.md; actual database size/free-tier fit and a compatible licensed provider pair remain unverified. This is a proposal, not an approved architecture or implementation task.
+
+Owner correction: determine storage and I/O budget before proposing Convex for history. Official Free limits reviewed: 0.5 GB database storage including indexes and 1 GB/month database I/O; account headroom and actual encoded data size unmeasured. Record in free-services-plan.md. No history placement approved; next capacity task is a measured catalog/encoding/index/traffic budget, alongside unresolved data rights.
+
+Narrowed assistant recommendation: validate a single permitted downloadable EOD source feeding versioned static per-asset files on intended Vercel hosting; keep market observations out of Convex. Stooq permission draft prepared in free-services-plan.md, not sent. Hybrid API updates remain conditional fallback; no standard-free public API approved. Owner has not adopted catalog limits, storage design or vendor. Next gate: explicit public file/display/cache rights plus five-year VOO and adjustment evidence, followed by measured bytes/refresh/hosting budget. No implementation or deployment.
+
+Latest checkout update (2026-10-30): local main is now at `7b56909`, including the branding merge. Restoring local documentation after the pull conflicted only in this file; retained both the branding history and coordinator reconciliation below. Older checkout/branch observations remain historical. No new commit or push was made during conflict resolution.
+
+Last checked: 2026-10-30.
 
 ## Current state
 
-- Frontend integration is isolated in `C:\Users\JuanE\.t3\worktrees\tikr\feat-v0-portfolio-frontend`, based on `ffcd0cd`. Main checkout is untouched. No commit, merge, PR, provisioning, or deployment is part of this task.
+- Frontend integration and route ownership refactor are merged into the actual app at `C:\Users\JuanE\Code\React Projects\tikr`, branch `main`, HEAD `06b8ef3`. Local Git history records merges of the frontend and App Router refactor. This reconciliation does not create or modify a PR.
 - v0 ZIP was inspected before source edits. See `prototype-review.md` for reuse, dependency differences, mocked behavior, and requirement conflicts.
-- The starter page is replaced by a local interactive demo: landing, bright Google-only sign-in preview, dashboard, and combined editor/results. Manrope and approved matte stone palette are implemented. Owner visual acceptance remains pending.
+- The owner reports the frontend is virtually complete. Source includes landing, bright Google-only sign-in preview, dashboard, and portfolio workspaces with shared browser-local persistence. Design work is substantially complete; latest route/provider lifecycle regression is still a distinct verification gap, not a reason to restart the UI.
 - Convex backend/generated files remain unchanged. Existing provider still wraps the app; a missing-URL guard permits standalone demo rendering without provisioning or inventing a deployment URL.
 - Browser-local portfolios/drafts are separate from Convex and are explicitly labeled. Real auth, licensed market history, Groq, server ownership, and quotas are deferred.
 - pnpm 10.11.0, Next.js 15, React 19, Tailwind 4 retained. Added only imported UI/chart dependencies; no ZIP framework/config/lockfile replacement or analytics.
+- The latest branding/empty-state commit `cc71128` (Add Tiky branding and globe empty states) is on the clean local branch `feat/tiky-branding`, not yet in main. Its worktree is `C:\Users\JuanE\.t3\worktrees\tikr\feat-v0-portfolio-frontend`. This review does not merge it or assume the branding is a confirmed product rename.
 
 ### Location correction
 
@@ -17,7 +56,20 @@ The documents were originally committed to a separate outer repository at `C:\Us
 
 ## Next actionable task
 
-**Review this local demo visually, then resolve M2 data licensing and calculation policy before real history integration.** Confirm production limits and route/deep-link behavior separately. Real Google authentication, ownership, and Groq remain subsequent milestones.
+The ordered research checklist for the data-feasibility handoff is `free-services-plan.md` (2026-10-30). Begin with licensed free market history/catalog feasibility; verify Convex/auth in parallel where useful, then hosting, Groq, and operational services. This is a research outline, not provider approval or authorization to provision integrations.
+
+**Review and integrate the remaining `feat/tiky-branding` commit through the intended frontend handoff, synchronize main's dependencies, and finish the focused frontend closeout below; then resolve M2 free market-data permissions and calculation policy.** No merge is authorized by this status review alone. Run `pnpm.cmd install --frozen-lockfile` in the correct app root before repeating checks: this checkout currently cannot resolve several dependencies already declared in package.json. Do not change application types or relax lint rules to compensate for missing packages. M2 is the largest feasibility gate before real history can replace demo series. In parallel, M3 can add Better Auth Google sign-in, Convex portfolio ownership/persistence, and guest-draft handoff without depending on a price provider. Groq discovery follows a verified asset catalog and approved quotas; it is not the next critical dependency.
+
+### Workspace binding caveat
+
+The coordinator chat is still attached to `C:\Users\JuanE\.t3\worktrees\tikr\t3-39cd552a` in the unrelated outer repository, not this app's Git worktree family. T3 reports the thread is already attached; its handoff tool cannot move an already-attached worktree, and thread-update cannot change workspace/branch. No shell-created checkout, mixed repository history, project-wide setting change, or new thread was used to imply a successful migration. This review uses the explicit correct application path. Future implementation should be bound to the actual app project; the chat's workspace migration remains unresolved.
+
+### Focused frontend closeout
+
+- Existing source and prior records support an implemented demo, not real Google auth, licensed returns, or server persistence.
+- Recheck refresh/back/forward, invalid portfolio URLs, guest draft handoff, deletion navigation, and storage failure/recovery after the shared-provider refactor.
+- Keep user data intact during testing. Prior browser evidence predates some lifecycle changes; no new browser review is claimed here.
+- Rerun configured checks and the existing five demo fixture tests. The results do not prove the production return methodology or provider licensing.
 
 ## Milestones
 
@@ -33,7 +85,7 @@ Exit: frontend setup is usable. Production/backend configuration is a separate v
 
 ### M1 - Review an interactive frontend prototype
 
-Status: implemented local frontend demo; verification recorded below. Owner acceptance remains pending.
+Status: frontend demo and route refactor merged; owner reports near completion. Focused post-refactor route/storage regression remains pending.
 
 - Landing, Google-only login composition, dashboard, combined builder/results.
 - Deterministic labeled sample data; metrics agree with charts.
@@ -267,6 +319,7 @@ Exit: verified deployment, reproducible release checks, known limitations, owner
 - Verification: lint/TypeScript passed without warnings and all five financial fixture tests passed. Production build verification is recorded below. Browser regression of refresh/back/forward, invalid links, draft handoff, storage recovery, and deletion remains pending for the new provider lifecycle.
 - Final production build passed after the route refactor. The build emits all four intended routes, with route-specific bundles. No browser interaction results are claimed for this change.
 
+
 ## Bear branding assets (2026-10-29)
 Created full-scene PNG, transparent rider PNG, clean SVG head and 16/24/32/48/180/192/512px exports. Connected favicon metadata and dashboard BearCruiser component. Animation is a 12-second horizontal translation with offscreen reset, manual pause, and reduced-motion fallback. Lint and TypeScript passed. Transparency metadata verified; small-icon export inspected. Browser motion, responsive appearance and owner review of the simplified head remain pending. No backend, deployment, commit or main-checkout changes.
 
@@ -285,3 +338,12 @@ Created full-scene PNG, transparent rider PNG, clean SVG head and 16/24/32/48/18
 - Replaced the static cropped candlestick image in the dashboard with a complete orthographic wireframe globe and independently fixed decorative candlesticks. The globe rotates at the landing globe's rate, pauses offscreen or when hidden, and respects reduced motion; the empty section uses the page background. pnpm check passed. Responsive visual and motion review remains pending.
 
 - Replaced the empty portfolio pig with the shared dashboard wireframe globe and a decorative three-tile overlay; removed unused pig coin styles. pnpm check passed; desktop/mobile and motion visual review remain pending.
+
+## Coordinator reconciliation (2026-10-30)
+
+- Reviewed actual app main at `06b8ef3`, its manifest, route tree, shared localStorage provider, and recent merge history. Updated the current-state summaries in all four coordination documents; older entries above remain historical evidence, not current branch status.
+- Owner reports near-complete frontend. No new design approval, browser regression, deployment, or live backend verification is claimed by this review.
+- Reran the existing demo fixture suite: 5/5 passed with `node --experimental-strip-types --test tests/demo.test.mjs`.
+- `pnpm.cmd check` failed in lint; its chained TypeScript step therefore did not run. A separate `pnpm.cmd typecheck` also failed. Missing modules include lucide-react, Recharts, Base UI, d3-geo, and utility dependencies already listed in the manifest. Direct module-resolution checks confirm the main checkout's install is not synchronized. Do not infer a new frontend regression solely from the resulting unsafe-any/type-resolution errors.
+- No dependency install, source fixes, production build, secret access, commit, merge, push, project-setting change, or workspace migration was performed in this coordinator review. Reconcile dependencies from the frozen lockfile and repeat checks before adding backend work.
+- Git whitespace checks pass for the documentation edits. Browser lifecycle checks remain pending as described above.

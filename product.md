@@ -1,6 +1,6 @@
 # Tikr product
 
-Last reconciled: 2026-10-25. This document owns product scope; `design.md` owns presentation, `plan.md` owns delivery status, and `AGENTS.md` owns repository work.
+Last reconciled: 2026-10-30. This document owns product scope; `design.md` owns presentation, `plan.md` owns delivery status, and `AGENTS.md` owns repository work.
 
 ## Decision status
 
@@ -18,8 +18,8 @@ Core promise: build a hypothetical portfolio, explore its history, and compare a
 2. Guests can build and backtest before login. Preserve their draft through authentication so saving does not require rebuilding.
 3. Search supported U.S.-listed stocks/ETFs by ticker or full company/fund name and add holdings.
 4. Keep editing and results in one workspace; change holdings/weights and rerun without switching screens.
-5. VOO is the default benchmark, with an independent on/off toggle.
-6. Compare against saved portfolios: active portfolio plus up to two saved portfolios, with VOO as an additional line.
+5. SPY is the default benchmark, with an independent on/off toggle.
+6. Compare against saved portfolios: active portfolio plus up to two saved portfolios, with SPY as an additional line.
 7. Google is the only sign-in method, using Better Auth. Signed-in users can save multiple portfolios and reach a dashboard.
 8. Rename, duplicate, pin/unpin, and delete portfolios. No drag-and-drop or manual ordering.
 
@@ -40,7 +40,8 @@ Core promise: build a hypothetical portfolio, explore its history, and compare a
 - U.S.-listed stocks/ETFs and end-of-day data. Use consistent dividend/split treatment; the exact adjusted-return/reinvestment methodology remains to be specified.
 - Timeframes: 1W, 1M, YTD, 1Y, 5Y, maximum available, conditional on licensed data coverage.
 - Compared series use identical dates, starting amount, contribution assumptions, and return methodology, not each saved portfolio's individual settings.
-- Default to percentage growth with an optional dollar-value view. Label VOO as an ETF benchmark/proxy, not the S&P 500 index itself.
+- Owner update (2026-10-30): VOO is no longer mandatory; another verified ETF tracking the general S&P 500 is acceptable as the benchmark. Earlier VOO-specific defaults and references describe the original choice; they do not require retaining VOO after this decision. Owner selected SPY for the frontend demo on 2026-10-30; real-data integration is separate. Identify the actual ETF by ticker and do not label its returns as the index itself.
+- Default to percentage growth with an optional dollar-value view. Label SPY as an ETF benchmark/proxy, not the S&P 500 index itself.
 - Show actual simulation dates, data-as-of date, assumptions, and any shortened shared history.
 - Never silently omit a holding, fabricate pre-inception prices, or compare mismatched date ranges as equivalent.
 - Editing holdings recalculates hypothetical history; it does not imply historical ownership.
@@ -48,9 +49,9 @@ Core promise: build a hypothetical portfolio, explore its history, and compare a
 
 ## Results and dashboard
 
-- Results: ending hypothetical value, total return, VOO difference in percentage points, largest historical decline/drawdown with plain-language explanation, and allocation breakdown.
+- Results: ending hypothetical value, total return, SPY difference in percentage points, largest historical decline/drawdown with plain-language explanation, and allocation breakdown.
 - Calculate metrics from the same series used by the chart. Keep hypothetical/past-performance limitations visible.
-- Dashboard cards are square and show the name, asset count, period percentage change, signed dollar change, chart, and a small legend. Opening a card opens the workspace, where portfolio management actions are available. One shared VOO ETF control above the cards toggles the benchmark across the dashboard.
+- Dashboard cards are square and show the name, asset count, period percentage change, signed dollar change, chart, and a small legend. Opening a card opens the workspace, where portfolio management actions are available. One shared SPY ETF control above the cards toggles the benchmark across the dashboard.
 - Shared dashboard timeframe selector. Pinned portfolios first, then most recently updated; pinned tie-breaking needs a defined implementation rule.
 - Empty dashboard offers creation and an example. Deletion needs confirmation or undo.
 
@@ -80,9 +81,11 @@ Model, exact cooldown, Unicode length rules, failure/cache-hit accounting, retri
 
 ## Intended stack and data constraint
 
-Next.js, TypeScript, Tailwind CSS, shadcn/ui, Convex, Better Auth with Google, Groq, Vercel, and v0 for initial UI exploration. Current isolated frontend worktree: Next.js 15, React 19, TypeScript 5, Tailwind CSS 4, and the existing Convex provider are retained. The local demo adds Manrope, a copied shadcn/Base UI button foundation and Recharts. Better Auth, Groq, real history, and durable portfolio storage remain unimplemented. Deployment has not been verified. The original main-checkout baseline remains the starter.
+Next.js, TypeScript, Tailwind CSS, shadcn/ui, Convex, Better Auth with Google, Groq, Vercel, and v0 for initial UI exploration. The frontend demo and route refactor are now merged into the actual app's main branch. Next.js 15, React 19, TypeScript 5, Tailwind CSS 4, and the existing Convex provider are retained; the UI includes Manrope, Base UI-backed component foundations, and Recharts. Better Auth, Groq, real history, and durable portfolio storage remain unimplemented. Deployment has not been verified. Browser-local persistence and generated sample series must not be presented as account-backed or real market results.
 
 Market data must be free for the intended use. Free API access alone does not establish permission for public display, caching, derived analytics, or AI processing.
+
+Owner decision (2026-10-30): Tikr is strictly non-commercial for the current scope, with no planned ads or subscriptions. The licensed data path must support up to five years of daily history for assets with sufficient actual history; a shorter provider-wide history window is not an acceptable replacement. Preserve inception/common-date safeguards for younger assets. Research alternatives if the initial shortlist cannot meet free access and intended public-use permissions. This does not approve a provider or expand service/provisioning authorization. The earlier maximum-available option remains conditional on licensed coverage; support beyond five years is not required by this decision.
 
 Earlier candidates: Alpaca, Twelve Data, Massive, Financial Modeling Prep, Alpha Vantage. None is selected or proven to satisfy the full zero-cost requirement. Revalidate permissions, adjusted returns, depth, coverage, catalog metadata, limits, and outages. Do not silently choose a paid service.
 
@@ -93,7 +96,7 @@ Cache shared history where permitted instead of refetching per card. Distinguish
 - $10,000 starting amount and 1Y initial period.
 - Landing copy: Build a portfolio. Explore its past.
 - Optional example and deterministic localStorage-backed prototype before integrations.
-- Candidate routes: `/`, `/login`, `/dashboard`, `/portfolio/new`, `/portfolio/[id]`.
+- Implemented frontend routes: `/`, `/sign-in`, `/dashboard`, `/portfolio/[id]`. The earlier `/login` proposal is superseded by `/sign-in`; guest/new portfolio handling is currently part of the local demo flow.
 - Signed-in landing visitors go to dashboard, consistent with the original intent; specify access to the public landing page if needed.
 - Disclose excluded taxes/costs and other unmodeled effects after finalizing the calculation policy.
 
@@ -117,7 +120,7 @@ Cache shared history where permitted instead of refetching per card. Distinguish
 
 - Valid changes to holdings, weights, starting amount, and timeframe immediately recalculate the portfolio, comparisons, metrics, and individual asset returns. Incomplete edits retain the last valid result with a clear status. No Run simulation action is required.
 
-- The chart tooltip includes the active portfolio and up to two selected comparison portfolios in one panel; VOO remains excluded from the tooltip. Each row shows its color, USD value, and percentage change for the hovered date.
+- The chart tooltip includes the active portfolio and up to two selected comparison portfolios in one panel; SPY remains excluded from the tooltip. Each row shows its color, USD value, and percentage change for the hovered date.
 
 ## Frontend route organization (2026-10-29)
 

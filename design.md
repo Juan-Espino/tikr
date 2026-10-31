@@ -1,6 +1,9 @@
 # Tikr design direction
 
-Last reconciled: 2026-10-25. Visual direction is approved; proposed screen copy/routes remain proposals in `product.md`.
+Owner update (2026-10-30): use SPY in place of VOO throughout the frontend benchmark controls, legends, difference labels and sample catalog. SPY remains an explicitly named S&P 500 ETF proxy with the existing dashed benchmark styling and tooltip rules. Historical VOO references below record the earlier design; this decision supersedes their ticker choice without changing layout or colors.
+
+
+Last reconciled: 2026-10-30. Visual direction is approved; proposed screen copy/routes remain proposals in `product.md`.
 
 ## Character
 
@@ -96,7 +99,7 @@ If attachments are unavailable, follow written rules and request repository-owne
 
 ## Implementation baseline
 
-The isolated frontend worktree now implements Cabinet Grotesk titles, Manrope body text, matte near-black/stone surfaces, a bright sign-in preview, portfolio cards, and the combined workspace. A static decorative sphere replaces the inaccurate v0 dot map. The Recharts wrapper uses neutral lines and the shadcn token palette. These are implementation choices pending owner visual acceptance, not new approved visual requirements. See `plan.md` for verification and remaining gaps.
+The frontend and App Router refactor are merged into the actual app's main branch. The owner reports the frontend is virtually complete. The UI includes Cabinet Grotesk titles, Manrope body text, matte near-black/stone surfaces, bright sign-in preview, portfolio cards, and the workspace. Landing and sign-in reuse the geographic wireframe globe, superseding the early static-sphere placeholder. Chart colors, tooltips, editing dialogs, and empty states have subsequent owner refinements recorded below. Browser regression after the route/provider refactor remains separate from owner-reported design completion. See `plan.md` for verification and integration gaps.
 
 ## Review checklist
 

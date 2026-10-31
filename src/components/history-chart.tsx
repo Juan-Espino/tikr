@@ -211,7 +211,7 @@ export function HistoryChart({
             <span className="sr-only">
               {l.kind === "benchmark" ? "Dashed line:" : "Solid line:"}{" "}
             </span>
-            {l.name === "VOO ETF benchmark" ? "VOO" : l.name}
+            {l.name === "SPY ETF benchmark" ? "SPY" : l.name}
           </span>
         ))}
         {!compact && (
