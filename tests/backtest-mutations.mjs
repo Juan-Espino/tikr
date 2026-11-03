@@ -5,11 +5,11 @@ import assert from "node:assert/strict";
 const original = readFileSync(
   new URL("../src/lib/backtest.ts", import.meta.url),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 const suite = readFileSync(
   new URL("./backtest.test.mjs", import.meta.url),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 const cases = [
   [
     "ex-date reinvestment",
