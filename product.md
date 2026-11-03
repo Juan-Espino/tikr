@@ -1,6 +1,8 @@
 # Tikr product
 
-Last reconciled: 2026-10-30. This document owns product scope; `design.md` owns presentation, `plan.md` owns delivery status, and `AGENTS.md` owns repository work.
+Owner-approved minimum history (2026-11-02): require at least two shared completed sessions after date/inception adjustments. Zero or one returns insufficient shared history, not misleading zero-return performance; older one-session proposals are superseded.
+
+Last reconciled: 2026-11-02. This document owns product scope; `design.md` owns presentation, `plan.md` owns delivery status, and `AGENTS.md` owns repository work.
 
 ## Decision status
 
@@ -31,21 +33,22 @@ Core promise: build a hypothetical portfolio, explore its history, and compare a
 - Require positive weights totaling exactly 100% before finalizing or running a backtest. Permit incomplete totals while editing.
 - Show persistent allocation feedback, such as 85% allocated / 15% remaining or 105% allocated / 5% over.
 - Distribute rounding differences deterministically: three equal assets may display 33.33%, 33.33%, and 33.34%.
-- Specify internal precision before implementation; avoid arbitrary floating-point equality validation.
+- Allow fractional shares. Approved calculation arithmetic has at least 28 significant decimal digits; this offline engine uses a private 40-digit half-even context with bounded inputs. Exact allocation totals are required. Round only displayed dollars/returns/differences to two decimals, exact ties to even; measured fixture tolerances do not establish a universal error bound.
 
 ## Backtest and comparison rules
 
 - Historical backtesting only: apply selected allocations to past data. No forward paper-trading ledger or prediction.
 - Editable starting amount, lump-sum investment, USD, buy-and-hold, no recurring contributions or silent rebalancing.
-- U.S.-listed stocks/ETFs and end-of-day data. Use consistent dividend/split treatment; the exact adjusted-return/reinvestment methodology remains to be specified.
+- U.S.-listed stocks/ETFs and end-of-day data. Owner-approved methodology uses ex-date dividend receivables and same-asset payment-close reinvestment; see `backtest-methodology.md`.
 - Timeframes: 1W, 1M, YTD, 1Y, 5Y, maximum available, conditional on licensed data coverage.
 - Compared series use identical dates, starting amount, contribution assumptions, and return methodology, not each saved portfolio's individual settings.
+- Presets anchor to the latest completed New York session, subtract calendar duration, clamp nonexistent target dates to month end, then roll forward. YTD starts on/after Jan 1; Max uses earliest verified common history. Enter at first eligible close on/after requested start; end at last completed close on/before requested end. Genuine short history alone shortens every comparison with explanation; gaps, outages/access failures and unsupported actions stop, never silently omit holdings or use cash-until-listing.
 - Owner update (2026-10-30): VOO is no longer mandatory; another verified ETF tracking the general S&P 500 is acceptable as the benchmark. Earlier VOO-specific defaults and references describe the original choice; they do not require retaining VOO after this decision. Owner selected SPY for the frontend demo on 2026-10-30; real-data integration is separate. Identify the actual ETF by ticker and do not label its returns as the index itself.
 - Default to percentage growth with an optional dollar-value view. Label SPY as an ETF benchmark/proxy, not the S&P 500 index itself.
 - Show actual simulation dates, data-as-of date, assumptions, and any shortened shared history.
 - Never silently omit a holding, fabricate pre-inception prices, or compare mismatched date ranges as equivalent.
 - Editing holdings recalculates hypothetical history; it does not imply historical ownership.
-- Distinguish a new simulation from cropping an existing chart; exact timeframe/trading-calendar boundaries remain a calculation-spec task.
+- Each preset starts a fresh investment; verified exchange sessions define common actual boundaries as described in `backtest-methodology.md`.
 
 ## Results and dashboard
 
@@ -87,7 +90,7 @@ Market data must be free for the intended use. Free API access alone does not es
 
 Owner decision (2026-10-30): Tikr is strictly non-commercial for the current scope, with no planned ads or subscriptions. The licensed data path must support up to five years of daily history for assets with sufficient actual history; a shorter provider-wide history window is not an acceptable replacement. Preserve inception/common-date safeguards for younger assets. Research alternatives if the initial shortlist cannot meet free access and intended public-use permissions. This does not approve a provider or expand service/provisioning authorization. The earlier maximum-available option remains conditional on licensed coverage; support beyond five years is not required by this decision.
 
-Earlier candidates: Alpaca, Twelve Data, Massive, Financial Modeling Prep, Alpha Vantage. None is selected or proven to satisfy the full zero-cost requirement. Revalidate permissions, adjusted returns, depth, coverage, catalog metadata, limits, and outages. Do not silently choose a paid service.
+Alpaca is the owner-selected technical candidate for personal, non-commercial use. Owner-reported account tests verified representative five-year daily raw/adjusted SIP history including SPY; this is not proof of payment-date reinvestment equivalence or public/shared licensing. Adjusted bars must not be used as a proven total-return substitute or combined with double dividend credit. The offline engine is provider-independent and is not connected to Alpaca, the UI, a cache or Convex. Public/shared rights, provider action/completed-bar evidence, measured cache/refresh costs and separately scoped integration remain open. Do not silently choose paid access.
 
 Cache shared history where permitted instead of refetching per card. Distinguish stale data, missing data, and failed calculations. Enforce saved-portfolio ownership server-side. Specify account deletion, retention, session expiry, and privacy/terms before launch.
 
@@ -112,7 +115,7 @@ Cache shared history where permitted instead of refetching per card. Distinguish
 
 1. Review the integrated local v0 demo described in `plan.md`; the original main checkout is at `C:\Users\JuanE\Code\React Projects\tikr`; see `plan.md`.
 2. Prove a free permitted data source and verified discovery catalog.
-3. Specify exact return/dividend/date/precision/missing-history policies.
+3. Independently review the offline return/dividend/date/precision/missing-history implementation and validate provider-specific evidence separately.
 4. Confirm AI defaults, identity requirements, and model after testing.
 5. Set practical portfolio/holding limits, duplicate-symbol rules, name validation, and numeric ranges.
 6. Define initial users, operating budget, and success signals. Proposed validation: can a beginner build alternatives and explain one historical tradeoff?
