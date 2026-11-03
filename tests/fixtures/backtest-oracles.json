@@ -1,0 +1,10 @@
+{
+  "baseline": {"values": ["1000", "1500", "1500"], "benchmark": ["1000", "1100", "1200"], "return": "1/2", "benchmarkReturn": "1/5", "difference": "3/10", "rebalancedWrong": "1875"},
+  "dividend": {"values": ["100", "103", "112"], "exDateReinvestmentWrong": "11330/101", "doubleCreditWrong": "114"},
+  "unpaid": {"values": ["100", "103", "112"], "receivable": "2"},
+  "entryExDate": {"values": ["100", "110"]},
+  "split": {"values": ["100", "100", "100"], "shares": ["1", "2", "1/2"]},
+  "combined": {"values": ["100", "102", "112"], "sharesEnd": "112/55"},
+  "drawdown": {"values": ["100", "120", "90", "110"], "return": "1/10", "drawdown": "-1/4"},
+  "ties": {"12.345": "12.34", "12.355": "12.36", "-12.345": "-12.34"}
+}
