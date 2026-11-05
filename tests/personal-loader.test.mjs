@@ -327,3 +327,159 @@ test("calendar times out even when transport or body ignores abort", async () =>
     clearTimeout(keeper);
   }
 });
+
+test("ordinary split due bills preserve ex-date shares and payment-close reinvestment", async () => {
+  for (const redemption of [days[1], days[2]]) {
+    const load = createPersonalLoader(
+      config(async (url) =>
+        ok(
+          url.includes("/bars")
+            ? {
+                bars: {
+                  SPY: days.map((d, i) => ({
+                    t: `${d}T05:00:00Z`,
+                    c: [100, 10, 12][i],
+                  })),
+                },
+                next_page_token: null,
+              }
+            : {
+                corporate_actions: {
+                  forward_splits: [
+                    {
+                      id: "split",
+                      symbol: "SPY",
+                      process_date: days[1],
+                      ex_date: days[1],
+                      due_bill_redemption_date: redemption,
+                      new_rate: 10,
+                      old_rate: 1,
+                    },
+                  ],
+                  cash_dividends: [
+                    {
+                      id: "div",
+                      symbol: "SPY",
+                      process_date: days[2],
+                      ex_date: days[2],
+                      payable_date: days[2],
+                      rate: 1,
+                      special: false,
+                      foreign: false,
+                    },
+                  ],
+                },
+                next_page_token: null,
+              },
+        ),
+      ),
+      calendar,
+    );
+    const { asset } = await load({
+      symbol: "SPY",
+      from: days[0],
+      through: days[2],
+      signal: new AbortController().signal,
+    });
+    const r = backtest({
+      calendar,
+      assets: [asset],
+      portfolios: [{ id: "p", holdings: [{ symbol: "SPY", weight: "100" }] }],
+      amount: "100",
+      start: days[0],
+      end: days[2],
+    });
+    // One original share becomes ten; ten dollars due at payment close: 10*12+10.
+    assert.equal(r.portfolios[0].ending, "130");
+    assert.equal(r.portfolios[0].points[1].value, "100");
+  }
+});
+
+test("cash merger acquirer-only records are excluded; acquiree events remain unsupported", async () => {
+  for (const acquired of ["OTHER", "SPY"]) {
+    const load = createPersonalLoader(
+      config(async (url) =>
+        ok(
+          url.includes("/bars")
+            ? {
+                bars: {
+                  SPY: days.map((d) => ({ t: `${d}T05:00:00Z`, c: 100 })),
+                },
+                next_page_token: null,
+              }
+            : {
+                corporate_actions: {
+                  cash_mergers: [
+                    {
+                      id: "merger",
+                      acquiree_symbol: acquired,
+                      acquirer_symbol: acquired === "SPY" ? "OTHER" : "SPY",
+                      effective_date: days[1],
+                      process_date: days[1],
+                      rate: 100,
+                    },
+                  ],
+                },
+                next_page_token: null,
+              },
+        ),
+      ),
+      calendar,
+    );
+    const run = load({
+      symbol: "SPY",
+      from: days[0],
+      through: days[2],
+      signal: new AbortController().signal,
+    });
+    if (acquired === "SPY") await assert.rejects(run, /UNSUPPORTED_ACTION/);
+    else assert.deepEqual((await run).asset.actions, []);
+  }
+});
+
+test("split redemption before ex-date, invalid dates and symbol changes fail", async () => {
+  for (const terms of [
+    { due_bill_redemption_date: days[0] },
+    { due_bill_redemption_date: "2024-02-31" },
+    { new_symbol: "OTHER" },
+  ]) {
+    const load = createPersonalLoader(
+      config(async (url) =>
+        ok(
+          url.includes("/bars")
+            ? {
+                bars: {
+                  SPY: days.map((d) => ({ t: `${d}T05:00:00Z`, c: 100 })),
+                },
+                next_page_token: null,
+              }
+            : {
+                corporate_actions: {
+                  forward_splits: [
+                    {
+                      id: "split",
+                      symbol: "SPY",
+                      process_date: days[1],
+                      ex_date: days[1],
+                      new_rate: 10,
+                      old_rate: 1,
+                      ...terms,
+                    },
+                  ],
+                },
+                next_page_token: null,
+              },
+        ),
+      ),
+      calendar,
+    );
+    await assert.rejects(
+      load({
+        symbol: "SPY",
+        from: days[0],
+        through: days[2],
+        signal: new AbortController().signal,
+      }),
+    );
+  }
+});
