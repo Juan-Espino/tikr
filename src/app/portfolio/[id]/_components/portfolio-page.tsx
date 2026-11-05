@@ -1,25 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Copy, Pencil, Pin, Trash2 } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { RangePicker } from "~/components/range-picker";
-import { HistoryChart } from "~/components/history-chart";
-import {
-  allocation,
-  equalWeights,
-  metrics,
-  money,
-  percent,
-  series,
-  validAmount,
-  type Portfolio,
-} from "~/lib/demo";
+import { MarketPerformance } from "~/components/market-performance";
+import { allocation, validAmount, type Portfolio } from "~/lib/demo";
 
 import { Dialog, DialogContent } from "~/components/ui/dialog";
-import { HoldingReturns } from "~/components/holding-returns";
 import { PortfolioEditor } from "./portfolio-editor";
 import { PortfolioEmptyState } from "~/components/portfolio-empty-state";
 
@@ -28,21 +18,6 @@ import { AppShell, StorageNotice } from "~/components/app-shell";
 import { PortfolioComparisons } from "./portfolio-comparisons";
 import { comparisonColors, comparisonRank } from "./comparison-colors";
 const panel = "rounded-xl border border-border bg-card p-5 md:p-7";
-function useExitingSelections(selected: string[]) {
-  const [visible, setVisible] = useState(selected);
-  const selectionKey = JSON.stringify(selected);
-  useEffect(() => {
-    const current = JSON.parse(selectionKey) as string[];
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setVisible(current);
-      return;
-    }
-    setVisible((previous) => [...new Set([...previous, ...current])]);
-    const timer = window.setTimeout(() => setVisible(current), 900);
-    return () => window.clearTimeout(timer);
-  }, [selectionKey]);
-  return visible;
-}
 export default function PortfolioPage({ id }: { id: string }) {
   const store = useDemoPortfolios();
   const router = useRouter();
@@ -95,10 +70,6 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
       ? { ...initial, holdings: initial.holdings.map((h) => ({ ...h })) }
       : null,
   );
-  const visibleComparisonLines = useExitingSelections([
-    ...(spy ? ["benchmark"] : []),
-    ...comparison.map((id) => `portfolio:${id}`),
-  ]);
   const valid =
     draft &&
     allocation(draft.holdings).valid &&
@@ -119,13 +90,6 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
       });
     }
   }
-  const activePoints = result
-    ? series(result.holdings, result.range, Number(result.amount))
-    : [];
-  const benchmark = result
-    ? series(equalWeights(["SPY"]), result.range, Number(result.amount))
-    : [];
-  const stats = metrics(activePoints);
   const resultsOutdated =
     !!result &&
     !!draft &&
@@ -154,7 +118,8 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
               {draft.holdings.length}{" "}
-              {draft.holdings.length === 1 ? "asset" : "assets"} - Local demo
+              {draft.holdings.length === 1 ? "asset" : "assets"} · saved in this
+              browser
             </p>
           </div>
           <div className="flex gap-2">
@@ -250,7 +215,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                   {resultsOutdated
                     ? "Incomplete edits - showing the last valid result"
                     : result
-                      ? "Results up to date"
+                      ? "Historical simulation · verified data required"
                       : draft.holdings.length
                         ? "Complete your portfolio to see results."
                         : ""}
@@ -296,111 +261,48 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
               </div>
             </div>
             {result ? (
-              <>
-                <p className="text-muted-foreground mt-4 text-xs">
-                  {activePoints[0]?.date} · {activePoints.at(-1)?.date} ·{" "}
-                  {money(Number(result.amount))} starting amount
-                </p>
-                <div className="my-8 grid gap-5 sm:grid-cols-3">
-                  {[
-                    ["Ending value", money(stats.ending)],
-                    ["Total return", percent(stats.return)],
-                    [
-                      "Difference vs SPY",
-                      `${(stats.return - metrics(benchmark).return).toFixed(2)} pp`,
-                    ],
-                  ].map(([label, value]) => (
-                    <div key={label}>
-                      <p className="text-muted-foreground text-xs">{label}</p>
-                      <p
-                        className={`mt-2 ${label === "Ending value" ? "text-3xl" : "text-xl"} ${label === "Total return" ? (stats.return > 0 ? "text-emerald-400" : stats.return < 0 ? "text-red-400" : "") : ""}`}
-                      >
-                        {value}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                <p
-                  className={`-mt-4 mb-6 text-sm ${stats.return > 0 ? "text-emerald-400" : stats.return < 0 ? "text-red-400" : ""}`}
-                >
-                  {stats.ending - Number(result.amount) >= 0 ? "+" : "-"}
-                  {money(Math.abs(stats.ending - Number(result.amount)))} change
-                </p>
-                <HistoryChart
-                  amount={Number(result.amount)}
-                  dollars={dollars}
-                  lines={[
-                    { name: result.name, points: activePoints },
-                    ...(visibleComparisonLines.includes("benchmark")
-                      ? [
-                          {
-                            name: "SPY ETF benchmark",
-                            points: benchmark,
-                            kind: "benchmark" as const,
-                            exiting: !spy,
-                          },
-                        ]
-                      : []),
-                    ...portfolios
-                      .filter((p) => p.id !== draft.id)
-                      .sort(
-                        (a, b) =>
-                          comparisonRank(a.id) - comparisonRank(b.id) ||
-                          a.id.localeCompare(b.id),
-                      )
-                      .map((p, index) => ({
-                        p,
-                        color:
-                          comparisonColors[index % comparisonColors.length],
-                      }))
-                      .filter(({ p }) =>
-                        visibleComparisonLines.includes(`portfolio:${p.id}`),
-                      )
-                      .map(({ p, color }) => ({
-                        kind: "comparison" as const,
-                        id: p.id,
-                        exiting: !comparison.includes(p.id),
-                        color,
-                        name: `${p.name} · comparison`,
-                        points: series(
-                          p.holdings,
-                          result.range,
-                          Number(result.amount),
-                        ),
-                      })),
-                  ]}
-                />
-              </>
+              <MarketPerformance
+                portfolios={[
+                  result,
+                  ...portfolios.filter(
+                    (p) => p.id !== draft.id && comparison.includes(p.id),
+                  ),
+                ]}
+                range={result.range}
+                amount={result.amount}
+                spy={spy}
+                dollars={dollars}
+                comparisonColors={Object.fromEntries(
+                  portfolios
+                    .filter((p) => p.id !== draft.id)
+                    .sort(
+                      (a, b) =>
+                        comparisonRank(a.id) - comparisonRank(b.id) ||
+                        a.id.localeCompare(b.id),
+                    )
+                    .map((p, index) => [
+                      p.id,
+                      comparisonColors[index % comparisonColors.length]!,
+                    ]),
+                )}
+                comparisons={
+                  <PortfolioComparisons
+                    portfolios={portfolios}
+                    draftId={draft.id}
+                    comparison={comparison}
+                    setComparison={setComparison}
+                  />
+                }
+              />
             ) : !draft.holdings.length ? (
               <PortfolioEmptyState />
             ) : (
-              <div className="border-border text-muted-foreground my-10 grid min-h-56 place-items-center rounded-lg border border-dashed px-6 text-center text-sm">
-                {valid
-                  ? "Your results update automatically."
-                  : "Add holdings and complete a valid allocation to see results."}
-                <br />
-                Use Edit above to complete the allocation and starting amount.
-              </div>
+              <p className="text-muted-foreground my-10 text-sm">
+                Complete the allocation and starting amount to load market
+                history.
+              </p>
             )}
-            <PortfolioComparisons
-              portfolios={portfolios}
-              draftId={draft.id}
-              comparison={comparison}
-              setComparison={setComparison}
-            />
           </section>
-          {result && (
-            <section className={`${panel} order-2`}>
-              <h2 className="text-xl">Asset returns</h2>
-              {resultsOutdated && (
-                <p className="text-muted-foreground mt-2 text-sm">
-                  Showing the last valid allocation. Complete your edits to
-                  update.
-                </p>
-              )}
-              <HoldingReturns portfolio={result} />
-            </section>
-          )}
         </div>
       </>
     </AppShell>

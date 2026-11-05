@@ -228,3 +228,18 @@ select {
     transition-duration: 160ms;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .market-pulse {
+    animation: market-pulse 1.6s ease-in-out infinite;
+  }
+}
+@keyframes market-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.48;
+  }
+}

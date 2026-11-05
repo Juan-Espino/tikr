@@ -68,6 +68,8 @@ Commands below are taken from the inspected manifest; their availability is not 
 
 No test script is defined in package.json. Run `node --experimental-strip-types --test tests/demo.test.mjs tests/backtest.test.mjs` for demo and offline engine tests, then `node tests/backtest-mutations.mjs` for the five targeted fault checks. These do not validate licensed historical data or a live adapter. Preserve independent fixture oracles; do not generate expectations from the engine. Convex connectivity, real auth, provider integration and deployment need separate verification.
 
+For the single-process on-demand cache coordinator, run `node --conditions=react-server --experimental-strip-types --test tests/market-cache.test.mjs`. It uses injected synthetic verified data and makes no provider requests. Run adapter and harness tests with the same Node conditions when changing their shared contract. See `on-demand-cache.md` for freshness/revision behavior, memory-only limits and the unresolved durable-storage/provider/UI boundaries. A passing synthetic cache suite does not establish corporate-action completeness or global cross-instance limits.
+
 For Markdown changes, check whitespace, final newlines, document references, and confirmed/proposed labels. Run `git diff --check`; inspect untracked files directly before staging because normal Git diff omits them. Inspect final status for unrelated changes.
 
 For application changes, start with focused existing checks, then appropriate configured checks. Follow established test patterns for allocation precision, return math, dividends/splits, common dates, missing history, ownership, draft handoff, and atomic quotas. Review desktop/mobile, focus, touch tooltips, contrast, reduced motion, and loading/error/quota states. Keep financial fixtures deterministic and sample data labeled. Validate data licensing separately from UI correctness. Report commands/results and gaps honestly.
@@ -75,3 +77,7 @@ For application changes, start with focused existing checks, then appropriate co
 ## Coordination
 
 Update `plan.md` with evidence-backed status and the next task. Update `product.md` for approved scope changes and `design.md` for approved visual changes. Do not convert deferred ideas or assistant suggestions into launch commitments.
+
+## Personal data integration verification
+
+For the optional personal server integration, read `market-data-integration.md`. Run the Node evidence/durable/admission tests with `--conditions=react-server --experimental-strip-types`, and `pnpm exec vitest run` for the local Convex transaction tests. Browser tests use the installed Edge and a credential-cleared loopback dev server; keep screenshots under system temp. Do not deploy or enable real market data merely because synthetic tests pass. Never delete/reset the admission ledger, abandoned refresh guards, locks or revocation markers to bypass evidence/resource gates. Main checkout remains unchanged; work stays in the isolated feature worktree.

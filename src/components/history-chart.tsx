@@ -1,5 +1,5 @@
 "use client";
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -11,15 +11,16 @@ import {
 } from "recharts";
 import { money, type Point } from "~/lib/demo";
 export function HistoryChart({
-  lines,
+  lines: incomingLines,
   amount,
   dollars = false,
   compact = false,
+  table = true,
 }: {
   lines: {
     name: string;
     id?: string;
-    points: Point[];
+    points: (Point & { dollars?: string; growth?: string })[];
     kind?: "benchmark" | "comparison";
     color?: string;
     exiting?: boolean;
@@ -27,8 +28,56 @@ export function HistoryChart({
   amount: number;
   dollars?: boolean;
   compact?: boolean;
+  table?: boolean;
 }) {
   const id = useId();
+  const previousLines = useRef(incomingLines);
+  const [exiting, setExiting] = useState<typeof incomingLines>([]);
+  const identity = JSON.stringify(
+    incomingLines.map((line) => line.id ?? line.name),
+  );
+  const period = `${incomingLines[0]?.points[0]?.date ?? ""}:${incomingLines[0]?.points.at(-1)?.date ?? ""}:${incomingLines[0]?.points.length ?? 0}`;
+  useEffect(() => {
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const active = new Set(incomingLines.map((line) => line.id ?? line.name));
+    const primary = incomingLines[0]?.points ?? [];
+    const removed = reduced
+      ? []
+      : previousLines.current
+          .filter(
+            (line) =>
+              line.kind &&
+              !line.exiting &&
+              !active.has(line.id ?? line.name) &&
+              line.points.length === primary.length &&
+              line.points.every((point, i) => point.date === primary[i]?.date),
+          )
+          .map((line) => ({ ...line, exiting: true }));
+    setExiting(removed);
+    if (!removed.length) return;
+    const timer = window.setTimeout(() => setExiting([]), 900);
+    return () => window.clearTimeout(timer);
+    // A line exits only when the displayed identities or shared dates change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identity, period]);
+  useEffect(() => {
+    previousLines.current = incomingLines;
+  });
+  const lines = [
+    ...incomingLines,
+    ...exiting.filter(
+      (line) =>
+        !incomingLines.some(
+          (active) => (active.id ?? active.name) === (line.id ?? line.name),
+        ) &&
+        line.points.length === (incomingLines[0]?.points.length ?? 0) &&
+        line.points.every(
+          (point, i) => point.date === incomingLines[0]?.points[i]?.date,
+        ),
+    ),
+  ];
   const firstValue = lines[0]?.points[0]?.value;
   const lastValue = lines[0]?.points.at(-1)?.value;
   const mainColor =
@@ -42,6 +91,8 @@ export function HistoryChart({
   const data = (lines[0]?.points ?? []).map((p, i) => {
     const row: Record<string, string | number> = { date: p.date };
     lines.forEach((line, j) => {
+      row[`dollars${j}`] = line.points[i]?.dollars ?? "";
+      row[`growth${j}`] = line.points[i]?.growth ?? "";
       row[`line${j}`] = dollars
         ? line.points[i]!.value
         : (line.points[i]!.value / amount - 1) * 100;
@@ -53,7 +104,7 @@ export function HistoryChart({
       aria-describedby={id}
       className={`history-chart ${compact ? "flex h-full min-h-0 flex-col" : ""}`}
     >
-      <div className={compact ? "min-h-0 w-full flex-1" : "h-72 w-full"}>
+      <div className={compact ? "h-44 min-h-44 w-full flex-1" : "h-72 w-full"}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             accessibilityLayer={!compact}
@@ -66,16 +117,15 @@ export function HistoryChart({
           >
             <CartesianGrid vertical={false} stroke="#2b2b28" />
             <XAxis
-              hide={compact}
               dataKey="date"
-              minTickGap={70}
+              minTickGap={compact ? 40 : 70}
+              tickFormatter={(date: string) => (compact ? date.slice(5) : date)}
               tick={{ fill: "#a8a29e", fontSize: 10 }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
-              hide={compact}
-              width={55}
+              width={compact ? 38 : 55}
               tick={{ fill: "#a8a29e", fontSize: 10 }}
               tickLine={false}
               axisLine={false}
@@ -138,11 +188,23 @@ export function HistoryChart({
                                 {line.name}
                               </span>
                               <span className="text-right tabular-nums">
-                                {formatter.format(value)}
+                                {typeof (
+                                  entry.payload as
+                                    Record<string, unknown> | undefined
+                                )?.[`dollars${index}`] === "string" &&
+                                (entry.payload as Record<string, string>)[
+                                  `dollars${index}`
+                                ]
+                                  ? `$${(entry.payload as Record<string, string>)[`dollars${index}`]!.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`
+                                  : formatter.format(value)}
                               </span>
                               <span className="col-start-2 text-right text-xs text-stone-400">
                                 {growth >= 0 ? "+" : ""}
-                                {growth.toFixed(2)}%
+                                {(
+                                  entry.payload as
+                                    Record<string, string> | undefined
+                                )?.[`growth${index}`] ?? growth.toFixed(2)}
+                                %
                               </span>
                             </div>
                           );
@@ -221,7 +283,7 @@ export function HistoryChart({
           </span>
         )}
       </p>
-      {!compact && (
+      {!compact && table && (
         <div className="sr-only">
           <div>
             <table className="w-full text-left">

@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MarketResult } from "~/components/market-performance";
 import { CandlestickGlobe } from "~/components/candlestick-globe";
 
 import { Button } from "~/components/ui/button";
@@ -13,10 +14,9 @@ import { PortfolioCard } from "./portfolio-card";
 function Disclosure() {
   return (
     <p className="text-muted-foreground text-xs leading-6">
-      Demo data only, not actual historical returns. USD, lump sum, buy and
-      hold; dividends, splits, fees and taxes are not modeled. The demo includes
-      weekends and ends October 22, 2026. Past performance does not guarantee
-      future returns.
+      Hypothetical historical results in USD, with buy-and-hold weights and
+      payment-date dividend reinvestment. Ordinary splits are handled; fees and
+      taxes are excluded. Past performance does not guarantee future returns.
     </p>
   );
 }
@@ -24,6 +24,50 @@ export default function Dashboard() {
   const { portfolios, setPortfolios, draft, open } = useDemoPortfolios();
   const [range, setRange] = useState<Range>("1Y");
   const [spy, setSpy] = useState(true);
+  const generation = JSON.stringify({
+    range,
+    portfolios: portfolios.map((p) => ({
+      id: p.id,
+      amount: p.amount,
+      holdings: p.holdings,
+    })),
+  });
+  const activeGeneration = useRef(generation);
+  activeGeneration.current = generation;
+  const [batch, setBatch] = useState<{
+    generation: string;
+    results: Record<string, MarketResult>;
+  }>({ generation: "", results: {} });
+  const [previous, setPrevious] = useState<Record<string, MarketResult>>({});
+  const [timedOut, setTimedOut] = useState("");
+  const report = useCallback(
+    (incoming: string, id: string, result: MarketResult) => {
+      if (incoming !== activeGeneration.current) return;
+      setBatch((old) => ({
+        generation: incoming,
+        results: {
+          ...(old.generation === incoming ? old.results : {}),
+          [id]: result,
+        },
+      }));
+    },
+    [],
+  );
+  const current = useMemo(
+    () => (batch.generation === generation ? batch.results : {}),
+    [batch, generation],
+  );
+  const complete = portfolios.every(
+    (p) => current[p.id] && current[p.id]!.view.status !== "refreshing",
+  );
+  const waiting = !complete && timedOut !== generation;
+  useEffect(() => {
+    const timer = window.setTimeout(() => setTimedOut(generation), 8000);
+    return () => window.clearTimeout(timer);
+  }, [generation]);
+  useEffect(() => {
+    if (complete) setPrevious(current);
+  }, [current, complete]);
   return (
     <AppShell centered>
       {" "}
@@ -80,7 +124,10 @@ export default function Dashboard() {
             </div>
           </section>
         ) : (
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            aria-busy={waiting}
+            className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          >
             {[...portfolios]
               .sort(
                 (a, b) =>
@@ -95,13 +142,23 @@ export default function Dashboard() {
                   range={range}
                   onOpen={() => open(p)}
                   spy={spy}
+                  generation={generation}
+                  displayed={
+                    waiting
+                      ? previous[p.id]
+                      : current[p.id]?.view.status === "refreshing"
+                        ? undefined
+                        : current[p.id]
+                  }
+                  waiting={waiting}
+                  report={report}
                 />
               ))}
           </div>
         )}
         <div className="mt-8">
           <p className="text-muted-foreground text-xs">
-            Dashboard charts start at $10,000.
+            Each chart uses that portfolio’s starting amount.
           </p>
           <Disclosure />
         </div>
