@@ -430,3 +430,6 @@ UI follow-up: final-only snapshot swaps and comparison exit timing implemented. 
 
 
 Owner authorized commit, push and PR preparation on 2026-11-04 after UI review. Next: review the combined PR and CI; merge/main-checkout update requires the owner's next instruction. The synthetic-only browser cache does not bypass live server revocation checks.
+
+
+PR #6 preview follow-up: reproduced six TS5097 errors from the separate Convex TypeScript project. Enabled explicit TypeScript import extensions in its existing no-emit/bundler configuration and added the Convex project check to pnpm check. The reported temporary-filesystem warning was not the build failure.
