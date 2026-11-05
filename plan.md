@@ -1,4 +1,24 @@
 # Tikr delivery plan
+## Alpaca evidence request draft (2026-11-05)
+
+Prepared `alpaca-evidence-request.md` with specific close, correction, action-coverage and unit questions. Massive is a documented trade-rule comparison lead, not a verified equivalent or approved data source; entitlement and permitted validation use remain unknown. No inquiry sent, account created, paid access, credentials or live requests. Next: owner review and authorization before sending the draft; resolve source equivalence and rights before accepting captures.
+
+## Alpaca evidence assessment (2026-11-05)
+
+Reviewed current Alpaca primary documentation against the six-case findings. Engine acceptance remains no-go: independent matching SIP-close semantics, historical correction detection, and exhaustive action coverage/units are unproven. The documented action event stream is a lead, not established completeness evidence. Acceptance criteria and exact provider questions are in `alpaca-real-data-review.md`. No new capture, private replay, credentials, activation or deployment. Next: obtain authoritative answers and a permitted matching reference before issuing proofs or replaying into the engine; provider contact needs separate authorization.
+
+## T3 handoff verification (2026-11-04 Pacific / 2026-11-05 UTC)
+
+PR [#6](https://github.com/Juan-Espino/tikr/pull/6) is merged at `d776f9c96c957acb4a6030b762106d7f6b2b5508` (2026-11-05 00:32:24 UTC). The GitHub CLI independently confirmed both Vercel and Vercel Preview Comments checks succeeded on head `da7706094adcf9ec9467eaf7b32e49535d7e76de`; the connected GitHub API returned 404 and was not used as evidence. The app checkout at `C:\Users\JuanE\Code\React Projects\tikr` was already clean at this merge when inspected. Its origin is `https://github.com/Juan-Espino/tikr.git`; a fresh fetch confirmed main and origin/main have zero commits of divergence. No fast-forward was necessary.
+
+Validation runs in the existing T3 task worktree at the same merge, with dependencies restored using `pnpm.cmd install --frozen-lockfile` (10.11.0; manifest/lock unchanged). Child processes use an allowlisted, credential-cleared environment with `SKIP_ENV_VALIDATION=1`; only `.env.example` is present by filename. Fresh results: 117/117 Node tests (`--conditions=react-server --experimental-strip-types --test tests/*.test.mjs`), 7/7 local Convex tests, all five mutation probes, and all three components of `pnpm check` (Next lint, app TypeScript, Convex TypeScript) passed. A fresh production build passed on the merged final UI. These checks do not accept real-provider evidence or prove deployed Convex behavior. Private opt-in scripts were inspected separately; live capture was not run.
+
+The installed-Edge Playwright suite also passed 24/24 tests against a credential-cleared loopback server on port 43127, including responsive overflow, evidence expiry, final-only snapshots, dashboard bounded waits, comparison exits, reduced motion and marked-synthetic versus live revalidation behavior. Browser outputs are under system temp (`tikr-handoff-browser-results`); these synthetic fixtures do not validate Alpaca. The test server was stopped after verification.
+
+Next task: assess matching raw SIP close semantics, finality/corrections and exhaustive corporate-action completeness/units against the saved capture evidence in `alpaca-real-data-review.md`. Keep all six captures unaccepted until independently supported; never manufacture verified flags. Actual Convex team headroom and separately authorized deployment/configuration and bounded live trial remain later activation gates. Public/shared data rights, real Google authentication and portfolio ownership remain separate. Historical research documents must be reconciled individually if supplied; no historical worktree content was copied over merged documents.
+
+This checkpoint supersedes older statements below that PR #6 changes are uncommitted or isolated from main. Older validation records remain historical. Application main and its local environment were preserved; no commit, push, deployment, live-data activation or worktree cleanup was performed.
+
 Current local integration status (2026-11-04): an expiring evidence-gated replay loader, internal Convex storage/leases and budget admission, and real-result UI states are implemented in the isolated feature worktree. Production/public access is disabled; actual provider evidence, Convex deployment/team usage acceptance and live activation remain incomplete. No demo series are substituted in portfolio results. Guest definitions remain browser-local and sign-in remains a preview. See `market-data-integration.md`; earlier unimplemented summaries below are historical baseline statements.
 
 ## On-demand refresh section (implementation)

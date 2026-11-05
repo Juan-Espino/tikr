@@ -1,5 +1,19 @@
 # Alpaca real-data validation review
 
+## Evidence assessment and acceptance gate (2026-11-05)
+
+**Decision: no-go for engine acceptance.** The six existing captures remain unaccepted. Their prior integrity replay and numerical comparisons are useful bounded observations, not proof of matching feed semantics, finality, or exhaustive actions. No new private replay or provider request was performed in this assessment.
+
+Current primary documentation narrows the remaining questions:
+
+- [Alpaca's aggregation FAQ](https://docs.alpaca.markets/us/docs/market-data-faq) describes New York daily intervals and tape- and condition-dependent trade eligibility. The existing exact NVDA examples and cent-rounded comparisons do not establish that their reference feeds apply the same rules. Acceptance needs a documented equivalent independent SIP daily-close reference, including eligible trades and precision, or an independently reproducible reconstruction with appropriate licensed trade data.
+- The [real-time data documentation](https://docs.alpaca.markets/us/v1.1/docs/real-time-stock-pricing-data) describes evolving daily bars and late-trade updates. It does not establish a historical-bar finality guarantee at 09:00. The approved next-day cutoff and five-session recheck remain operational minimums, not proof of finality; acceptance also needs a supported as-of and revision-detection procedure covering older corrections, half-days and DST.
+- The [corporate-actions endpoint](https://docs.alpaca.markets/us/reference/corporateactions-1) filters by process date, supports `data_quality=all`, and explicitly disclaims creation-time guarantees. Exhausting pages within an ex-date-shaped window cannot prove exhaustive ex-date coverage. Its documented event types include unsupported actions that must block. A [corporate-action event stream](https://docs.alpaca.markets/us/reference/subscribetocorporateactionseventssse) describes updates and historical replay; its retention, completeness, correction/cancellation semantics, entitlement, and relationship to the endpoint have not been established. Do not assume it resolves the gap.
+
+For each asset and requested interval, acceptance requires dated, source-bound evidence of identity and coverage, complete common sessions and eligible raw SIP closes, a defensible as-of/revision process, and exhaustive action discovery including late changes and unsupported events. Each supported action requires verified effective/ex/pay dates and units, including split/dividend ordering; ambiguous or missing evidence fails closed. Proof must bind to the captured revision and expire under the existing loader policy. The five-session recheck alone does not satisfy broader reconciliation.
+
+Next: obtain authoritative provider clarification on matching-close reconstruction, historical correction discovery, action process-date coverage and event-stream retention/completeness, including concurrent split/dividend units. Identify an independently permitted matching reference. Review those answers against each capture before issuing any proof or running the engine oracle. Drafting or sending a provider inquiry requires separate authorization. Public/shared rights and Convex team headroom remain separate gates.
+
 Reviewed 2026-11-03 local (captures and assessment dated 2026-11-04 UTC). **Full methodology acceptance remains blocked.** Six prepared live cases were exercised and their recorded evidence assessed. This is a completed bounded investigation with unresolved prerequisites, not a passing real-data engine result or production certification.
 
 ## Executed scope and results
