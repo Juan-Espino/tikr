@@ -1,4 +1,8 @@
 # Tikr design direction
+Owner decision (2026-11-05): portfolio name errors use a visible destructive-colored input border and message, following shadcn's invalid field pattern. Timeframe controls omit Max.
+
+Owner-approved naming feedback (2026-11-05): show name conflicts inline beside the name field, mark the field invalid and disable save until resolved. Suggestions remain text until the user enters their choice. Dashboard cards include holding tickers beside asset counts to distinguish portfolios, including older records with identical names.
+
 
 Owner update (2026-10-30): use SPY in place of VOO throughout the frontend benchmark controls, legends, difference labels and sample catalog. SPY remains an explicitly named S&P 500 ETF proxy with the existing dashed benchmark styling and tooltip rules. Historical VOO references below record the earlier design; this decision supersedes their ticker choice without changing layout or colors.
 
@@ -179,3 +183,6 @@ Dashboard updates pulse only changing values and charts, with cards switching to
 
 
 Keep the last complete dated snapshot unchanged while a new selection loads; swap only once a complete final response arrives. Start comparison exit on deselection and retain the old chart through its animation. For the explicitly marked synthetic review only, recently completed selection results may be reused briefly in memory. Live or unmarked results still require server-side validity checks.
+
+
+Personal provisional disclosure (2026-11-05): retain existing typography and status layout; show "Personal provisional Alpaca data; subject to corrections" and the action-completeness limitation on both workspace and compact dashboard results. This copy implements the owner's provisional-data decision without changing approved visual rules.

@@ -55,6 +55,133 @@ const sample = (status = "ready") => ({
     ],
   })),
 });
+test("duplicate names block saving and duplication waits for a user-chosen name", async ({
+  page,
+}) => {
+  await page.route("**/api/market", (route) =>
+    route.fulfill({
+      contentType: "application/x-ndjson",
+      body: JSON.stringify(sample()) + "\n",
+    }),
+  );
+  await page.goto("/portfolio/test-one");
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const input = page.getByLabel("Portfolio name", { exact: true });
+  await input.fill("  SECOND PORTFOLIO  ");
+  await expect(input).toHaveAttribute("aria-invalid", "true");
+  await expect(input).toHaveCSS("border-color", "rgb(248, 113, 113)");
+  await expect(
+    page.getByRole("button", { name: "Done", exact: true }),
+  ).toBeDisabled();
+  await expect(input).toHaveValue("  SECOND PORTFOLIO  ");
+  await input.fill("Core experiment");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Save locally", exact: true }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Duplicate", exact: true }).click();
+  await expect(page.getByLabel("Portfolio name", { exact: true })).toHaveValue(
+    "Core experiment",
+  );
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("tikr-demo-v1")!).portfolios.length,
+    ),
+  ).toBe(2);
+  await page
+    .getByLabel("Portfolio name", { exact: true })
+    .fill("My chosen copy");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("button", { name: "Save locally", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("tikr-demo-v1")!).portfolios.map(
+        (p: { name: string }) => p.name,
+      ),
+    ),
+  ).toEqual(
+    expect.arrayContaining([
+      "Core experiment",
+      "Second portfolio",
+      "My chosen copy",
+    ]),
+  );
+});
+test("saving changed holdings replaces the failed card and keeps other portfolios separate", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const data = JSON.parse(localStorage.getItem("tikr-demo-v1")!);
+    data.portfolios[0].holdings = [{ ticker: "NVDA", weight: "100" }];
+    data.draft = data.portfolios[0];
+    localStorage.setItem("tikr-demo-v1", JSON.stringify(data));
+  });
+  await page.route("**/api/market", async (route) => {
+    const request = route.request().postDataJSON();
+    const p = request.portfolios[0];
+    const reply = p.holdings.some(
+      (h: { symbol: string }) => h.symbol === "NVDA",
+    )
+      ? {
+          status: "blocked",
+          issues: [{ symbol: "NVDA", code: "REFRESH_FAILED" }],
+        }
+      : {
+          ...sample(),
+          series: sample().series.map((s, i) => ({
+            ...s,
+            id: i === 0 ? p.id : "SPY",
+          })),
+        };
+    await route.fulfill({
+      contentType: "application/x-ndjson",
+      body: JSON.stringify(reply) + "\n",
+    });
+  });
+  await page.goto("/dashboard");
+  const card = page.getByRole("button", {
+    name: "Open Core experiment, 1 assets",
+    exact: true,
+  });
+  await expect(card.getByText("Affected holdings: NVDA")).toBeVisible();
+  await card.click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("button", { name: "Remove NVDA", exact: true }).click();
+  await page.getByRole("button", { name: /^SPY, / }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("button", { name: "Save locally", exact: true }).click();
+  await expect(card.getByText("1 asset · SPY", { exact: true })).toBeVisible();
+  await expect(card.getByText("10.00%", { exact: true })).toBeVisible();
+  await expect(card.getByText("Affected holdings: NVDA")).toHaveCount(0);
+});
+test("timeframe picker hides Max while migrating a saved Max selection", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const data = JSON.parse(localStorage.getItem("tikr-demo-v1")!);
+    data.portfolios[0].range = "Max";
+    data.draft = data.portfolios[0];
+    localStorage.setItem("tikr-demo-v1", JSON.stringify(data));
+  });
+  await page.route("**/api/market", (route) =>
+    route.fulfill({
+      contentType: "application/x-ndjson",
+      body: JSON.stringify(sample()) + "\n",
+    }),
+  );
+  await page.goto("/portfolio/test-one");
+  await expect(
+    page.getByRole("button", { name: "Timeframe: 5Y" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Timeframe: 5Y" }).hover();
+  await expect(
+    page.getByRole("button", { name: "Set timeframe to Max" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Set timeframe to 1Y" }),
+  ).toBeVisible();
+});
 test("unconfigured real endpoint blocks without inventing returns", async ({
   page,
 }) => {
@@ -849,4 +976,25 @@ test("main metrics remain stable for matching dates and change for a shorter sha
     page.getByText("$10,300.00", { exact: true }).first(),
   ).toBeVisible();
   await expect(page.getByText(/2024-11-04 – 2024-11-04/)).toBeVisible();
+});
+
+test("provisional quality is visible in the workspace and compact dashboard", async ({
+  page,
+}) => {
+  await page.route("**/api/market", (route) =>
+    route.fulfill({
+      contentType: "application/x-ndjson",
+      body:
+        JSON.stringify({ ...sample(), dataQuality: "personal-provisional" }) +
+        "\n",
+    }),
+  );
+  await page.goto("/portfolio/test-one");
+  await expect(
+    page.getByText(/Personal provisional Alpaca data/),
+  ).toBeVisible();
+  await page.goto("/dashboard");
+  await expect(
+    page.getByText(/Personal provisional Alpaca data/).first(),
+  ).toBeVisible();
 });

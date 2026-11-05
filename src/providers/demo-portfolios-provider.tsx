@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import {
   allocation,
   validAmount,
+  portfolioNameError,
   storageSchema,
   type Portfolio,
 } from "~/lib/demo";
@@ -91,6 +92,11 @@ function usePortfolioStore() {
     router.push(`/portfolio/${encodeURIComponent(p.id)}`);
   }
   function save(p: Portfolio) {
+    const nameError = portfolioNameError(p, portfolios);
+    if (nameError) {
+      setNotice(nameError);
+      return;
+    }
     if (
       !allocation(p.holdings).valid ||
       !validAmount(p.amount) ||

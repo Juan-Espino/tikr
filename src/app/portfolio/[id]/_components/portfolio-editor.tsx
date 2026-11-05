@@ -19,10 +19,14 @@ export function PortfolioEditor({
   portfolio,
   onChange,
   onClose,
+  nameError = "",
+  suggestedName,
 }: {
   portfolio: Portfolio;
   onChange: (portfolio: Portfolio) => void;
   onClose: () => void;
+  nameError?: string;
+  suggestedName?: string;
 }) {
   const [search, setSearch] = useState("");
   const { holdings } = portfolio;
@@ -70,10 +74,21 @@ export function PortfolioEditor({
             id="portfolio-name"
             maxLength={80}
             value={portfolio.name}
-            aria-invalid={!portfolio.name.trim()}
+            aria-invalid={!!nameError || !portfolio.name.trim()}
+            aria-describedby={nameError ? "portfolio-name-error" : undefined}
             onChange={(e) => onChange({ ...portfolio, name: e.target.value })}
-            className={`${field} mt-2`}
+            className={`${field} aria-invalid:border-destructive aria-invalid:ring-destructive/30 mt-2 aria-invalid:ring-2`}
           />
+          {nameError && (
+            <p
+              id="portfolio-name-error"
+              role="status"
+              className="text-destructive mt-2 text-sm"
+            >
+              {nameError}
+              {suggestedName ? ` Try “${suggestedName}”.` : ""}
+            </p>
+          )}
         </div>
         <div>
           <label
@@ -246,7 +261,12 @@ export function PortfolioEditor({
                 : "Use positive weights totaling exactly 100%, with up to two decimals."}
           </p>
         </div>
-        <Button onClick={onClose}>Done</Button>
+        <Button
+          disabled={!!nameError || !portfolio.name.trim()}
+          onClick={onClose}
+        >
+          Done
+        </Button>
       </div>
     </>
   );

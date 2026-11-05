@@ -225,6 +225,7 @@ export function DataStatus({
 }) {
   if (
     compact &&
+    view.dataQuality !== "personal-provisional" &&
     (view.status === "ready" || view.status === "refreshing") &&
     !view.shortenedBy?.length &&
     (!view.requested ||
@@ -238,14 +239,26 @@ export function DataStatus({
       aria-live="polite"
       className="text-muted-foreground mt-3 text-xs leading-relaxed"
     >
+      {view.dataQuality === "personal-provisional" && (
+        <span className="block">
+          Personal provisional Alpaca data; subject to corrections.
+          Corporate-action completeness is not independently verified.
+        </span>
+      )}
       {view.status === "blocked"
-        ? "Verified market data is unavailable. No estimated returns are shown."
+        ? view.dataQuality === "personal-provisional"
+          ? "Market data is unavailable. No estimated returns are shown."
+          : "Verified market data is unavailable. No estimated returns are shown."
         : view.status === "refreshing"
           ? view.series
-            ? "Refreshing; showing the last verified result."
-            : "Loading verified market history…"
+            ? view.dataQuality === "personal-provisional"
+              ? "Refreshing; showing the last provisional result."
+              : "Refreshing; showing the last verified result."
+            : "Loading market history…"
           : view.status === "stale"
-            ? "Showing the last verified result; newer data is unavailable."
+            ? view.dataQuality === "personal-provisional"
+              ? "Showing the last provisional result; newer data is unavailable."
+              : "Showing the last verified result; newer data is unavailable."
             : compact
               ? null
               : "Alpaca SIP daily closes · dividends reinvested on payment date"}

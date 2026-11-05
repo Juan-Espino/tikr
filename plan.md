@@ -1,4 +1,39 @@
 # Tikr delivery plan
+## PR preparation (2026-11-05)
+
+Final combined revision passed 130 Node tests, 7 local Convex tests, all five backtest mutation probes, lint and both TypeScript projects, a production build, and 28 installed-Edge browser tests. The build and browser test server had personal market requests disabled. A focused independent Sol Low review found no blocking defect and passed 35 focused tests; it did not independently rerun the full suite. Live local SPY verification is recorded below; NVDA's failure, public/shared licensing and sustained team budget remain unresolved. The owner requested PR creation; no production activation is implied.
+
+## Input error and timeframe follow-up (2026-11-05)
+
+Portfolio name conflicts now use the existing destructive token for an invalid border/ring and error text, following shadcn's accessible invalid-field pattern. Max is removed from both timeframe pickers; legacy saved Max portfolio/draft values migrate to 5Y. Existing simulation and server contracts retain Max for compatibility. Three focused Node tests, two Edge browser tests, lint and both TypeScript checks passed. Next: owner review in the local feature worktree.
+
+## Portfolio naming and card identity (2026-11-05)
+
+Inspected the owner's dashboard state: two separate saved portfolios shared the name New portfolio, one NVDA and one SPY; SPY already had results while the NVDA card was blocked. The annotation did not establish a stale-response defect. Cards now show holding tickers; a browser regression confirms that saving an NVDA-to-SPY edit refreshes the correct card and removes the NVDA error.
+
+Saved names are unique ignoring case and surrounding whitespace, checked both in the editor and save operation. Conflicts show an inline suggestion without changing user input; self-renames remain valid. Duplicate creates an unsaved draft with the original name, requiring an explicit unique name before saving. Existing duplicates are preserved and require correction when edited. Eight name/demo Node tests, two focused Edge browser tests and lint/app/Convex TypeScript checks passed. No main checkout changes, credentials changes, deployment, commit or push for this follow-up. Next: owner review of the updated cards and naming flow; the separate NVDA data failure still needs investigation.
+
+
+## Live personal configuration (2026-11-05)
+
+Configured the existing development deployment and synced backend functions with Convex typechecking enabled. Private ignored worktree configuration uses existing local Alpaca credentials and a development-only deploy key; its Windows ACL permits the owner and SYSTEM. Main configuration was not changed. Personal provisional mode is enabled on the loopback dev server, port 43127.
+
+Live calendar, raw SIP bars and corporate-action requests succeeded. The first full-history request exposed a process-date/ex-date boundary bug: SPY returned a valid dividend with entitlement before the investment window but payment inside it. The personal loader now validates supported actions before filtering by ex/effective date; unsupported terms still fail. Policy revision v2 identifies this changed normalization; no admission ledger, lock, guard or revocation marker was deleted or reset. Ten loader regressions pass, including the boundary and malformed-action revocation cases; lint and both TypeScript projects pass.
+
+A live one-month SPY portfolio reached ready with 23 points per portfolio/benchmark, October 5 through November 4. Subsequent opens returned ready cached data. Installed Edge at 1440px and 390px rendered matching backend ending values, a 23-day accessible table and provisional disclosure without horizontal overflow. Convex inspection found 62 monthly price records, one asset head and two result records. Reported development usage after the checks was 40 function calls and about 0.000169 GB database I/O; reporting may lag and does not establish monthly fit.
+
+The operator reports Tikr is the only team project in use. Other-project usage was configured as zero on that basis, with a 24-hour review expiry; team-wide plan/storage totals were not independently established. Reassess that configuration before expiry to maintain availability. Credentials, market payloads and the deploy key remain outside tracked files. No production deployment, commit or push. Next: owner review of the live local app, then integration review; sustained budget fit and public access remain separate.
+
+## Personal provisional implementation (2026-11-05)
+
+Implemented in `C:\Users\JuanE\.t3\worktrees\tikr\t3-7a02e9bc`: explicit server-only personal provisional mode bypasses the manual evidence bundle, obtains bounded exchange calendar/raw SIP bars/actions, and uses the existing durable storage/cache and decimal engine. Results carry a provisional quality marker visible in workspace and compact dashboard. Reviewed replay remains available. Provider requests reserve durable local budget before transport; missing history and unsupported/ambiguous actions fail, including revocation when received data contradicts an old scope. No engine methodology or Convex function/schema changes.
+
+Verification: all 125 Node tests, eight focused personal-loader regressions included, passed. Seven local Convex tests, all five mutation checks, lint/typecheck and 25 browser tests passed. Browser checks used an allowlisted credential-cleared loopback server and synthetic fixtures; output is under system temp (`tikr-personal-browser`). The final production build passed in an allowlisted credential-cleared environment with SKIP_ENV_VALIDATION=1. Focused Prettier and Git whitespace checks passed. The temporary dev server was stopped. Restored frozen-lockfile dependencies with no manifest/lock changes. An initial browser/build attempt collided in the shared Next output directory and failed; sequential verification supersedes that attempt.
+
+Next task: separately authorize private configuration, verify Convex team headroom/configuration and deployment prerequisites, then run a bounded live Alpaca trial for endpoint/account compatibility and corrections. No credentials were accessed, authenticated requests made, services provisioned, deployment performed, commit created or push made. Public/shared licensing and real account ownership/authentication remain separate. The saved historical evidence captures remain unaccepted as independently verified data; the owner decision authorizes labeled provisional use, not rewritten historical findings.
+
+Owner decision (2026-11-05): personal local Alpaca results may use provisional live data without manual evidence approval. Label results clearly as subject to corrections; this does not establish provider finality or exhaustive action completeness. Raw SIP closes, the next-day 09:00 New York cutoff, payment-date reinvestment, decimal arithmetic, shared periods and missing/unsupported-action failures remain required. Public/shared licensing, credentials/configuration, live requests and deployment require separate authorization. Earlier manual-review requirements below remain applicable to reviewed replay and historical evidence acceptance; they no longer gate this personal provisional mode.
+
 ## Alpaca evidence request draft (2026-11-05)
 
 Prepared `alpaca-evidence-request.md` with specific close, correction, action-coverage and unit questions. Massive is a documented trade-rule comparison lead, not a verified equivalent or approved data source; entitlement and permitted validation use remain unknown. No inquiry sent, account created, paid access, credentials or live requests. Next: owner review and authorization before sending the draft; resolve source equivalence and rights before accepting captures.

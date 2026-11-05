@@ -7,7 +7,13 @@ import { ArrowLeft, Copy, Pencil, Pin, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { RangePicker } from "~/components/range-picker";
 import { MarketPerformance } from "~/components/market-performance";
-import { allocation, validAmount, type Portfolio } from "~/lib/demo";
+import {
+  allocation,
+  validAmount,
+  portfolioNameError,
+  suggestedPortfolioName,
+  type Portfolio,
+} from "~/lib/demo";
 
 import { Dialog, DialogContent } from "~/components/ui/dialog";
 import { PortfolioEditor } from "./portfolio-editor";
@@ -55,13 +61,21 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     save,
     remove,
     setDraft: persistDraft,
+    open,
   } = useDemoPortfolios();
   const [draft, updateDraft] = useState(initial);
   function setDraft(p: Portfolio) {
     updateDraft(p);
     persistDraft(p);
   }
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(
+    !!portfolioNameError(initial, portfolios),
+  );
+  const nameError = portfolioNameError(draft, portfolios);
+  const suggestedName =
+    nameError && draft.name.trim()
+      ? suggestedPortfolioName(draft.name, portfolios)
+      : undefined;
   const [spy, setSpy] = useState(true);
   const [dollars, setDollars] = useState(false);
   const [comparison, setComparison] = useState<string[]>([]);
@@ -74,7 +88,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     draft &&
     allocation(draft.holdings).valid &&
     validAmount(draft.amount) &&
-    !!draft.name.trim();
+    !nameError;
   function changeDraft(p: Portfolio) {
     setDraft(p);
     if (!p.holdings.length) {
@@ -131,6 +145,13 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             </Button>
           </div>
         </div>
+        {nameError && (
+          <p role="status" className="mb-4 text-sm text-stone-300">
+            {nameError}
+            {suggestedName ? ` Try “${suggestedName}”.` : ""} Edit the name
+            before saving.
+          </p>
+        )}
         <div className="mb-6">
           <div
             className="mt-3 flex flex-wrap gap-2"
@@ -166,17 +187,13 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                   return;
                 }
                 const original = portfolios.find((p) => p.id === draft.id)!;
-                setPortfolios((old) => [
-                  ...old,
-                  {
-                    ...original,
-                    id: crypto.randomUUID(),
-                    name: `${original.name.slice(0, 73)} (copy)`,
-                    pinned: false,
-                    updated: Date.now(),
-                  },
-                ]);
-                setNotice("Saved portfolio duplicated locally.");
+                open({
+                  ...original,
+                  id: crypto.randomUUID(),
+                  pinned: false,
+                  updated: Date.now(),
+                });
+                setNotice("Choose a unique name, then save the duplicate.");
               }}
             >
               <Copy />
@@ -202,6 +219,8 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             <DialogContent>
               <PortfolioEditor
                 portfolio={draft}
+                nameError={nameError}
+                suggestedName={suggestedName}
                 onChange={changeDraft}
                 onClose={() => setEditorOpen(false)}
               />
