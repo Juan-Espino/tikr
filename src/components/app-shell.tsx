@@ -67,7 +67,7 @@ export function AppShell({
           <TikrLogo />
         </button>
         <span className="text-muted-foreground text-xs">
-          Local demo · synthetic sample data
+          Browser-local portfolios · sign-in preview
         </span>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/dashboard")}>

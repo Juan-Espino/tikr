@@ -1,4 +1,5 @@
 # Tikr delivery plan
+Current local integration status (2026-11-04): an expiring evidence-gated replay loader, internal Convex storage/leases and budget admission, and real-result UI states are implemented in the isolated feature worktree. Production/public access is disabled; actual provider evidence, Convex deployment/team usage acceptance and live activation remain incomplete. No demo series are substituted in portfolio results. Guest definitions remain browser-local and sign-in remains a preview. See `market-data-integration.md`; earlier unimplemented summaries below are historical baseline statements.
 
 ## On-demand refresh section (implementation)
 
@@ -399,3 +400,33 @@ Verification for this milestone: 21 existing and 9 adapter tests passed; all fiv
 ## Alpaca adapter review fixes (2026-11-02)
 
 Independent review requested changes to timestamp validation, the client boundary, response budgets and retry cancellation. The revision validates timestamp components, uses Next's pinned `server-only` marker, caps streamed bytes/chunks and page/aggregate records, and aborts retries promptly. A disposable-project build confirms Next rejects a client import. The tests are synthetic; external proof records remain attestations and provider completeness remains unresolved. Verification: 21 existing and 17 adapter tests passed, five mutations passed, `pnpm check` passed, the isolated negative build failed for the expected server-only reason, and the credential-free production build passed. The private command rejected missing credentials. Next: coordinator-owned independent review of the frozen revision, followed by separately authorized provider evidence work if appropriate.
+
+
+## Personal data integration checkpoint (2026-11-04)
+
+Local implementation exists in the isolated `feat/alpaca-real-data-validation` worktree, after commit `bf84f26`. This new batch remains uncommitted; no PR, push, merge, provisioning or deployment was performed. The main app checkout remains clean at `a55bbcc` and the engine source is unchanged.
+
+- Implemented expiring, revision-bound, raw-SIP analyst-evidence replay loader; unknown finality/actions/inception/units still fail closed. Its optional live-fetch interface is not enabled by the runtime. Replayed all six existing private captures with global network disabled: integrity passed, 53 bars total, evidence/engine acceptance remains unresolved. No credentials or new authenticated provider requests were used.
+- Implemented internal Convex storage, monthly price/action chunks with compact manifests, compressed result slots, dependency/lease comparisons and atomic attempts. Persistent local admission budgets count pre-network reservations, including failed/unknown calls. Write-ahead refresh guards and independent revocation markers stop known corrections from escaping after errors, lock contention, in-flight reads or restart. Active guards provide bounded loading/coalescing; abandoned guards block rather than serving old data.
+- Connected existing dashboard/detail UI to the typed local-only stream. Loading, ready, refreshing with dated results, stale, blocked, retry, evidence expiry and shared portfolio/SPY periods are exercised. Metrics, exact tooltips, asset returns and table use engine values; no synthetic series are substituted. Guest portfolio storage and sign-in preview remain honestly labeled. Production market access is disabled.
+- Reproducible sizing now uses actual engine-result payloads and Convex serialized document sizes. Six assets / 1,300 sessions / one user / ten opens daily / 31 days / 30% cache misses: representative ~17.5 MB storage and ~322 MB monthly I/O; stress ~12.6 MB and ~358 MB. Local action compute is in Next.js, with zero Convex actions. These are forecasts, not deployed billing measurements. Initial 250 MB monthly I/O proposal was raised to 500 MB, half the free allowance; storage cap stays100 MB and calls250,000. Five- and twenty-user models fail the budget check. Actual team usage, account plan, other deployments and post-activation measurements remain unverified prerequisites.
+
+Verification after final source changes: 117/117 Node tests passed;7/7 official convex-test edge-runtime tests passed;14/14 installed-Edge browser tests passed (independently rerun); five engine mutants killed; `pnpm check`, focused Prettier and `git diff --check` passed. Credential-cleared production build passed with validation skipped and only `.env.example` present by filename. The test server was stopped afterward. Screenshots reviewed at mobile/desktop with overflow checks at390/768/1440px. A temporary Python stdout encoding error hid an earlier suite summary; the complete suite was rerun with safe output and reported117/117, exit0.
+
+Independent review reached bounded acceptance after correction/expiry/admission/coalescing and UI retry/card fixes. Complete source/diff coverage was accumulated across bounded passes, with final reviewed source hashes matching at start/end. The final integration follow-up independently passed17 durable tests and14 browser tests. The three additional SDK transport/sanitization tests were run by the coordinator afterward without changing reviewed production source. No universal numerical-error, provider-completeness or billing certification is claimed.
+
+Next task is activation evidence, not another UI implementation: assess and document eligible-close semantics and exhaustive action/revision reconstruction, produce reviewed private artifacts without inventing verified flags, inspect the actual Convex Free TEAM usage/headroom, then separately authorize deployment/configuration and a bounded real end-to-end trial. Do not deploy, enable public/shared market access, use paid fallback or loosen methodology just to remove a blocked state. See `market-data-integration.md` for configuration and limits.
+
+
+## UI review follow-up (2026-11-04)
+
+Implemented the owner-requested dashboard chart sizing and axes, concise card status, accessible daily table, comparison placement, and stable chart while changing timeframes or comparisons. Browser review uses synthetic data; live provider verification and production readiness remain separate. Follow with owner review and independent validation before any commit or merge.
+
+
+Owner follow-up: coordinated dashboard loading, targeted pulses, and portfolio comparison color/exit animation are implemented for synthetic review. Verify behavior and retain the live-data evidence gates before merge.
+
+
+UI follow-up: final-only snapshot swaps and comparison exit timing implemented. The review proxy explicitly marks synthetic responses for an eight-entry, 30-second in-memory cache; unmarked data is never served from this client cache. Live provider correctness and server-side cache validity remain separate gates.
+
+
+Owner authorized commit, push and PR preparation on 2026-11-04 after UI review. Next: review the combined PR and CI; merge/main-checkout update requires the owner's next instruction. The synthetic-only browser cache does not bypass live server revocation checks.

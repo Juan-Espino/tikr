@@ -38,3 +38,7 @@ Before connecting the UI: resolve the provider evidence gates in `alpaca-real-da
 
 
 Completion verification: all 86 offline tests, five engine mutation probes, lint/typecheck, focused formatting/whitespace and a credential-cleared production build passed. Independent review accepted the revised single-process scope after 22/22 cache tests and its own cross-request calendar-outage probe, with frozen hashes matching at start/end. This verification note is a documentation-only update after source review. Deployed, durable and real-provider acceptance remain outside that result.
+
+## Durable integration follow-up (2026-11-04)
+
+`src/lib/durable-market.ts`, the internal Convex store and local admission ledger extend this factory for a local personal server. `src/lib/market-cache.ts` remains the single-process calculation coordinator; its factory alone does not enforce durable quotas. See `market-data-integration.md` for evidence expiry/revocation, revisioned monthly source chunks, compressed result slots, account/team budget prerequisites and production-disabled UI integration. The new backend remains unactivated pending evidence and deployment review.

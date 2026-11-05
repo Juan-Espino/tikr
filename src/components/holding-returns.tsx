@@ -1,5 +1,5 @@
 "use client";
-import { assets, metrics, percent, series, type Portfolio } from "~/lib/demo";
+import { assets, percent, type Portfolio } from "~/lib/demo";
 
 type Tile = { ticker: string; name: string; weight: number; change: number };
 function Tiles({ items, ratio = 2 }: { items: Tile[]; ratio?: number }) {
@@ -56,11 +56,21 @@ function Tiles({ items, ratio = 2 }: { items: Tile[]; ratio?: number }) {
     </div>
   );
 }
-export function HoldingReturns({ portfolio }: { portfolio: Portfolio | null }) {
-  if (!portfolio)
+export function HoldingReturns({
+  portfolio,
+  verifiedReturns,
+}: {
+  portfolio: Portfolio | null;
+  verifiedReturns?: Record<string, string>;
+}) {
+  if (
+    !portfolio ||
+    !verifiedReturns ||
+    portfolio.holdings.some((h) => verifiedReturns[h.ticker] === undefined)
+  )
     return (
       <p className="text-muted-foreground mt-4 text-sm">
-        Run a simulation to see each asset’s return.
+        Verified asset returns are unavailable.
       </p>
     );
   const items = portfolio.holdings
@@ -69,20 +79,14 @@ export function HoldingReturns({ portfolio }: { portfolio: Portfolio | null }) {
       name:
         assets.find((a) => a.ticker === holding.ticker)?.name ?? holding.ticker,
       weight: Number(holding.weight),
-      change: metrics(
-        series(
-          [{ ticker: holding.ticker, weight: "100" }],
-          portfolio.range,
-          100,
-        ),
-      ).return,
+      change: Number(verifiedReturns[holding.ticker]),
     }))
     .sort((a, b) => b.weight - a.weight || a.ticker.localeCompare(b.ticker));
   return (
     <>
       <p className="text-muted-foreground mt-2 text-sm">
-        {portfolio.range} return per asset. Tile size represents starting
-        allocation. Demo data.
+        Return per asset over the same shared dates. Tile size represents
+        starting allocation.
       </p>
       <div className="mt-5 h-80 sm:h-96">
         <Tiles items={items} />

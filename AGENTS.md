@@ -77,3 +77,7 @@ For application changes, start with focused existing checks, then appropriate co
 ## Coordination
 
 Update `plan.md` with evidence-backed status and the next task. Update `product.md` for approved scope changes and `design.md` for approved visual changes. Do not convert deferred ideas or assistant suggestions into launch commitments.
+
+## Personal data integration verification
+
+For the optional personal server integration, read `market-data-integration.md`. Run the Node evidence/durable/admission tests with `--conditions=react-server --experimental-strip-types`, and `pnpm exec vitest run` for the local Convex transaction tests. Browser tests use the installed Edge and a credential-cleared loopback dev server; keep screenshots under system temp. Do not deploy or enable real market data merely because synthetic tests pass. Never delete/reset the admission ledger, abandoned refresh guards, locks or revocation markers to bypass evidence/resource gates. Main checkout remains unchanged; work stays in the isolated feature worktree.

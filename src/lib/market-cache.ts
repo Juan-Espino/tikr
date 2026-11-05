@@ -54,6 +54,7 @@ function local(now: Date) {
   const cycle = Number(p.hour) >= 9 ? today : shift(today, -1);
   return { cycle, eligibleThrough: shift(cycle, -1) };
 }
+export const freshnessCycle = (now: Date) => local(now).cycle;
 /** Operational eligibility, not a provider finality assertion. */
 export function eligibleSessions(sessions: string[], now: Date): string[] {
   const { eligibleThrough } = local(now);
@@ -95,6 +96,7 @@ export type CacheView = {
   status: "ready" | "refreshing" | "stale" | "blocked";
   requested: { start: string; end: string };
   result?: Result;
+  assetReturns?: Record<string, string>;
   asOf?: string;
   dataCheckedAt?: string;
   dataRevisions?: Record<string, string>;

@@ -161,3 +161,21 @@ Owner selected a relaxed, slightly grinning bear on a vintage cruiser longboard,
 - Dashboard empty-state refinement: match the surrounding #080808 background. Show the entire wireframe globe, with dots at grid intersections and a slow rotation; decorative glowing candlesticks stay fixed in front. Reduced motion keeps the globe static.
 
 - Empty portfolio now uses the same rotating wireframe globe as the dashboard, overlaid with three outlined holdings tiles. The decorative charts are green rising, neutral, and red falling. Tiles gently float; reduced motion displays a static arrangement. Existing guidance remains.
+
+
+## Verified-result states (2026-11-04)
+
+Retain existing Manrope, near-black/stone surfaces and chart conventions. Dashboard cards remain square native buttons across their full surface, with a textual performance/status description for assistive technology. Keep sign-in explicitly a preview and portfolio definitions labeled browser-local until ownership/authentication is implemented.
+
+A cold result shows loading; a failed/unconfigured verification shows unavailable history without fabricated numbers or demo graphs. A refresh may show a dated previously verified result; known-invalidated or expired evidence removes it. Display actual common dates, as-of/check times and shortened-history explanations. Server decimal formatting controls metrics/tooltips, while Number conversion serves plot geometry. The detail view includes an accessible daily-value table and same-period asset returns. Retry intent belongs to one explicit request and never carries into edits. Dashboard assumptions describe actual buy-and-hold/payment-date reinvestment and each portfolio's own starting amount, superseding earlier synthetic-demo footer copy.
+
+
+## Dashboard and comparison review (2026-11-04)
+
+Dashboard cards prioritize a larger chart with percentage and date axes while retaining their padding. Omit routine provider details on cards; keep meaningful freshness, availability, and shortened-history notices. In the portfolio view, comparison controls sit below the chart and before asset returns. The visible daily-values disclosure is removed; the chart retains a screen-reader-accessible data table. During timeframe or comparison updates, keep the previous dated result visible with an updating indicator until the replacement is available; never retain expired or blocked results.
+
+
+Dashboard updates pulse only changing values and charts, with cards switching together after a bounded wait. Portfolio comparisons use consistent assigned colors and animate out on removal when their dates still align. Reduced-motion preferences disable these animations.
+
+
+Keep the last complete dated snapshot unchanged while a new selection loads; swap only once a complete final response arrives. Start comparison exit on deselection and retain the old chart through its animation. For the explicitly marked synthetic review only, recently completed selection results may be reused briefly in memory. Live or unmarked results still require server-side validity checks.
