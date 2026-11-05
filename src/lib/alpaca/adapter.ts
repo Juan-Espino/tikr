@@ -440,8 +440,24 @@ export async function fetchCandidates(
         if (!Array.isArray(rows)) return fail("MALFORMED");
         for (const item of rows) {
           const row = object(item),
-            id = text(row.id),
-            symbol = text(row.symbol);
+            id = text(row.id);
+          // Cash consideration affects acquiree shares; the acquirer is also returned by the API.
+          if (kind === "cash_mergers" && row.symbol == null) {
+            const acquiree = text(row.acquiree_symbol),
+              acquirer = text(row.acquirer_symbol);
+            if (!symbols.includes(acquiree) && symbols.includes(acquirer)) {
+              const processed = date(row.process_date);
+              date(row.effective_date);
+              positive(row.rate);
+              if (processed < start || processed > end || ids.has(id))
+                return fail("MALFORMED");
+              ids.add(id);
+              continue;
+            }
+            row.symbol = acquiree;
+            row.ex_date = row.effective_date;
+          }
+          const symbol = text(row.symbol);
           if (!symbols.includes(symbol) || ids.has(id))
             return fail("MALFORMED");
           ids.add(id);
@@ -490,7 +506,14 @@ export async function fetchCandidates(
               a.numerator = positive(row.new_rate);
               a.denominator = positive(row.old_rate);
             }
-            if (row.due_bill_redemption_date != null || row.new_symbol != null)
+            // Due-bill settlement on/after ex-date does not move raw-price split entitlement.
+            // Earlier settlement and symbol changes remain unsupported.
+            if (
+              (row.due_bill_redemption_date != null &&
+                date(row.due_bill_redemption_date) <
+                  (eventDate ?? "9999-12-31")) ||
+              row.new_symbol != null
+            )
               issues.push("unsupported split terms");
           } else issues.push("unsupported action");
           actions.push(a);
