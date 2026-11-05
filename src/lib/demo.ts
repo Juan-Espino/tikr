@@ -34,7 +34,7 @@ export const assets = [
   },
 ] as const;
 export const ranges = ["1W", "1M", "YTD", "1Y", "5Y", "Max"] as const;
-export type Range = (typeof ranges)[number];
+export type Range = Exclude<(typeof ranges)[number], "Max">;
 export type Holding = { ticker: string; weight: string };
 const holdingSchema = z.object({
   ticker: z
@@ -52,9 +52,29 @@ export const portfolioSchema = z.object({
   pinned: z.boolean(),
   updated: z.number().finite(),
   amount: z.string().max(16),
-  range: z.enum(ranges),
+  range: z
+    .enum(ranges)
+    .transform((range) => (range === "Max" ? ("5Y" as const) : range)),
 });
 export type Portfolio = z.infer<typeof portfolioSchema>;
+export function portfolioNameError(p: Portfolio, portfolios: Portfolio[]) {
+  if (!p.name.trim()) return "Enter a portfolio name.";
+  return portfolios.some(
+    (other) =>
+      other.id !== p.id &&
+      other.name.trim().toLowerCase() === p.name.trim().toLowerCase(),
+  )
+    ? "A portfolio with this name already exists."
+    : "";
+}
+export function suggestedPortfolioName(name: string, portfolios: Portfolio[]) {
+  const names = new Set(portfolios.map((p) => p.name.trim().toLowerCase()));
+  for (let suffix = 2; ; suffix++) {
+    const ending = ` ${suffix}`;
+    const candidate = `${(name.trim() || "New portfolio").slice(0, 80 - ending.length)}${ending}`;
+    if (!names.has(candidate.toLowerCase())) return candidate;
+  }
+}
 export const storageSchema = z.object({
   version: z.literal(1),
   portfolios: z.array(portfolioSchema).max(100),
@@ -125,7 +145,7 @@ export function examples(): Portfolio[] {
   ];
 }
 const end = Date.UTC(2026, 9, 22);
-const starts: Record<Range, number> = {
+const starts: Record<Range | "Max", number> = {
   "1W": Date.UTC(2026, 9, 15),
   "1M": Date.UTC(2026, 8, 22),
   YTD: Date.UTC(2026, 0, 1),

@@ -13,6 +13,59 @@ import Decimal from "decimal.js";
 import type { MarketRequest, MarketResponse } from "./market-contract";
 import type { CacheView } from "./market-cache.ts";
 import { assets } from "./demo";
+import { localAdmission } from "./market-admission.ts";
+import {
+  createAdmittedTransport,
+  createPersonalLoader,
+  fetchPersonalCalendar,
+  PROVISIONAL_POLICY,
+} from "./alpaca/personal-loader.ts";
+import { freshnessCycle } from "./market-cache.ts";
+import type { Config } from "./alpaca/adapter.ts";
+let personalCalendar: { key: string; value: Promise<Calendar> } | undefined;
+async function personalSource() {
+  const keyId = process.env.ALPACA_API_KEY_ID,
+    secret = process.env.ALPACA_API_SECRET_KEY;
+  if (!keyId || !secret) throw new Error("PROVIDER_NOT_CONFIGURED");
+  // Retain reservations for all provider outcomes, pages and retries.
+  const transport = createAdmittedTransport(async () => {
+    await (await localAdmission()).reserve(2 * 1024 * 1024);
+  });
+  const config: Config = {
+    keyId,
+    secret,
+    transport,
+    retries: 0,
+    maxPages: 8,
+    maxTotalBytes: 8 * 1024 * 1024,
+    maxTotalBars: 1300,
+    maxTotalActions: 1000,
+  };
+  const now = new Date(),
+    cycle = freshnessCycle(now);
+  // Month-aligned five-year window keeps cache scopes stable within a month.
+  const monthStart = `${Number(cycle.slice(0, 4)) - 5}${cycle.slice(4, 7)}-01`;
+  // Include a boundary buffer when the latest completed session is in the prior month.
+  const start = new Date(Date.parse(monthStart) - 7 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  const key = `${start}:${cycle}`;
+  if (personalCalendar?.key !== key) {
+    const value = fetchPersonalCalendar(config, start, cycle, now);
+    personalCalendar = { key, value };
+    void value.catch(() => {
+      if (personalCalendar?.value === value) personalCalendar = undefined;
+    });
+  }
+  const calendar = await personalCalendar.value;
+  return {
+    calendar,
+    historyStart: start,
+    load: createPersonalLoader(config, calendar),
+    revision: revision({ policy: PROVISIONAL_POLICY, start }),
+    expires: now.valueOf() + 24 * 60 * 60 * 1000,
+  };
+}
 const Precise = Decimal.clone({
   precision: 40,
   rounding: Decimal.ROUND_HALF_EVEN,
@@ -121,22 +174,31 @@ export async function openMarket(request: MarketRequest) {
     process.env.NODE_ENV === "production"
   )
     throw new Error("PERSONAL_DATA_DISABLED");
-  const data = await bundle();
   const url = process.env.TIKR_CONVEX_URL,
     key = process.env.TIKR_CONVEX_ADMIN_KEY;
   if (!url || !key) throw new Error("STORAGE_NOT_CONFIGURED");
-  const load = createVerifiedLoader({
-    review: async (symbol) => data.reviews[symbol],
-  });
+  const provisional = process.env.TIKR_MARKET_MODE === "personal-provisional";
+  const data = provisional ? undefined : await bundle();
+  const source = data
+    ? {
+        calendar: data.calendar,
+        historyStart: data.historyStart,
+        load: createVerifiedLoader({
+          review: async (symbol) => data.reviews[symbol],
+        }),
+        revision: revision(data),
+        expires: Math.min(
+          ...Object.values(data.reviews).map((r) => Date.parse(r.expiresAt)),
+        ),
+      }
+    : await personalSource();
+  const { load } = source;
   const run = createDurableBacktests({
-    storage: convexStorage(url, key, revision(data)),
-    calendar: () => data.calendar,
-    historyStart: data.historyStart,
-    evidenceRevision: revision(data),
-    evidenceValidUntil: () =>
-      Math.min(
-        ...Object.values(data.reviews).map((r) => Date.parse(r.expiresAt)),
-      ),
+    storage: convexStorage(url, key, source.revision),
+    calendar: () => source.calendar,
+    historyStart: source.historyStart,
+    evidenceRevision: source.revision,
+    evidenceValidUntil: () => source.expires,
     supportedSymbols: assets.map((a) => a.ticker),
     load,
   });
@@ -148,19 +210,13 @@ export async function openMarket(request: MarketRequest) {
   return {
     initial: {
       ...publicView(job.initial, request.amount),
-      evidenceExpiresAt: new Date(
-        Math.min(
-          ...Object.values(data.reviews).map((r) => Date.parse(r.expiresAt)),
-        ),
-      ).toISOString(),
+      dataQuality: provisional ? "personal-provisional" : "reviewed",
+      evidenceExpiresAt: new Date(source.expires).toISOString(),
     },
     settled: job.settled.then((v) => ({
       ...publicView(v, request.amount),
-      evidenceExpiresAt: new Date(
-        Math.min(
-          ...Object.values(data.reviews).map((r) => Date.parse(r.expiresAt)),
-        ),
-      ).toISOString(),
+      dataQuality: provisional ? "personal-provisional" : "reviewed",
+      evidenceExpiresAt: new Date(source.expires).toISOString(),
     })),
   };
 }

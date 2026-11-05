@@ -323,6 +323,7 @@ export async function fetchCandidates(
         try {
           const request = transport(url.toString(), {
             method: "GET",
+            cache: "no-store",
             headers: {
               "APCA-API-KEY-ID": keyId,
               "APCA-API-SECRET-KEY": secret,

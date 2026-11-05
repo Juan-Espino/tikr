@@ -68,6 +68,8 @@ export function PortfolioCard({
       </div>
       <p className="text-muted-foreground mt-1 text-xs">
         {p.holdings.length} {p.holdings.length === 1 ? "asset" : "assets"}
+        {" · "}
+        {p.holdings.map((holding) => holding.ticker).join(", ")}
       </p>
       <div id={summary} className="contents">
         <MarketPerformanceView

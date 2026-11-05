@@ -49,6 +49,7 @@ export type MarketResponse = {
   code?: string;
   asOf?: string;
   evidenceExpiresAt?: string;
+  dataQuality?: "personal-provisional" | "reviewed";
   assetReturns?: Record<string, string>;
   dataCheckedAt?: string;
   period?: { start: string; end: string };
