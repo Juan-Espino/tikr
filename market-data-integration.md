@@ -1,5 +1,7 @@
 # Personal market-data integration
 
+Hosted preparation update (2026-11-06): anonymous Vercel operation is implemented behind explicit activation configuration; see [hosted-operation.md](hosted-operation.md) for exact variables, limits, disable/rollback and unresolved public-data rights. Local-only/production-disabled descriptions below describe the original local path, which remains compatible. Public activation has not been authorized or performed.
+
 Owner decision (2026-11-05): personal local Alpaca results may use provisional live data without manual evidence approval. Label results clearly as subject to corrections; this does not establish provider finality or exhaustive action completeness. Raw SIP closes, the next-day 09:00 New York cutoff, payment-date reinvestment, decimal arithmetic, shared periods and missing/unsupported-action failures remain required. Public/shared licensing, credentials/configuration, live requests and deployment require separate authorization. Earlier manual-review requirements below remain applicable to reviewed replay and historical evidence acceptance; they no longer gate this personal provisional mode.
 
 

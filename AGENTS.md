@@ -46,7 +46,7 @@ Use pnpm: the manifest specifies `pnpm@10.11.0` and `pnpm-lock.yaml` is tracked.
 - SPY is the explicitly named ETF benchmark, replacing VOO by owner decision on 2026-10-30. Compared series share dates, starting amount, and methodology.
 - Equal weights by default; manual weights must be positive and total exactly 100% before finalization/backtesting. Handle rounding deterministically.
 - Never omit missing holdings/history silently or invent earlier prices. Statistics must agree with charts.
-- Google-only authentication; preserve guest drafts and enforce portfolio ownership server-side.
+- Open unauthenticated access for the hosted release (owner decision 2026-11-06); portfolio definitions and drafts remain browser-local. Future cloud persistence requires server-enforced ownership.
 - Pin portfolios, but do not add manual ordering or drag-and-drop.
 - Matte near-black surfaces, Manrope, stone-white text/charts; no pastel dashboard cards. The bright login panel is intentional.
 - Groq interprets category queries; a verified catalog supplies supported assets. No unchecked model tickers, personalized buy/sell advice, or AI forecasts.

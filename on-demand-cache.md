@@ -1,5 +1,7 @@
 # On-demand market-data cache
 
+Hosted preparation update (2026-11-06): anonymous Vercel operation is implemented behind explicit activation configuration; see [hosted-operation.md](hosted-operation.md) for exact variables, limits, disable/rollback and unresolved public-data rights. Local-only/production-disabled descriptions below describe the original local path, which remains compatible. Public activation has not been authorized or performed.
+
 ## Approved behavior and implemented scope
 
 Opening a portfolio invokes a shared server coordinator. Fresh verified data returns immediately. Stale data returns the last verified calculation with its market `asOf` date and `dataCheckedAt` timestamp while refreshing. Cold assets or a new calculation without a verified snapshot return a loading state. A failed refresh retains an existing dated result; otherwise the result is blocked. A known corrected dependency invalidates old calculations rather than serving them as an acceptable fallback.

@@ -16,7 +16,7 @@ const entry = v.object({
 const validKey = (key: string) => {
   if (!/^[A-Za-z0-9:._-]{1,160}$/.test(key)) throw new Error("INVALID_KEY");
 };
-async function budget(ctx: MutationCtx, bytes: number, now: number) {
+export async function budget(ctx: MutationCtx, bytes: number, now: number) {
   const row = await ctx.db
     .query("marketBudget")
     .withIndex("by_key", (q) => q.eq("key", "global"))

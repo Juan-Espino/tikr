@@ -1,4 +1,7 @@
 # Tikr product
+
+Owner decision (2026-11-06): deployed Vercel access is open and unauthenticated; Google access restriction is rejected. Portfolio definitions remain browser-local. Hosted preparation is authorized; live public Alpaca activation remains prohibited until display/caching rights are resolved and separately authorized. Historical Google-only/cloud-save proposals below are superseded for this release. Anonymous implementation limits are protective defaults, not owner-approved product quotas.
+
 Owner decision (2026-11-05): remove Max from the timeframe control because the supported personal data window is capped at five years. Existing locally saved Max selections migrate to 5Y without losing portfolios or drafts. Older Max descriptions remain historical.
 
 Owner decision (2026-11-05): saved portfolio names must be unique within the browser-local portfolio list, ignoring case and surrounding whitespace. Block conflicting creation/rename/save with inline feedback and a suggested alternative; never apply a replacement automatically. Duplicating opens an unsaved draft that requires a user-chosen unique name. Preserve historical duplicate records until the owner edits them; do not silently rename or delete them.

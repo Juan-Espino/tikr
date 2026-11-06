@@ -1,4 +1,5 @@
 import "server-only";
+import { hosted, gateway, control } from "./market-hosted.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { ConvexHttpClient } from "convex/browser";
@@ -106,7 +107,10 @@ export function convexStorage(
   adminKey: string,
   evidenceRevision: string,
 ): MarketStorage {
-  if (!/^https:\/\/[a-z0-9-]+\.convex\.cloud$/.test(url) || !adminKey)
+  if (
+    (!hosted() && !/^https:\/\/[a-z0-9-]+\.convex\.cloud$/.test(url)) ||
+    (!hosted() && !adminKey)
+  )
     throw new Error("CONFIG_REQUIRED");
   // Version-bound SDK server interface. Admin credentials never enter function arguments or client code.
   const client = new ConvexHttpClient(url, {
@@ -153,11 +157,12 @@ export function convexStorage(
       });
     },
   }) as ConvexHttpClient & { setAdminAuth(token: string): void };
-  client.setAdminAuth(adminKey);
+  if (!hosted()) client.setAdminAuth(adminKey);
   async function call<T>(
     name: string,
     args: Record<string, unknown>,
   ): Promise<T> {
+    if (hosted()) return gateway<T>(name, args);
     const admission = await localAdmission();
     const reserved =
       name === "read" ? 10_000_000 : name === "write" ? 64_000_000 : 32_768;
@@ -184,12 +189,27 @@ export function convexStorage(
   }
   return {
     async revoke() {
+      if (hosted()) {
+        await control("revoke", evidenceRevision);
+        return;
+      }
       await (await localAdmission()).revoke(evidenceRevision);
     },
     async assertReadable(symbols) {
+      if (hosted()) {
+        await control("check", evidenceRevision, symbols);
+        return;
+      }
       await (await localAdmission()).assertReadable(evidenceRevision, symbols);
     },
     async beginRefresh(symbol) {
+      if (hosted()) {
+        const token = randomUUID();
+        await control("begin", evidenceRevision, [symbol], token);
+        return async () => {
+          await control("finish", evidenceRevision, [symbol], token);
+        };
+      }
       return (await localAdmission()).beginRefresh(evidenceRevision, symbol);
     },
     async read(keys) {

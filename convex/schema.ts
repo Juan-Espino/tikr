@@ -30,6 +30,10 @@ export default defineSchema({
     otherIo: v.number(),
     otherCalls: v.number(),
   }).index("by_key", ["key"]),
+  marketHosted: defineTable({ key: v.string(), payload: v.string() }).index(
+    "by_key",
+    ["key"],
+  ),
   tasks: defineTable({
     text: v.string(),
     isCompleted: v.boolean(),
