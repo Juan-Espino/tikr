@@ -1,10 +1,16 @@
 import "server-only";
+import { hosted, control } from "./market-hosted.ts";
 import { open } from "node:fs/promises";
 import { constants } from "node:fs";
 import { isAbsolute } from "node:path";
 import { createHash } from "node:crypto";
 import { createDurableBacktests } from "./durable-market.ts";
-import { revision, convexStorage } from "./market-storage.ts";
+import {
+  revision,
+  convexStorage,
+  chunks,
+  readValue,
+} from "./market-storage.ts";
 import { createVerifiedLoader } from "./alpaca/verified-loader.ts";
 import type { ReviewedAsset } from "./alpaca/verified-loader.ts";
 import type { Calendar } from "./backtest.ts";
@@ -29,6 +35,10 @@ async function personalSource() {
   if (!keyId || !secret) throw new Error("PROVIDER_NOT_CONFIGURED");
   // Retain reservations for all provider outcomes, pages and retries.
   const transport = createAdmittedTransport(async () => {
+    if (hosted()) {
+      await control("provider", "0".repeat(64));
+      return;
+    }
     await (await localAdmission()).reserve(2 * 1024 * 1024);
   });
   const config: Config = {
@@ -51,7 +61,46 @@ async function personalSource() {
     .slice(0, 10);
   const key = `${start}:${cycle}`;
   if (personalCalendar?.key !== key) {
-    const value = fetchPersonalCalendar(config, start, cycle, now);
+    const value = (async () => {
+      if (!hosted()) return fetchPersonalCalendar(config, start, cycle, now);
+      const storage = convexStorage(
+        "https://hosted.convex.cloud",
+        "gateway",
+        "0".repeat(64),
+      );
+      const cacheKey = "calendar:shared";
+      const read = async () => {
+        const head = (await storage.read([cacheKey]))[0];
+        if (!head) return undefined;
+        const saved = await readValue<{ key: string; calendar: Calendar }>(
+          storage,
+          head,
+        );
+        return saved.key === key ? saved.calendar : undefined;
+      };
+      const saved = await read();
+      if (saved) return saved;
+      const token = await storage.acquire(cacheKey, cycle, false);
+      if (!token) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 400));
+          const found = await read();
+          if (found) return found;
+        }
+        throw Error("CALENDAR_BUSY");
+      }
+      try {
+        const calendar = await fetchPersonalCalendar(config, start, cycle, now);
+        await storage.write(
+          cacheKey,
+          token,
+          chunks(cacheKey, { key, calendar }),
+        );
+        return calendar;
+      } finally {
+        await storage.release(cacheKey, token);
+      }
+    })();
     personalCalendar = { key, value };
     void value.catch(() => {
       if (personalCalendar?.value === value) personalCalendar = undefined;
@@ -168,14 +217,17 @@ export function publicView(view: CacheView, amount: string): MarketResponse {
   };
 }
 export async function openMarket(request: MarketRequest) {
-  // Local personal-use only. Production/public access requires separate rights and authentication work.
+  // Hosted activation is explicit and separate from the compatible local path.
   if (
-    process.env.TIKR_PERSONAL_DATA_ENABLED !== "explicit" ||
-    process.env.NODE_ENV === "production"
+    hosted()
+      ? process.env.TIKR_HOSTED_DATA_ENABLED !== "explicit" ||
+        process.env.TIKR_MARKET_MODE !== "personal-provisional"
+      : process.env.TIKR_PERSONAL_DATA_ENABLED !== "explicit" ||
+        process.env.NODE_ENV === "production"
   )
     throw new Error("PERSONAL_DATA_DISABLED");
-  const url = process.env.TIKR_CONVEX_URL,
-    key = process.env.TIKR_CONVEX_ADMIN_KEY;
+  const url = process.env.TIKR_CONVEX_URL ?? "https://hosted.convex.cloud",
+    key = hosted() ? "gateway" : process.env.TIKR_CONVEX_ADMIN_KEY;
   if (!url || !key) throw new Error("STORAGE_NOT_CONFIGURED");
   const provisional = process.env.TIKR_MARKET_MODE === "personal-provisional";
   const data = provisional ? undefined : await bundle();

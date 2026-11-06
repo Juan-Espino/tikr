@@ -1,3 +1,4 @@
+import { hosted, enterHosted, validMarketOrigin } from "~/lib/market-hosted";
 import { marketRequestSchema } from "~/lib/market-contract";
 import { openMarket } from "~/lib/market-runtime";
 export const runtime = "nodejs";
@@ -9,23 +10,8 @@ const blocked = (code: string, status = 503) =>
     { status, headers: { "Cache-Control": "no-store" } },
   );
 export async function POST(request: Request) {
-  const url = new URL(request.url);
-  let publicOrigin: URL;
-  try {
-    publicOrigin = new URL(
-      `${url.protocol}//${request.headers.get("host") ?? url.host}`,
-    );
-  } catch {
-    return blocked("LOCAL_ACCESS_ONLY", 403);
-  }
-  // Guest drafts remain browser-local; this endpoint is restricted to the owner's local personal app.
-  if (
-    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
-    !["localhost", "127.0.0.1", "[::1]"].includes(publicOrigin.hostname) ||
-    request.headers.get("origin") !== publicOrigin.origin ||
-    request.headers.get("content-type") !== "application/json"
-  )
-    return blocked("LOCAL_ACCESS_ONLY", 403);
+  if (!validMarketOrigin(request))
+    return blocked(hosted() ? "ORIGIN_REJECTED" : "LOCAL_ACCESS_ONLY", 403);
   if (!request.body) return blocked("INVALID_INPUT", 400);
   const reader = request.body.getReader();
   let text = "",
@@ -55,7 +41,9 @@ export async function POST(request: Request) {
     return blocked("INVALID_INPUT", 400);
   }
   if (!parsed.success) return blocked("INVALID_INPUT", 400);
+  let leave: (() => Promise<unknown>) | undefined;
   try {
+    if (hosted()) leave = await enterHosted(request);
     const job = await openMarket(parsed.data);
     const encoder = new TextEncoder();
     let cancelled = false;
@@ -76,6 +64,7 @@ export async function POST(request: Request) {
               ),
             );
         } finally {
+          await leave?.().catch(() => undefined);
           if (!cancelled) controller.close();
         }
       },
@@ -91,6 +80,7 @@ export async function POST(request: Request) {
       },
     });
   } catch {
+    await leave?.().catch(() => undefined);
     return blocked("DATA_NOT_VERIFIED");
   }
 }
