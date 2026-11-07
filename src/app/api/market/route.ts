@@ -1,3 +1,4 @@
+import { diagnose } from "~/lib/market-diagnostics";
 import { hosted, enterHosted, validMarketOrigin } from "~/lib/market-hosted";
 import { marketRequestSchema } from "~/lib/market-contract";
 import { openMarket } from "~/lib/market-runtime";
@@ -10,8 +11,10 @@ const blocked = (code: string, status = 503) =>
     { status, headers: { "Cache-Control": "no-store" } },
   );
 export async function POST(request: Request) {
-  if (!validMarketOrigin(request))
+  if (!validMarketOrigin(request)) {
+    diagnose("origin", "ORIGIN_REJECTED");
     return blocked(hosted() ? "ORIGIN_REJECTED" : "LOCAL_ACCESS_ONLY", 403);
+  }
   if (!request.body) return blocked("INVALID_INPUT", 400);
   const reader = request.body.getReader();
   let text = "",
@@ -43,7 +46,14 @@ export async function POST(request: Request) {
   if (!parsed.success) return blocked("INVALID_INPUT", 400);
   let leave: (() => Promise<unknown>) | undefined;
   try {
-    if (hosted()) leave = await enterHosted(request);
+    if (hosted()) {
+      try {
+        leave = await enterHosted(request);
+      } catch (error) {
+        diagnose("admission", error);
+        throw error;
+      }
+    }
     const job = await openMarket(parsed.data);
     const encoder = new TextEncoder();
     let cancelled = false;
@@ -54,9 +64,11 @@ export async function POST(request: Request) {
             encoder.encode(JSON.stringify(job.initial) + "\n"),
           );
           const final = await job.settled;
+          if (final.status === "blocked") diagnose("stream", final.code);
           if (!cancelled)
             controller.enqueue(encoder.encode(JSON.stringify(final) + "\n"));
-        } catch {
+        } catch (error) {
+          diagnose("stream", error);
           if (!cancelled)
             controller.enqueue(
               encoder.encode(
@@ -64,7 +76,9 @@ export async function POST(request: Request) {
               ),
             );
         } finally {
-          await leave?.().catch(() => undefined);
+          await leave?.().catch((error: unknown) =>
+            diagnose("admission", error),
+          );
           if (!cancelled) controller.close();
         }
       },
@@ -79,8 +93,9 @@ export async function POST(request: Request) {
         "X-Content-Type-Options": "nosniff",
       },
     });
-  } catch {
-    await leave?.().catch(() => undefined);
+  } catch (error) {
+    diagnose("runtime", error);
+    await leave?.().catch((error: unknown) => diagnose("admission", error));
     return blocked("DATA_NOT_VERIFIED");
   }
 }

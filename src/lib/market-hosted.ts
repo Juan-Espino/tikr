@@ -1,3 +1,4 @@
+import { diagnose } from "./market-diagnostics.ts";
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 export const hosted = () => process.env.TIKR_MARKET_HOSTED_ORIGIN !== undefined;
@@ -12,8 +13,10 @@ export async function gateway<T>(
     !/^https:\/\/[a-z0-9-]+\.convex\.site$/.test(url) ||
     !key ||
     key.length < 32
-  )
+  ) {
+    diagnose("config", "HOSTED_CONFIG");
     throw Error("HOSTED_CONFIG");
+  }
   const response = await fetch(`${url}/market-gateway`, {
     method: "POST",
     headers: {

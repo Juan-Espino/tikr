@@ -1,3 +1,4 @@
+import { diagnose, providerCredentials } from "./market-diagnostics.ts";
 import "server-only";
 import { hosted, control } from "./market-hosted.ts";
 import { open } from "node:fs/promises";
@@ -30,9 +31,14 @@ import { freshnessCycle } from "./market-cache.ts";
 import type { Config } from "./alpaca/adapter.ts";
 let personalCalendar: { key: string; value: Promise<Calendar> } | undefined;
 async function personalSource() {
-  const keyId = process.env.ALPACA_API_KEY_ID,
-    secret = process.env.ALPACA_API_SECRET_KEY;
-  if (!keyId || !secret) throw new Error("PROVIDER_NOT_CONFIGURED");
+  const { keyId, secret } = (() => {
+    try {
+      return providerCredentials();
+    } catch (error) {
+      diagnose("config", error);
+      throw error;
+    }
+  })();
   // Retain reservations for all provider outcomes, pages and retries.
   const transport = createAdmittedTransport(async () => {
     if (hosted()) {
@@ -106,7 +112,10 @@ async function personalSource() {
       if (personalCalendar?.value === value) personalCalendar = undefined;
     });
   }
-  const calendar = await personalCalendar.value;
+  const calendar = await personalCalendar.value.catch((error: unknown) => {
+    diagnose("calendar", error);
+    throw error;
+  });
   return {
     calendar,
     historyStart: start,
@@ -217,6 +226,14 @@ export function publicView(view: CacheView, amount: string): MarketResponse {
   };
 }
 export async function openMarket(request: MarketRequest) {
+  try {
+    return await openConfiguredMarket(request);
+  } catch (error) {
+    diagnose("runtime", error);
+    throw error;
+  }
+}
+async function openConfiguredMarket(request: MarketRequest) {
   // Hosted activation is explicit and separate from the compatible local path.
   if (
     hosted()
@@ -224,8 +241,10 @@ export async function openMarket(request: MarketRequest) {
         process.env.TIKR_MARKET_MODE !== "personal-provisional"
       : process.env.TIKR_PERSONAL_DATA_ENABLED !== "explicit" ||
         process.env.NODE_ENV === "production"
-  )
+  ) {
+    diagnose("config", "PERSONAL_DATA_DISABLED");
     throw new Error("PERSONAL_DATA_DISABLED");
+  }
   const url = process.env.TIKR_CONVEX_URL ?? "https://hosted.convex.cloud",
     key = hosted() ? "gateway" : process.env.TIKR_CONVEX_ADMIN_KEY;
   if (!url || !key) throw new Error("STORAGE_NOT_CONFIGURED");
