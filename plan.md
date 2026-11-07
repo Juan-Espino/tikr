@@ -1,4 +1,7 @@
 # Tikr delivery plan
+
+The favicon and Apple touch icon metadata now point to the owner-selected bear-aviator PNG. Next: verify the favicon in a browser when reviewing the app.
+
 ## Hosted review follow-up (2026-11-06)
 
 Independent Sol Low review found no confirmed production-blocking defect, passed 133 Node tests and 12 Convex/route tests, and identified integration/concurrency test gaps. Added a full hosted runtime test using the real Convex gateway against convex-test with synthetic provider transport: cold module instances reuse durable calendar/results, the next freshness cycle refreshes both, and revocation during a held cached-result read rejects the in-flight request. A local-admission mock throws if hosted execution uses the filesystem ledger. Added simultaneous admission and refresh-guard races: at most four requests enter and one guard writer wins. All 14 Convex/route/runtime tests now pass; lint and both TypeScript projects pass. These additions exercise simulated concurrency and real application paths, not deployed cloud timing or live market data. No deployment, credential access or public activation. Next: owner review of hosted configuration/runbook, followed by separately authorized deployment and hosted verification.

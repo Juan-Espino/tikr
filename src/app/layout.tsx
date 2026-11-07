@@ -10,11 +10,8 @@ export const metadata: Metadata = {
   description:
     "Build hypothetical portfolios with an explicitly labeled local sample-data demo.",
   icons: {
-    icon: [
-      { url: "/brand/bear-head-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/brand/bear-head-16.png", sizes: "16x16", type: "image/png" },
-    ],
-    apple: "/brand/bear-head-180.png",
+    icon: [{ url: "/brand/bear-aviator.png", type: "image/png" }],
+    apple: "/brand/bear-aviator.png",
   },
 };
 
