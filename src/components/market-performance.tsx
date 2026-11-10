@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { marketErrorMessage } from "~/lib/market-errors";
 import type { MarketRequest, MarketResponse } from "~/lib/market-contract";
 import type { Portfolio, Range } from "~/lib/demo";
 import { HoldingReturns } from "./holding-returns";
@@ -117,8 +118,17 @@ export function useMarketResults(
           });
           if (!response.ok || !response.body) {
             if (!abort.signal.aborted) {
-              setReceivedFor(key);
-              setView({ status: "blocked", code: "DATA_UNAVAILABLE" });
+              const failure = (await response.json().catch(() => undefined)) as
+                MarketResponse | undefined;
+              publish({
+                status: "blocked",
+                code: marketErrorMessage(failure?.code)
+                  ? failure?.code
+                  : "DATA_UNAVAILABLE",
+                retryAt: Number.isSafeInteger(failure?.retryAt)
+                  ? failure?.retryAt
+                  : undefined,
+              });
             }
             return;
           }
@@ -245,23 +255,38 @@ export function DataStatus({
           Corporate-action completeness is not independently verified.
         </span>
       )}
-      {view.status === "blocked"
-        ? view.dataQuality === "personal-provisional"
-          ? "Market data is unavailable. No estimated returns are shown."
-          : "Verified market data is unavailable. No estimated returns are shown."
-        : view.status === "refreshing"
-          ? view.series
-            ? view.dataQuality === "personal-provisional"
-              ? "Refreshing; showing the last provisional result."
-              : "Refreshing; showing the last verified result."
-            : "Loading market history…"
-          : view.status === "stale"
-            ? view.dataQuality === "personal-provisional"
-              ? "Showing the last provisional result; newer data is unavailable."
-              : "Showing the last verified result; newer data is unavailable."
-            : compact
-              ? null
-              : "Alpaca SIP daily closes · dividends reinvested on payment date"}
+      {marketErrorMessage(view.code) ??
+        (view.status === "blocked"
+          ? view.dataQuality === "personal-provisional"
+            ? "Market data is unavailable. No estimated returns are shown."
+            : "Verified market data is unavailable. No estimated returns are shown."
+          : view.status === "refreshing"
+            ? view.series
+              ? view.dataQuality === "personal-provisional"
+                ? "Refreshing; showing the last provisional result."
+                : "Refreshing; showing the last verified result."
+              : "Loading market history…"
+            : view.status === "stale"
+              ? view.dataQuality === "personal-provisional"
+                ? "Showing the last provisional result; newer data is unavailable."
+                : "Showing the last verified result; newer data is unavailable."
+              : compact
+                ? null
+                : "Alpaca SIP daily closes · dividends reinvested on payment date")}
+      {view.status === "stale" && marketErrorMessage(view.code) ? (
+        <span className="block">
+          Showing the last{" "}
+          {view.dataQuality === "personal-provisional"
+            ? "provisional"
+            : "verified"}{" "}
+          result.
+        </span>
+      ) : null}
+      {view.retryAt && Number.isSafeInteger(view.retryAt) ? (
+        <span className="block">
+          Retry after {new Date(view.retryAt).toLocaleString()}.
+        </span>
+      ) : null}
       {view.issues?.length ? (
         <span className="block">
           Affected holdings: {view.issues.map((i) => i.symbol).join(", ")}
@@ -275,7 +300,7 @@ export function DataStatus({
             {view.period.start}.
           </span>
         )}
-      {!compact && view.asOf && (
+      {(!compact || view.status === "stale") && view.asOf && (
         <span className="block">
           Market data as of {view.asOf}
           {view.dataCheckedAt

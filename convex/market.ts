@@ -1,6 +1,6 @@
 import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { getDocumentSize, v } from "convex/values";
+import { ConvexError, getDocumentSize, v } from "convex/values";
 import {
   MARKET_BUDGET as B,
   FREE_ALLOWANCE as F,
@@ -22,7 +22,7 @@ export async function budget(ctx: MutationCtx, bytes: number, now: number) {
     .withIndex("by_key", (q) => q.eq("key", "global"))
     .unique();
   if (!row || row.reviewedThrough < now)
-    throw new Error("TEAM_BUDGET_UNVERIFIED");
+    throw new ConvexError({ code: "TEAM_BUDGET_UNVERIFIED" });
   const month = new Date(now).toISOString().slice(0, 7);
   const io = (row.month === month ? row.io : 0) + bytes + 8192;
   const calls = (row.month === month ? row.calls : 0) + 1;
@@ -136,11 +136,18 @@ export const acquire = internalMutation({
     if (row && row.expires > now)
       return { status: "busy" as const, chargedIo: 32768 };
     const attempts = row?.cycle === args.cycle ? row.attempts : 0;
-    if (
-      attempts >= (args.retry ? 2 : 1) ||
-      (attempts > 0 && now - row!.attemptedAt < 60000)
-    )
-      return { status: "daily" as const, chargedIo: 32768 };
+    if (attempts >= (args.retry ? 2 : 1))
+      return {
+        status: "daily" as const,
+        retryAt: nextCycle(args.cycle),
+        chargedIo: 32768,
+      };
+    if (attempts > 0 && now - row!.attemptedAt < 60000)
+      return {
+        status: "cooldown" as const,
+        retryAt: row!.attemptedAt + 60000,
+        chargedIo: 32768,
+      };
     const value = {
       key: args.key,
       token: args.token,
@@ -243,3 +250,16 @@ export const release = internalMutation({
     return null;
   },
 });
+
+// Next New York 09:00 after the lease cycle, including DST transitions.
+function nextCycle(cycle: string) {
+  const candidate = Date.parse(cycle + "T14:00:00Z") + 86400000;
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(candidate)),
+  );
+  return candidate + (9 - hour) * 3600000;
+}

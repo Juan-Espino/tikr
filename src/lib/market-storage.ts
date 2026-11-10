@@ -1,3 +1,4 @@
+import { MarketFailure } from "./market-errors.ts";
 import "server-only";
 import { hosted, gateway, control } from "./market-hosted.ts";
 import { createHash, randomUUID } from "node:crypto";
@@ -5,6 +6,7 @@ import { gzipSync, gunzipSync } from "node:zlib";
 import { ConvexHttpClient } from "convex/browser";
 import { localAdmission } from "./market-admission.ts";
 import { makeFunctionReference } from "convex/server";
+import { ConvexError } from "convex/values";
 export type Stored = {
   key: string;
   payload: string;
@@ -183,7 +185,16 @@ export function convexStorage(
           : reserved;
       await settle(charged);
       return result;
-    } catch {
+    } catch (error) {
+      const data: unknown =
+        error instanceof ConvexError ? error.data : undefined;
+      if (
+        data &&
+        typeof data === "object" &&
+        "code" in data &&
+        data.code === "TEAM_BUDGET_UNVERIFIED"
+      )
+        throw new MarketFailure("TEAM_BUDGET_UNVERIFIED");
       throw new Error("STORAGE_UNAVAILABLE");
     }
   }
@@ -216,17 +227,26 @@ export function convexStorage(
       const r = await call<{ status: string; rows: Stored[] }>("read", {
         keys,
       });
-      if (r.status !== "ok") throw new Error("CACHE_BUDGET");
+      if (r.status !== "ok") throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
       return r.rows;
     },
     async acquire(key, cycle, retry) {
       const token = randomUUID();
-      const r = await call<{ status: string }>("acquire", {
+      const r = await call<{ status: string; retryAt?: number }>("acquire", {
         key,
         token,
         cycle,
         retry,
       });
+      if (r.status === "budget")
+        throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
+      // Calculation-slot contention must not throttle calculations from fresh assets.
+      // Only source/calendar leases authorize provider work.
+      if (key.startsWith("job:") && r.status !== "acquired") return null;
+      if (r.status === "cooldown")
+        throw new MarketFailure("REFRESH_COOLDOWN", r.retryAt);
+      if (r.status === "daily")
+        throw new MarketFailure("REFRESH_COOLDOWN", r.retryAt);
       return r.status === "acquired" ? token : null;
     },
     async write(leaseKey, token, entries) {
@@ -235,7 +255,7 @@ export function convexStorage(
         token,
         entries,
       });
-      if (r.status !== "ok") throw new Error("CACHE_BUDGET");
+      if (r.status !== "ok") throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
     },
     async release(key, token) {
       await call("release", { key, token });

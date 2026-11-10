@@ -1,5 +1,7 @@
 # On-demand market-data cache
 
+Admission follow-up (2026-11-10): hosted opens use short-term browsing protection instead of daily open caps. All real cached reads still cross the durable budget/revision/guard boundary. Source cooldown/daily-attempt refusals retain safe codes and known retry deadlines; result-slot persistence contention does not throttle a calculation using fresh sources. The single-process factory remains insufficient to enforce cross-host budgets by itself. See hosted-operation.md for synthetic operation evidence, configuration and limits.
+
 Hosted preparation update (2026-11-06): anonymous Vercel operation is implemented behind explicit activation configuration; see [hosted-operation.md](hosted-operation.md) for exact variables, limits, disable/rollback and unresolved public-data rights. Local-only/production-disabled descriptions below describe the original local path, which remains compatible. Public activation has not been authorized or performed.
 
 ## Approved behavior and implemented scope

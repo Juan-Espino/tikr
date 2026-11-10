@@ -1,3 +1,4 @@
+import { marketFailure } from "~/lib/market-errors";
 import { diagnose } from "~/lib/market-diagnostics";
 import { hosted, enterHosted, validMarketOrigin } from "~/lib/market-hosted";
 import { marketRequestSchema } from "~/lib/market-contract";
@@ -5,10 +6,22 @@ import { openMarket } from "~/lib/market-runtime";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-const blocked = (code: string, status = 503) =>
+const blocked = (code: string, status = 503, retryAt?: number) =>
   Response.json(
-    { status: "blocked", code },
-    { status, headers: { "Cache-Control": "no-store" } },
+    { status: "blocked", code, ...(retryAt ? { retryAt } : {}) },
+    {
+      status,
+      headers: {
+        "Cache-Control": "no-store",
+        ...(retryAt
+          ? {
+              "Retry-After": String(
+                Math.max(1, Math.ceil((retryAt - Date.now()) / 1000)),
+              ),
+            }
+          : {}),
+      },
+    },
   );
 export async function POST(request: Request) {
   if (!validMarketOrigin(request)) {
@@ -54,7 +67,24 @@ export async function POST(request: Request) {
         throw error;
       }
     }
-    const job = await openMarket(parsed.data);
+    let job = await openMarket(parsed.data);
+    // Explicit retries can discover a cooldown before HTTP headers are committed.
+    if (parsed.data.retry) {
+      const final = await job.settled;
+      if (
+        final.status === "blocked" &&
+        final.code &&
+        marketFailure(new Error(final.code))
+      ) {
+        await leave?.().catch((error: unknown) => diagnose("admission", error));
+        return blocked(
+          final.code,
+          final.code === "REFRESH_COOLDOWN" ? 429 : 503,
+          final.retryAt,
+        );
+      }
+      job = { initial: final, settled: Promise.resolve(final) };
+    }
     const encoder = new TextEncoder();
     let cancelled = false;
     const stream = new ReadableStream<Uint8Array>({
@@ -72,7 +102,11 @@ export async function POST(request: Request) {
           if (!cancelled)
             controller.enqueue(
               encoder.encode(
-                '{"status":"blocked","code":"DATA_UNAVAILABLE"}\n',
+                JSON.stringify({
+                  status: "blocked",
+                  code: marketFailure(error)?.code ?? "DATA_UNAVAILABLE",
+                  retryAt: marketFailure(error)?.retryAt,
+                }) + "\n",
               ),
             );
         } finally {
@@ -91,11 +125,29 @@ export async function POST(request: Request) {
         "Content-Type": "application/x-ndjson",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
+        ...(job.initial.retryAt
+          ? {
+              "Retry-After": String(
+                Math.max(
+                  1,
+                  Math.ceil((job.initial.retryAt - Date.now()) / 1000),
+                ),
+              ),
+            }
+          : {}),
       },
     });
   } catch (error) {
     diagnose("runtime", error);
     await leave?.().catch((error: unknown) => diagnose("admission", error));
-    return blocked("DATA_NOT_VERIFIED");
+    const failure = marketFailure(error);
+    return blocked(
+      failure?.code ?? "DATA_NOT_VERIFIED",
+      failure?.code === "BROWSING_RATE_LIMIT" ||
+        failure?.code === "REFRESH_COOLDOWN"
+        ? 429
+        : 503,
+      failure?.retryAt,
+    );
   }
 }

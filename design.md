@@ -1,4 +1,6 @@
 # Tikr design direction
+
+Market admission feedback (approved 2026-11-10): existing status text distinguishes browsing rate limits, refresh cooldowns, shared budget exhaustion and missing history, with a readable retry-after time when known. Retain dated stale-result context, accessible live status and the existing retry control. This is feedback within the existing visual system; no visual redesign is approved.
 Owner decision (2026-11-05): portfolio name errors use a visible destructive-colored input border and message, following shadcn's invalid field pattern. Timeframe controls omit Max.
 
 Owner-approved naming feedback (2026-11-05): show name conflicts inline beside the name field, mark the field invalid and disable save until resolved. Suggestions remain text until the user enters their choice. Dashboard cards include holding tickers beside asset counts to distinguish portfolios, including older records with identical names.
