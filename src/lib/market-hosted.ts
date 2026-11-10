@@ -1,6 +1,8 @@
+import type { MarketFailureCode } from "./market-errors.ts";
+import { MarketFailure, marketFailureCodes } from "./market-errors.ts";
 import { diagnose } from "./market-diagnostics.ts";
 import "server-only";
-import { createHash, randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 export const hosted = () => process.env.TIKR_MARKET_HOSTED_ORIGIN !== undefined;
 export async function gateway<T>(
   name: string,
@@ -28,12 +30,16 @@ export async function gateway<T>(
     signal: AbortSignal.timeout(20000),
     cache: "no-store",
   });
-  if (!response.ok || !response.body)
-    throw Error(
-      response.headers.get("X-Tikr-Code") === "REFRESH_GUARDED"
-        ? "REFRESH_GUARDED"
+  if (!response.ok || !response.body) {
+    const code = response.headers.get("X-Tikr-Code");
+    const retry = Number(response.headers.get("X-Tikr-Retry-At"));
+    throw new MarketFailure(
+      marketFailureCodes.includes(code as never)
+        ? (code as MarketFailureCode)
         : "STORAGE_UNAVAILABLE",
+      Number.isSafeInteger(retry) && retry > 0 ? retry : undefined,
     );
+  }
   const reader = response.body.getReader();
   let total = 0;
   const parts: Uint8Array[] = [];
@@ -59,17 +65,29 @@ export const control = (
   scope: string,
   symbols: string[] = [],
   token = randomUUID(),
-  bucket = 0,
-) => gateway<null>("control", { op, scope, symbols, token, bucket });
+  visitor?: string,
+) =>
+  gateway<null>("control", {
+    op,
+    scope,
+    symbols,
+    token,
+    ...(visitor ? { visitor } : {}),
+  });
 export async function enterHosted(request: Request) {
   // Vercel overwrites this header; deploy only behind Vercel, never trust client X-Forwarded-For.
   const ip = request.headers.get("x-vercel-forwarded-for");
   if (!ip || ip.length > 128) throw Error("VISITOR_REQUIRED");
-  const bucket = createHash("sha256").update(ip).digest()[0]! % 128;
+  const key = process.env.TIKR_MARKET_GATEWAY_KEY;
+  if (!key || key.length < 32) throw Error("HOSTED_CONFIG");
+  // Keyed hash prevents offline enumeration of raw network addresses.
+  const visitor = createHmac("sha256", key)
+    .update("market-visitor:" + ip)
+    .digest("hex");
   const token = randomUUID(),
     scope = "0".repeat(64);
-  await control("enter", scope, [], token, bucket);
-  return () => control("leave", scope, [], token, bucket);
+  await control("enter", scope, [], token, visitor);
+  return () => control("leave", scope, [], token, visitor);
 }
 export function validMarketOrigin(request: Request) {
   try {

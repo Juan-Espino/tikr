@@ -6,6 +6,7 @@ import {
 } from "../src/lib/durable-market.ts";
 import { chunks, readValue, revision } from "../src/lib/market-storage.ts";
 import { capacityModel } from "../src/lib/market-budget.ts";
+import { MarketFailure } from "../src/lib/market-errors.ts";
 const sessions = ["2024-11-01", "2024-11-04", "2024-11-05"];
 const calendar = {
   complete: true,
@@ -97,6 +98,27 @@ function fixture() {
     setNow: (d) => (now = new Date(d)),
   };
 }
+
+test("refresh cooldown and shared-budget refusals survive cache error sanitization", async () => {
+  for (const code of [
+    "REFRESH_COOLDOWN",
+    "SHARED_BUDGET_EXHAUSTED",
+    "MISSING_PRICE",
+  ]) {
+    const f = fixture();
+    const retryAt = Date.parse("2024-11-06T14:01:00Z");
+    f.store.acquire = async () => {
+      throw new MarketFailure(code, retryAt);
+    };
+    const final = await (
+      await createDurableBacktests(f.options)(req, "Max", true)
+    ).settled;
+    assert.equal(final.status, "blocked");
+    assert.equal(final.code, code);
+    assert.equal(final.retryAt, retryAt);
+    assert.equal(f.calls(), 0);
+  }
+});
 test("restart reuses durable shared asset/result records without a provider refresh", async () => {
   const f = fixture();
   const run = createDurableBacktests(f.options);

@@ -7,6 +7,102 @@ vi.mock("~/lib/market-runtime", () => ({
   })),
 }));
 import { POST } from "../src/app/api/market/route";
+import { openMarket } from "~/lib/market-runtime";
+import { marketErrorMessage } from "../src/lib/market-errors";
+
+test("safe admission errors preserve Retry-After and never leak upstream text", async () => {
+  vi.stubEnv("NODE_ENV", "production");
+  vi.stubEnv("TIKR_MARKET_HOSTED_ORIGIN", "https://tikr.example");
+  vi.stubEnv("TIKR_CONVEX_SITE_URL", "https://synthetic.convex.site");
+  vi.stubEnv(
+    "TIKR_MARKET_GATEWAY_KEY",
+    "synthetic-route-only-0000000000000000",
+  );
+  const retryAt = Date.now() + 60000;
+  const request = () =>
+    new Request("https://tikr.example/api/market", {
+      method: "POST",
+      headers: {
+        host: "tikr.example",
+        origin: "https://tikr.example",
+        "content-type": "application/json",
+        "x-vercel-forwarded-for": "192.0.2.1",
+      },
+      body: JSON.stringify({
+        portfolios: [{ id: "p", holdings: [{ symbol: "SPY", weight: "100" }] }],
+        amount: "100",
+        range: "1Y",
+        retry: true,
+      }),
+    });
+  try {
+    for (const code of [
+      "BROWSING_RATE_LIMIT",
+      "SHARED_BUDGET_EXHAUSTED",
+      "upstream-private-canary",
+    ]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            new Response("private canary", {
+              status: 503,
+              headers: {
+                "X-Tikr-Code": code,
+                "X-Tikr-Retry-At": String(retryAt),
+              },
+            }),
+        ),
+      );
+      const response = await POST(request());
+      expect(response.status).toBe(code === "BROWSING_RATE_LIMIT" ? 429 : 503);
+      expect(response.headers.get("Retry-After")).toBeTruthy();
+      const text = await response.text();
+      expect(text).not.toContain("canary");
+      expect(text).toContain(
+        code === "upstream-private-canary" ? "STORAGE_UNAVAILABLE" : code,
+      );
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ result: null })),
+    );
+    vi.mocked(openMarket).mockResolvedValueOnce({
+      initial: {
+        status: "refreshing",
+        dataQuality: "reviewed",
+        evidenceExpiresAt: new Date(Date.now() + 86400000).toISOString(),
+      },
+      settled: Promise.resolve({
+        status: "blocked",
+        code: "REFRESH_COOLDOWN",
+        retryAt,
+        dataQuality: "reviewed",
+        evidenceExpiresAt: new Date(Date.now() + 86400000).toISOString(),
+      }),
+    });
+    const response = await POST(request());
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeTruthy();
+    expect(await response.json()).toMatchObject({
+      code: "REFRESH_COOLDOWN",
+      retryAt,
+    });
+    expect(
+      new Set(
+        [
+          "BROWSING_RATE_LIMIT",
+          "REFRESH_COOLDOWN",
+          "SHARED_BUDGET_EXHAUSTED",
+          "MISSING_PRICE",
+        ].map(marketErrorMessage),
+      ).size,
+    ).toBe(4);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});
 test("anonymous production request streams results; bounded invalid inputs never reach storage", async () => {
   vi.stubEnv("NODE_ENV", "production");
   vi.stubEnv("TIKR_MARKET_HOSTED_ORIGIN", "https://tikr.example");

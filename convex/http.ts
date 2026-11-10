@@ -1,6 +1,7 @@
 import { httpRouter, makeFunctionReference } from "convex/server";
 import { httpAction } from "./_generated/server";
-import type { Value } from "convex/values";
+import { ConvexError, type Value } from "convex/values";
+import { marketFailureCodes } from "../src/lib/market-errors";
 const http = httpRouter();
 http.route({
   path: "/market-gateway",
@@ -48,23 +49,52 @@ http.route({
         ),
         input.args,
       );
+      if (
+        input.name === "control" &&
+        result &&
+        typeof result === "object" &&
+        "code" in result
+      ) {
+        const failure = result as { code: string; retryAt?: number };
+        return failureResponse(failure.code, failure.retryAt);
+      }
       return Response.json(
         { result },
         { headers: { "Cache-Control": "no-store" } },
       );
     } catch (error) {
-      return new Response(null, {
-        status: 503,
-        headers: {
-          "X-Tikr-Code":
-            error instanceof Error && error.message.includes("REFRESH_GUARDED")
-              ? "REFRESH_GUARDED"
-              : "STORAGE_UNAVAILABLE",
-        },
-      });
+      const data = error instanceof ConvexError ? error.data : undefined;
+      const code =
+        data && typeof data === "object" && "code" in data
+          ? data.code
+          : undefined;
+      return failureResponse(
+        typeof code === "string" ? code : "STORAGE_UNAVAILABLE",
+      );
     } finally {
       reader.releaseLock();
     }
   }),
 });
 export default http;
+
+function failureResponse(code: string, retryAt?: number) {
+  const safe = marketFailureCodes.includes(code as never)
+    ? code
+    : "STORAGE_UNAVAILABLE";
+  const headers: Record<string, string> = {
+    "X-Tikr-Code": safe,
+    "Cache-Control": "no-store",
+  };
+  if (retryAt && Number.isSafeInteger(retryAt)) {
+    headers["X-Tikr-Retry-At"] = String(retryAt);
+    headers["Retry-After"] = String(
+      Math.max(1, Math.ceil((retryAt - Date.now()) / 1000)),
+    );
+  }
+  return new Response(null, {
+    status:
+      safe === "BROWSING_RATE_LIMIT" || safe === "REFRESH_COOLDOWN" ? 429 : 503,
+    headers,
+  });
+}

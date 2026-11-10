@@ -1,3 +1,4 @@
+import { marketFailure } from "./market-errors.ts";
 import "server-only";
 import {
   createOnDemandBacktests,
@@ -464,6 +465,7 @@ export function createDurableBacktests(options: {
             requested: period,
             status: "stale",
             code: view.code ?? "REFRESH_FAILED",
+            retryAt: view.retryAt,
           };
         return view;
       }
@@ -535,7 +537,8 @@ export function createDurableBacktests(options: {
           return {
             status: "blocked",
             requested: period,
-            code: "REFRESH_FAILED",
+            code: marketFailure(error)?.code ?? "REFRESH_FAILED",
+            retryAt: marketFailure(error)?.retryAt,
           };
         }),
     };

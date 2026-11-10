@@ -186,6 +186,7 @@ export function publicView(view: CacheView, amount: string): MarketResponse {
   return {
     status: view.status,
     code: view.code,
+    retryAt: view.retryAt,
     asOf: view.asOf,
     assetReturns: view.assetReturns
       ? Object.fromEntries(

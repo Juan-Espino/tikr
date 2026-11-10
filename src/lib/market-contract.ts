@@ -47,6 +47,7 @@ export type MarketRequest = z.infer<typeof marketRequestSchema>;
 export type MarketResponse = {
   status: "ready" | "refreshing" | "stale" | "blocked";
   code?: string;
+  retryAt?: number;
   asOf?: string;
   evidenceExpiresAt?: string;
   dataQuality?: "personal-provisional" | "reviewed";

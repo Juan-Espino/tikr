@@ -55,6 +55,77 @@ const sample = (status = "ready") => ({
     ],
   })),
 });
+
+test("market admission errors distinguish browsing, cooldown, shared budget and missing history", async ({
+  page,
+}) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [code, message] of [
+      ["BROWSING_RATE_LIMIT", "Browsing is temporarily rate limited"],
+      ["REFRESH_COOLDOWN", "Market history refresh is cooling down"],
+      ["SHARED_BUDGET_EXHAUSTED", "The shared market-data budget is exhausted"],
+      ["MISSING_PRICE", "Required market history is missing"],
+    ]) {
+      await page.route("**/api/market", (route) =>
+        route.fulfill({
+          status:
+            code === "BROWSING_RATE_LIMIT" || code === "REFRESH_COOLDOWN"
+              ? 429
+              : 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            status: "blocked",
+            code,
+            retryAt: Date.now() + 60000,
+          }),
+        }),
+      );
+      await page.goto("/portfolio/test-one");
+      await expect(
+        page.getByRole("status").filter({ hasText: message! }),
+      ).toBeVisible();
+      await expect(page.getByText(/Retry after/)).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Retry data check" }),
+      ).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.unroute("**/api/market");
+    }
+  }
+});
+
+test("a refresh budget failure retains a dated stale result and its explanation", async ({
+  page,
+}) => {
+  await page.route("**/api/market", (route) =>
+    route.fulfill({
+      contentType: "application/x-ndjson",
+      body:
+        JSON.stringify({
+          ...sample("stale"),
+          code: "SHARED_BUDGET_EXHAUSTED",
+        }) + "\n",
+    }),
+  );
+  await page.goto("/portfolio/test-one");
+  await expect(
+    page.getByText("The shared market-data budget is exhausted.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Showing the last verified result.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/Market data as of 2024-11-04/)).toBeVisible();
+  await expect(
+    page.getByText("$11,000.00", { exact: true }).first(),
+  ).toBeVisible();
+});
 test("duplicate names block saving and duplication waits for a user-chosen name", async ({
   page,
 }) => {

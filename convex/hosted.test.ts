@@ -1,3 +1,4 @@
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { makeFunctionReference } from "convex/server";
@@ -9,6 +10,7 @@ const modules = import.meta.glob("./**/*.ts");
 
 test("overlapping hosts cannot exceed concurrency or both acquire a refresh guard", async () => {
   const t = convexTest(schema, modules);
+  rateLimiterTest.register(t);
   await t.mutation(makeFunctionReference<"mutation">("market:configure"), {
     otherStorage: 0,
     otherIo: 0,
@@ -22,13 +24,19 @@ test("overlapping hosts cannot exceed concurrency or both acquire a refresh guar
     bucket = 0,
     symbols: string[] = [],
   ) =>
-    t.mutation(makeFunctionReference<"mutation">("hosted:control"), {
-      op,
-      scope,
-      token,
-      bucket,
-      symbols,
-    });
+    t
+      .mutation(makeFunctionReference<"mutation">("hosted:control"), {
+        op,
+        scope,
+        token,
+        bucket,
+        visitor: String(bucket).padStart(64, "0"),
+        symbols,
+      })
+      .then((r) => {
+        if (r) throw Error(r.code);
+        return r;
+      });
   const tokens = Array.from({ length: 8 }, () => crypto.randomUUID());
   const entries = await Promise.allSettled(
     tokens.map((token, i) => call("enter", token, i)),
@@ -51,6 +59,7 @@ test("overlapping hosts cannot exceed concurrency or both acquire a refresh guar
 });
 test("HTTP gateway rejects anonymous access and cannot invoke operator functions", async () => {
   const t = convexTest(schema, modules);
+  rateLimiterTest.register(t);
   vi.stubEnv("TIKR_MARKET_GATEWAY_KEY", "synthetic-only-00000000000000000000");
   vi.stubEnv("TIKR_HOSTED_DATA_ENABLED", "explicit");
   try {
@@ -63,6 +72,14 @@ test("HTTP gateway rejects anonymous access and cannot invoke operator functions
       body: JSON.stringify({ name: "configure", args: {} }),
     });
     expect(response.status).toBe(503);
+    const unreviewed = await t.fetch("/market-gateway", {
+      method: "POST",
+      headers: { Authorization: "Bearer synthetic-only-00000000000000000000" },
+      body: JSON.stringify({ name: "read", args: { keys: [] } }),
+    });
+    expect(unreviewed.headers.get("X-Tikr-Code")).toBe(
+      "TEAM_BUDGET_UNVERIFIED",
+    );
     expect(
       await t.run((ctx) => ctx.db.query("marketBudget").first()),
     ).toBeNull();
@@ -87,6 +104,7 @@ test("production origin validation rejects missing, forged and preview origins",
 });
 test("two hosts share bounded admission, persistent guards, revocation and monthly budgets", async () => {
   const t = convexTest(schema, modules);
+  rateLimiterTest.register(t);
   await t.mutation(makeFunctionReference<"mutation">("market:configure"), {
     otherStorage: 0,
     otherIo: 0,
@@ -97,25 +115,31 @@ test("two hosts share bounded admission, persistent guards, revocation and month
   const host =
     () =>
     (op: string, token: string, symbols: string[] = [], bucket = 0) =>
-      t.mutation(makeFunctionReference<"mutation">("hosted:control"), {
-        op,
-        scope,
-        token,
-        symbols,
-        bucket,
-      });
+      t
+        .mutation(makeFunctionReference<"mutation">("hosted:control"), {
+          op,
+          scope,
+          token,
+          symbols,
+          bucket,
+          visitor: String(bucket).padStart(64, "0"),
+        })
+        .then((r) => {
+          if (r) throw Error(r.code);
+          return r;
+        });
   const a = host(),
     b = host(),
     token = crypto.randomUUID();
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 60; i++) {
     const id = crypto.randomUUID();
     await a("enter", id);
     await b("leave", id);
   }
-  await expect(b("enter", token)).rejects.toThrow("VISITOR_LIMIT");
+  await expect(b("enter", token)).rejects.toThrow("BROWSING_RATE_LIMIT");
   const ids = Array.from({ length: 4 }, () => crypto.randomUUID());
   for (const id of ids) await a("enter", id, [], 1);
-  await expect(b("enter", token, [], 2)).rejects.toThrow("VISITOR_LIMIT");
+  await expect(b("enter", token, [], 2)).rejects.toThrow("BROWSING_RATE_LIMIT");
   await a("begin", token, ["SPY"]);
   await expect(b("check", crypto.randomUUID(), ["SPY"])).rejects.toThrow(
     "REFRESH_GUARDED",
@@ -128,7 +152,7 @@ test("two hosts share bounded admission, persistent guards, revocation and month
     const row = await ctx.db.query("marketBudget").first();
     await ctx.db.patch(row!._id, { io: 499999999 });
   });
-  await expect(b("provider", token)).rejects.toThrow("CACHE_BUDGET");
+  await expect(b("provider", token)).rejects.toThrow("SHARED_BUDGET_EXHAUSTED");
 });
 test("hosted storage failures do not return data or expose upstream errors", async () => {
   vi.stubEnv("TIKR_CONVEX_SITE_URL", "https://synthetic.convex.site");

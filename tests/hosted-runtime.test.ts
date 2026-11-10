@@ -107,6 +107,13 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
     expect(second.series).toEqual(first.series);
     expect(calendarCalls).toBe(1);
     expect(barCalls).toBe(1);
+    // More distinct calculations than result slots: collisions only skip persistence.
+    for (let i = 101; i <= 117; i++) {
+      request.amount = String(i);
+      expect((await openHost()).status).toBe("ready");
+    }
+    request.amount = "100";
+    expect(barCalls).toBe(1);
     days = [...days, "2026-11-06"];
     vi.setSystemTime(new Date("2026-11-07T14:00:00Z"));
     const next = await openHost();
@@ -126,7 +133,7 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
       bucket: 0,
     });
     releaseRead();
-    await expect(inFlight).rejects.toThrow("STORAGE_UNAVAILABLE");
+    await expect(inFlight).rejects.toThrow("EVIDENCE_REVOKED");
   } finally {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();

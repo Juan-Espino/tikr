@@ -5,6 +5,18 @@ import type { Asset, Action, Calendar } from "../backtest.ts";
 import type { AssetRefresh } from "../market-cache.ts";
 import { EvidenceError } from "./verified-loader.ts";
 import { eligibleSessions } from "../market-cache.ts";
+import { marketFailure, type MarketFailure } from "../market-errors.ts";
+
+// Preserve a trusted pre-network refusal through the adapter's sanitized transport
+// boundary. This is not received contradictory data and must never revoke a scope.
+class AdmissionFailure extends AlpacaError {
+  readonly failure: MarketFailure;
+  constructor(failure: MarketFailure) {
+    super("LIMIT");
+    this.failure = failure;
+    this.message = failure.code;
+  }
+}
 
 // Injection is for deterministic boundary tests; production uses the durable ledger.
 export function createAdmittedTransport(
@@ -12,7 +24,13 @@ export function createAdmittedTransport(
   transport: typeof fetch = fetch,
 ): typeof fetch {
   return async (url, init) => {
-    await reserve();
+    try {
+      await reserve();
+    } catch (error) {
+      const failure = marketFailure(error);
+      if (failure) throw new AdmissionFailure(failure);
+      throw error;
+    }
     return transport(url, init);
   };
 }
@@ -145,7 +163,8 @@ export async function fetchPersonalCalendar(
       }),
       signal,
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof AdmissionFailure) throw error.failure;
     throw new AlpacaError(signal.aborted ? "TIMEOUT" : "UPSTREAM");
   }
   if (!response.ok || !response.body) {
@@ -218,6 +237,7 @@ export function createPersonalLoader(config: Config, calendar: Calendar) {
         asset: provisionalAsset(candidates, calendar, q.symbol),
       };
     } catch (error) {
+      if (error instanceof AdmissionFailure) throw error.failure;
       // Received data that contradicts a previously cached scope cannot fall back stale.
       if (
         q.previous &&

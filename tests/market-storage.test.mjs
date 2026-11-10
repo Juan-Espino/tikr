@@ -78,6 +78,23 @@ test("server errors never expose credential canaries and retain failed reservati
     assert.equal(ledger.calls, 1);
     assert.equal(ledger.io, 10_000_000);
   }));
+
+test("SDK budget review refusal reaches the caller as a safe distinct error", async () =>
+  fixture(async ({ store }) => {
+    globalThis.fetch = async () =>
+      Response.json({
+        status: "error",
+        errorMessage: "private-canary",
+        errorData: { code: "TEAM_BUDGET_UNVERIFIED" },
+        logLines: [],
+      });
+    await assert.rejects(
+      store.read([]),
+      (error) =>
+        error.code === "TEAM_BUDGET_UNVERIFIED" &&
+        !error.message.includes("canary"),
+    );
+  }));
 test("received SDK response bytes are capped before JSON parsing and overflow cancels", async () =>
   fixture(async ({ store }) => {
     let cancelled = false;

@@ -2,6 +2,10 @@ import "server-only";
 import { AlpacaError } from "./alpaca/adapter.ts";
 
 const codes = new Set([
+  "BROWSING_RATE_LIMIT",
+  "REFRESH_COOLDOWN",
+  "SHARED_BUDGET_EXHAUSTED",
+  "TEAM_BUDGET_UNVERIFIED",
   "REFRESH_FAILED",
   "REFRESH_BUSY_OR_LIMITED",
   "CALENDAR_UNAVAILABLE",

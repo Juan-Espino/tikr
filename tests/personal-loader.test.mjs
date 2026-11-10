@@ -7,6 +7,7 @@ import {
   provisionalAsset,
 } from "../src/lib/alpaca/personal-loader.ts";
 import { backtest } from "../src/lib/backtest.ts";
+import { MarketFailure } from "../src/lib/market-errors.ts";
 const days = ["2024-11-01", "2024-11-04", "2024-11-05"];
 const now = new Date("2024-11-06T14:00:00Z");
 const ok = (body) => new Response(JSON.stringify(body));
@@ -296,7 +297,42 @@ test("provider admission happens before transport and failed admission makes no 
     },
     async () => assert.fail("network after denial"),
   );
-  await assert.rejects(denied("https://data.alpaca.markets"), /CACHE_BUDGET/);
+  await assert.rejects(
+    denied("https://data.alpaca.markets"),
+    /SHARED_BUDGET_EXHAUSTED/,
+  );
+});
+
+test("calendar and asset admission refusals preserve budget errors without provider access or false correction", async () => {
+  for (const code of ["SHARED_BUDGET_EXHAUSTED", "TEAM_BUDGET_UNVERIFIED"]) {
+    let requests = 0;
+    const transport = createAdmittedTransport(
+      async () => {
+        throw new MarketFailure(code);
+      },
+      async () => {
+        requests++;
+        assert.fail("provider request after refusal");
+      },
+    );
+    await assert.rejects(
+      fetchPersonalCalendar(config(transport), days[0], days[2], now),
+      (error) => error.code === code,
+    );
+    const loader = createPersonalLoader(config(transport), calendar);
+    await assert.rejects(
+      loader({
+        symbol: "SPY",
+        from: days[0],
+        through: days[2],
+        recheckFrom: days[0],
+        previous: provisionalAsset(candidate(), calendar, "SPY"),
+        signal: new AbortController().signal,
+      }),
+      (error) => error.code === code,
+    );
+    assert.equal(requests, 0);
+  }
 });
 
 test("calendar times out even when transport or body ignores abort", async () => {

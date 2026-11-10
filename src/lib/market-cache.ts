@@ -1,3 +1,4 @@
+import { marketFailure, type MarketFailureCode } from "./market-errors.ts";
 import "server-only";
 import { createHash } from "node:crypto";
 import { backtest, BacktestError } from "./backtest.ts";
@@ -5,6 +6,7 @@ import type { Asset, Calendar, Portfolio } from "./backtest.ts";
 
 type Result = ReturnType<typeof backtest>;
 type Code =
+  | MarketFailureCode
   | "INVALID_INPUT"
   | "CALENDAR_UNAVAILABLE"
   | "UNVERIFIED_DATA"
@@ -101,6 +103,7 @@ export type CacheView = {
   dataCheckedAt?: string;
   dataRevisions?: Record<string, string>;
   code?: Code;
+  retryAt?: number;
   issues?: { symbol: string; code: Code }[];
 };
 export type AssetRefresh = {
@@ -175,6 +178,7 @@ export function createOnDemandBacktests(options: CacheOptions) {
     { cycle: string; count: number; at: number }
   >();
   const errors = new Map<string, Code>();
+  const retryTimes = new Map<string, number>();
   const MAX_BYTES = 16 * 1024 * 1024,
     MAX_ITEM = 2 * 1024 * 1024;
   let entryBytes = 0,
@@ -398,9 +402,16 @@ export function createOnDemandBacktests(options: CacheOptions) {
           bytes,
         });
         errors.delete(symbol);
+        retryTimes.delete(symbol);
       } catch (e) {
         // Never forward provider bodies, secret-bearing exception messages or loader objects.
-        errors.set(symbol, e instanceof CacheError ? e.code : "REFRESH_FAILED");
+        const failure = marketFailure(e);
+        errors.set(
+          symbol,
+          failure?.code ??
+            (e instanceof CacheError ? e.code : "REFRESH_FAILED"),
+        );
+        if (failure?.retryAt) retryTimes.set(symbol, failure.retryAt);
       } finally {
         if (timer) clearTimeout(timer);
         running.delete(symbol);
@@ -557,6 +568,8 @@ export function createOnDemandBacktests(options: CacheOptions) {
             dataRevisions: clone(saved.revisions),
           }
         : {}),
+      retryAt:
+        Math.max(0, ...symbols.map((s) => retryTimes.get(s) ?? 0)) || undefined,
       issues: symbols
         .filter((symbol) => errors.has(symbol))
         .map((symbol) => ({ symbol, code: errors.get(symbol)! })),
