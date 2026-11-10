@@ -6,7 +6,7 @@ import {
   browsingLimits,
   MAX_VISITORS,
   VISITOR_TTL,
-} from "./market-limits";
+} from "./market_limits";
 import { v } from "convex/values";
 import { budget } from "./market";
 

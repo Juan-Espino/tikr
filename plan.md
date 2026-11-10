@@ -1,5 +1,13 @@
 # Tikr delivery plan
 
+## PR #11 Convex module-name fix (2026-11-10)
+
+Owner-reported Vercel build failure: Convex deployment rejected `market-limits.js` with `InvalidConfig` because module path components allow only alphanumeric characters, underscores and periods. Renamed the helper to `convex/market_limits.ts` and updated its sole application import in `convex/hosted.ts`. Inspected every Convex file introduced by this PR: `convex.config.ts` is valid configuration and excluded from function entry points; the new `market-admission.test.ts` is excluded by the installed bundler's multiple-dot rule, but was also renamed to `market_admission.test.ts` for consistent valid spelling. Existing `market-integration.test.ts` predates this PR and is likewise excluded. Test globs/configuration already match the renamed test; no generated files or runtime behavior changed.
+
+Added `tests/convex-module-paths.test.mjs`: rejects the exact hyphenated regression and checks all repository Convex entry-point paths against the reported server restriction, using exclusions inspected in installed Convex 1.46.0 bundler source. Two naming tests, all 26 Vitest/Convex/hosted tests, `pnpm check` (lint plus application and Convex TypeScript), focused Prettier and `git diff --check` passed. This naming guard is an offline source check, not the deployment validator. Direct import of the installed CLI's internal bundler was unavailable because its published internal module import requires an absent `@babel/parser`; no dependency was installed to bypass this. No Convex deployment/codegen, credentials, live provider access, preview changes or agents were used. The prior Next production build did not validate server-side Convex module-path acceptance; only a subsequent remote build can confirm the reported deployment failure is resolved or reveal another one. Earlier financial/browser evidence remains unchanged; no rerun of those suites is claimed for these renames.
+
+Next: push the authorized focused fix to existing PR [#11](https://github.com/Juan-Espino/tikr/pull/11), link it to this feature chat immediately, and report a single checks/reviews snapshot without waiting, watching or merging.
+
 ## Market admission implementation (2026-11-10)
 
 PR preparation authorization (2026-11-10): owner explicitly authorized committing, pushing and opening a PR to main from this bound feature chat. Preview setup is deferred and unchanged. Reuse the completed local verification above/below with its recorded limits; no new agents, merge, deployment, credentials or live provider requests are authorized. Next: review the opened PR; no check watching or waiting is part of this task. The no-commit/no-push statement below records the preceding implementation checkpoint.
