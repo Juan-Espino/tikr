@@ -6,7 +6,7 @@ import { CandlestickGlobe } from "~/components/candlestick-globe";
 import { Button } from "~/components/ui/button";
 import { RangePicker } from "~/components/range-picker";
 
-import { examples, newPortfolio, type Range } from "~/lib/demo";
+import { DEFAULT_RANGE, examples, newPortfolio, type Range } from "~/lib/demo";
 
 import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
 import { AppShell } from "~/components/app-shell";
@@ -22,7 +22,7 @@ function Disclosure() {
 }
 export default function Dashboard() {
   const { portfolios, setPortfolios, draft, open } = useDemoPortfolios();
-  const [range, setRange] = useState<Range>("1Y");
+  const [range, setRange] = useState<Range>(DEFAULT_RANGE);
   const [spy, setSpy] = useState(true);
   const generation = JSON.stringify({
     range,

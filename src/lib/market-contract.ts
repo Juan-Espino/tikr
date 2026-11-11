@@ -56,7 +56,7 @@ export type MarketResponse = {
   dataCheckedAt?: string;
   period?: { start: string; end: string };
   requested?: { start: string; end: string };
-  issues?: { symbol: string; code: string }[];
+  issues?: { symbol: string; code: string; firstAvailable?: string }[];
   shortenedBy?: { symbol: string; firstAvailable: string }[];
   series?: {
     id: string;

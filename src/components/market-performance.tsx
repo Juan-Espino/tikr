@@ -122,6 +122,7 @@ export function useMarketResults(
                 MarketResponse | undefined;
               publish({
                 status: "blocked",
+                issues: failure?.issues,
                 code: marketErrorMessage(failure?.code)
                   ? failure?.code
                   : "DATA_UNAVAILABLE",
@@ -288,9 +289,20 @@ export function DataStatus({
         </span>
       ) : null}
       {view.issues?.length ? (
-        <span className="block">
-          Affected holdings: {view.issues.map((i) => i.symbol).join(", ")}
-        </span>
+        <ul
+          aria-label="History limitations"
+          className="text-destructive mt-2 space-y-1"
+        >
+          {view.issues.map((issue) => (
+            <li key={issue.symbol}>
+              <strong>{issue.symbol}</strong>:{" "}
+              {issue.code === "SHORT_HISTORY" && issue.firstAvailable
+                ? `Confirmed available history starts ${issue.firstAvailable}. This portfolio cannot cover the requested period. Choose a shorter period.`
+                : (marketErrorMessage(issue.code) ??
+                  "History could not be loaded. The underlying cause is unknown.")}
+            </li>
+          ))}
+        </ul>
       ) : null}
       {view.requested &&
         view.period &&
@@ -306,18 +318,6 @@ export function DataStatus({
           {view.dataCheckedAt
             ? ` · checked ${new Date(view.dataCheckedAt).toLocaleString()}`
             : ""}
-        </span>
-      )}
-      {!!view.shortenedBy?.length && (
-        <span className="block">
-          All comparisons start together because{" "}
-          {view.shortenedBy
-            .map(
-              (s) =>
-                `${s.symbol} has verified history from ${s.firstAvailable}`,
-            )
-            .join(", ")}
-          .
         </span>
       )}
     </div>

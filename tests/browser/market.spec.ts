@@ -215,7 +215,11 @@ test("saving changed holdings replaces the failed card and keeps other portfolio
     name: "Open Core experiment, 1 assets",
     exact: true,
   });
-  await expect(card.getByText("Affected holdings: NVDA")).toBeVisible();
+  await expect(
+    card
+      .getByRole("list", { name: "History limitations" })
+      .filter({ hasText: "NVDA" }),
+  ).toBeVisible();
   await card.click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "Remove NVDA", exact: true }).click();
@@ -230,7 +234,11 @@ test("saving changed holdings replaces the failed card and keeps other portfolio
   await page.getByRole("button", { name: "Save locally", exact: true }).click();
   await expect(card.getByText("1 asset · SPY", { exact: true })).toBeVisible();
   await expect(card.getByText("10.00%", { exact: true })).toBeVisible();
-  await expect(card.getByText("Affected holdings: NVDA")).toHaveCount(0);
+  await expect(
+    card
+      .getByRole("list", { name: "History limitations" })
+      .filter({ hasText: "NVDA" }),
+  ).toHaveCount(0);
 });
 test("timeframe picker hides Max while migrating a saved Max selection", async ({
   page,
@@ -682,7 +690,7 @@ test("dashboard updates all cards together and pulses only changing content", as
   await expect(cards.first().getByText("10.00%")).toBeVisible();
   await expect(cards.nth(1).getByText("10.00%")).toBeVisible();
   const picker = page.getByRole("button", {
-    name: "Timeframe: 1Y",
+    name: "Timeframe: 1W",
     exact: true,
   });
   await picker.focus();
@@ -799,7 +807,7 @@ test("a failed dashboard card does not prevent other results from updating", asy
   );
   await expect(cards.first().getByText("10.00%")).toBeVisible();
   const picker = page.getByRole("button", {
-    name: "Timeframe: 1Y",
+    name: "Timeframe: 1W",
     exact: true,
   });
   await picker.focus();
@@ -844,7 +852,7 @@ test("dashboard releases completed cards after the bounded wait", async ({
   );
   await expect(cards.first().getByText("10.00%")).toBeVisible();
   const picker = page.getByRole("button", {
-    name: "Timeframe: 1Y",
+    name: "Timeframe: 1W",
     exact: true,
   });
   await picker.focus();
@@ -1302,4 +1310,132 @@ test("literal PLTR sample search and malformed successful responses are not live
   await expect(
     page.getByRole("button", { name: "Retry search" }),
   ).toBeVisible();
+});
+
+test("one-week dashboard default preserves saved ranges; new portfolio and comparisons use one week", async ({
+  page,
+}) => {
+  const requests: { range: string; portfolios: { id: string }[] }[] = [];
+  await page.route("**/api/market", (route) => {
+    const input = route.request().postDataJSON();
+    requests.push(input);
+    return route.fulfill({
+      contentType: "application/x-ndjson",
+      body:
+        JSON.stringify({
+          ...sample(),
+          series: [
+            ...input.portfolios.map((p: { id: string }) => ({
+              ...sample().series[0],
+              id: p.id,
+            })),
+            sample().series[1],
+          ],
+        }) + "\n",
+    });
+  });
+  await page.goto("/dashboard");
+  await expect(
+    page.getByRole("button", { name: "Timeframe: 1W", exact: true }),
+  ).toBeVisible();
+  await expect.poll(() => requests.length).toBeGreaterThan(0);
+  expect(requests.every((r) => r.range === "1W")).toBe(true);
+  await page.goto("/portfolio/test-one");
+  await expect(
+    page.getByRole("button", { name: "Timeframe: 1Y", exact: true }),
+  ).toBeVisible();
+  await page.goto("/dashboard");
+  await page
+    .getByRole("button", { name: "Create portfolio", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Timeframe: 1W", exact: true }),
+  ).toBeVisible();
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("tikr-demo-v1")!),
+  );
+  expect(stored.draft.range).toBe("1W");
+  expect(stored.portfolios[0].range).toBe("1Y");
+  await page.route("**/api/assets?*", (route) =>
+    route.fulfill({
+      json: [{ ticker: "SPY", name: "Synthetic SPY", exchange: "ARCA" }],
+    }),
+  );
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("textbox", { name: "Search assets" }).fill("SPY");
+  await page.getByRole("button", { name: /^SPY, / }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Second portfolio", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      requests.some((r) => r.portfolios.length === 2 && r.range === "1W"),
+    )
+    .toBe(true);
+});
+
+test("each ticker limitation is readable destructive text on desktop and mobile", async ({
+  page,
+}) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.route("**/api/market", (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body:
+          JSON.stringify({
+            status: "blocked",
+            code: "SHORT_HISTORY",
+            issues: [
+              {
+                symbol: "IPO",
+                code: "SHORT_HISTORY",
+                firstAvailable: "2026-10-12",
+              },
+              { symbol: "BA", code: "SOURCE_FAILURE" },
+              { symbol: "RTX", code: "UNSUPPORTED_ACTION" },
+              { symbol: "GAP", code: "MISSING_PRICE" },
+              { symbol: "LIMIT", code: "SHARED_BUDGET_EXHAUSTED" },
+            ],
+          }) + "\n",
+      }),
+    );
+    await page.goto("/portfolio/test-one");
+    const list = page.getByRole("list", { name: "History limitations" });
+    await expect(list).toBeVisible();
+    for (const [symbol, explanation] of [
+      ["IPO", "2026-10-12"],
+      ["BA", "underlying cause is unknown"],
+      ["RTX", "corporate action"],
+      ["GAP", "missing bar does not establish"],
+      ["LIMIT", "budget is exhausted"],
+    ]) {
+      const row = list
+        .getByRole("listitem")
+        .filter({ has: page.getByText(symbol!, { exact: true }) });
+      await expect(row).toContainText(explanation!);
+      await expect(row).toHaveCSS("color", "rgb(248, 113, 113)");
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `${process.env.TIKR_BROWSER_OUTPUT}/history-status-${width}.png`,
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await expect(
+      page.getByText("Allocation is valid. History is checked separately."),
+    ).toBeVisible();
+    await expect(page.getByText("Results are up to date.")).toHaveCount(0);
+    await page.screenshot({
+      path: `${process.env.TIKR_BROWSER_OUTPUT}/history-limitations-${width}.png`,
+      fullPage: true,
+    });
+    await page.unroute("**/api/market");
+  }
 });

@@ -20,7 +20,12 @@ export interface MarketStorage {
   assertReadable(symbols: string[]): Promise<void>;
   beginRefresh(symbol: string): Promise<() => Promise<void>>;
   read(keys: string[]): Promise<Stored[]>;
-  acquire(key: string, cycle: string, retry: boolean): Promise<string | null>;
+  acquire(
+    key: string,
+    cycle: string,
+    retry: boolean,
+    from?: string,
+  ): Promise<string | null>;
   write(
     key: string,
     token: string,
@@ -230,13 +235,14 @@ export function convexStorage(
       if (r.status !== "ok") throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
       return r.rows;
     },
-    async acquire(key, cycle, retry) {
+    async acquire(key, cycle, retry, from) {
       const token = randomUUID();
       const r = await call<{ status: string; retryAt?: number }>("acquire", {
         key,
         token,
         cycle,
         retry,
+        ...(from ? { from } : {}),
       });
       if (r.status === "budget")
         throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");

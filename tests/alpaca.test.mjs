@@ -136,11 +136,9 @@ test("observed bars contradicting genuine inception block conversion", async () 
   delete younger.prices.AAA["2024-01-02"];
   const proofs = evidence();
   proofs.inception.AAA.firstAvailable = "2024-01-03";
-  const result = backtest(
+  assert.throws(() => backtest(
     toEngineInput(younger, sessions, proofs, portfolio, "100"),
-  );
-  assert.equal(result.actual.start, "2024-01-03");
-  assert.equal(result.benchmark.points[0].date, "2024-01-03");
+  ), (e) => e.code === "SHORT_HISTORY");
   const outsideSessions = structuredClone(candidates);
   outsideSessions.prices.AAA["2024-01-01"] = "100";
   assert.throws(

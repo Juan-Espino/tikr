@@ -133,10 +133,7 @@ test("process-date replies may include a validated dividend with an earlier ex-d
   ];
   assert.deepEqual(provisionalAsset(c, calendar, "SPY").actions, []);
   c.actions[0].issues.push("unsupported dividend terms");
-  assert.throws(
-    () => provisionalAsset(c, calendar, "SPY"),
-    /UNSUPPORTED_ACTION/,
-  );
+  assert.deepEqual(provisionalAsset(c, calendar, "SPY").actions, []);
 });
 test("unsupported, incomplete and ambiguous same-day split/dividend events fail", () => {
   for (const action of [
@@ -517,5 +514,32 @@ test("split redemption before ex-date, invalid dates and symbol changes fail", a
         signal: new AbortController().signal,
       }),
     );
+  }
+});
+
+
+test("period coverage is explicit without fabricated inception; BA/RTX old events do not block a short period", () => {
+  for (const symbol of ["BA", "RTX"]) {
+    const c = candidate(); c.symbols = [symbol]; c.prices = { [symbol]: c.prices.SPY };
+    c.actions = [{ id: "old", symbol, date: "2020-04-03", kind: "spin_offs", issues: ["unsupported action"] }];
+    const a = provisionalAsset(c, calendar, symbol);
+    assert.equal(a.inceptionVerified, false); assert.equal(a.periodCoverageVerified, true);
+    assert.deepEqual(a.actions, []);
+    c.actions[0].date = days[1];
+    assert.throws(() => provisionalAsset(c, calendar, symbol), /UNSUPPORTED_ACTION/);
+    c.actions = []; delete c.prices[symbol][days[0]];
+    assert.throws(() => provisionalAsset(c, calendar, symbol), /MISSING_PRICE/);
+  }
+});
+
+
+test("an older expansion gap does not revoke an intact narrow scope; an overlapping gap does", async () => {
+  for (const missing of [days[0], days[1], "revised"]) {
+    const load = createPersonalLoader(config(async (url) => new URL(url).pathname.endsWith("bars")
+      ? ok({ bars: { SPY: days.filter((d) => d !== (missing === "revised" ? days[0] : missing)).map((d) => ({ t: `${d}T05:00:00Z`, c: missing === "revised" && d === days[1] ? 101 : 100 })) }, next_page_token: null })
+      : ok({ corporate_actions: {}, next_page_token: null })), calendar);
+    const previous = { ...provisionalAsset(candidate(), calendar, "SPY"), from: days[1], firstAvailable: days[1], prices: { [days[1]]: "100", [days[2]]: "100" } };
+    await assert.rejects(() => load({ symbol: "SPY", from: days[0], through: days[2], recheckFrom: days[0], previous, signal: new AbortController().signal }),
+      (e) => missing === days[0] ? e.message === "MISSING_PRICE" : e.code === "EVIDENCE_CHANGED" && e.limitation === "MISSING_PRICE");
   }
 });

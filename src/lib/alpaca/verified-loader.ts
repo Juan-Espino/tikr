@@ -74,7 +74,7 @@ export function createVerifiedLoader(options: {
       throw new EvidenceError("EVIDENCE_EXPIRED");
     const c = review.candidates;
     if (
-      c?.start !== q.from ||
+      c?.start > q.from ||
       (c.end !== q.through && review.pendingSession !== q.through) ||
       c.symbols.length !== 1 ||
       c.symbols[0] !== q.symbol ||
@@ -111,7 +111,7 @@ export function createVerifiedLoader(options: {
     if (options.live) {
       candidate = await fetchCandidates(options.live, {
         symbols: [q.symbol],
-        start: q.from,
+        start: c.start,
         end: c.end,
         feed: "sip",
         signal: q.signal,
@@ -121,7 +121,19 @@ export function createVerifiedLoader(options: {
         throw new EvidenceError("EVIDENCE_CHANGED");
     }
     const input = toEngineInput(
-      candidate,
+      {
+        ...candidate,
+        start: q.from,
+        prices: Object.fromEntries(
+          Object.entries(candidate.prices).map(([symbol, prices]) => [
+            symbol,
+            Object.fromEntries(
+              Object.entries(prices).filter(([day]) => day >= q.from),
+            ),
+          ]),
+        ),
+        actions: candidate.actions.filter((a) => !a.date || a.date >= q.from),
+      },
       sessions,
       review.evidence,
       [{ id: "review", holdings: [{ symbol: q.symbol, weight: "100" }] }],

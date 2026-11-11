@@ -57,9 +57,9 @@ function validateAsset(a: Asset, c: Calendar, from: string, through: string) {
     if (
       !day(d) ||
       d < a.firstAvailable ||
-      d < from ||
-      d > through ||
-      !sessions.includes(d) ||
+      d < a.from ||
+      d > a.through ||
+      !c.sessions.includes(d) ||
       !positive(p)
     )
       throw new Error("UNVERIFIED_DATA");
@@ -68,6 +68,7 @@ function validateAsset(a: Asset, c: Calendar, from: string, through: string) {
       throw new Error("MISSING_PRICE");
   const ids = new Set<string>();
   for (const e of a.actions) {
+    if (e.date < from || e.date > through) continue;
     if (
       !e.id ||
       e.id.length > 128 ||
@@ -235,11 +236,21 @@ export function createDurableBacktests(options: {
       });
     const period = preset({ ...full, sessions }, range);
     const req = { ...request, ...period, end: "latest" };
+    const covers = (row: Stored, from: string) => {
+      const head = JSON.parse(row.payload) as AssetHead;
+      return (
+        head.format === "monthly-v2" &&
+        head.meta.from <= from &&
+        (head.meta.through >= period.end ||
+          (head.pendingSession === period.end &&
+            head.meta.through === sessions.at(-2)))
+      );
+    };
     const identity = revision({
       request,
       range,
       evidenceRevision: options.evidenceRevision,
-      policy: "raw-sip-payment-close-0900-monthly-v2",
+      policy: "raw-sip-payment-close-0900-requested-v3",
     });
     const resultKey = `result:slot${parseInt(identity.slice(0, 4), 16) % 16}`;
     if (
@@ -299,7 +310,7 @@ export function createDurableBacktests(options: {
             !old.payload.includes('"invalidated":true') &&
             (JSON.parse(old.payload) as AssetHead).evidenceRevision ===
               options.evidenceRevision &&
-            (JSON.parse(old.payload) as AssetHead).format === "monthly-v2"
+            covers(old, q.from)
           ) {
             loadedHeads.set(key, old);
             const asset = await loadAsset(storage, old);
@@ -311,7 +322,7 @@ export function createDurableBacktests(options: {
                 .pendingSession,
             };
           }
-          const token = await storage.acquire(key, cycle, retry);
+          const token = await storage.acquire(key, cycle, retry, q.from);
           if (!token) {
             let current: Stored | undefined;
             for (let i = 0; i < 3; i++) {
@@ -321,7 +332,8 @@ export function createDurableBacktests(options: {
                 freshnessCycle(new Date(current.checkedAt)) === cycle &&
                 !current.payload.includes('"invalidated":true') &&
                 (JSON.parse(current.payload) as AssetHead).evidenceRevision ===
-                  options.evidenceRevision
+                  options.evidenceRevision &&
+                covers(current, q.from)
               )
                 break;
               await new Promise((resolve) => setTimeout(resolve, 400));
@@ -331,7 +343,8 @@ export function createDurableBacktests(options: {
               freshnessCycle(new Date(current.checkedAt)) === cycle &&
               !current.payload.includes('"invalidated":true') &&
               (JSON.parse(current.payload) as AssetHead).evidenceRevision ===
-                options.evidenceRevision
+                options.evidenceRevision &&
+              covers(current, q.from)
             ) {
               loadedHeads.set(key, current);
               const asset = await loadAsset(storage, current);
@@ -359,7 +372,11 @@ export function createDurableBacktests(options: {
               refreshed.feed !== "sip" ||
               asset.symbol !== q.symbol ||
               asset.complete !== true ||
-              asset.inceptionVerified !== true ||
+              (asset.inceptionVerified !== true &&
+                !(
+                  asset.periodCoverageVerified === true &&
+                  asset.firstAvailable <= q.from
+                )) ||
               asset.pricesComplete !== true ||
               asset.actionsComplete !== true ||
               asset.accessComplete !== true ||
@@ -449,6 +466,7 @@ export function createDurableBacktests(options: {
           status: "blocked",
           requested: period,
           code: "UNVERIFIED_DATA",
+          issues: view.issues,
         };
       if (!view.result) {
         const current = await storage.read(symbols.map((s) => `asset:${s}`));
@@ -466,6 +484,7 @@ export function createDurableBacktests(options: {
             status: "stale",
             code: view.code ?? "REFRESH_FAILED",
             retryAt: view.retryAt,
+            issues: view.issues,
           };
         return view;
       }

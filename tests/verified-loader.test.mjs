@@ -110,3 +110,16 @@ test("a complete traversal with an interior gap is rejected", async () => {
   r.candidatesHash = digest(r.candidates);
   await assert.rejects(run(r), /BLOCKED/);
 });
+
+
+test("reviewed full revision may project a requested short window without accepting older gaps or actions", async () => {
+  const r = fixture();
+  r.candidates.start = "2024-10-01";
+  r.candidates.actions = [{ id: "old", symbol: "SPY", date: "2024-10-01", kind: "spin_offs", issues: ["unsupported action"] }];
+  r.candidatesHash = digest(r.candidates);
+  r.calendar.from = "2024-10-01"; r.calendar.sessions = ["2024-10-01", ...r.calendar.sessions];
+  const out = await run(r);
+  assert.equal(out.asset.from, sessions[0]); assert.deepEqual(out.asset.actions, []);
+  r.candidates.prices.SPY[sessions[0]] = "999";
+  await assert.rejects(() => run(r), /EVIDENCE_CHANGED/);
+});

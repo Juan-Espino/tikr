@@ -35,12 +35,13 @@ export function createAdmittedTransport(
   };
 }
 
-export const PROVISIONAL_POLICY = "personal-provisional-sip-v2-ex-date-scope";
+export const PROVISIONAL_POLICY =
+  "personal-provisional-sip-v3-requested-period";
 const provenance =
   "Personal provisional Alpaca SIP; subject to corrections; action completeness not independently established";
 
 // These flags express acceptance under the personal provisional policy, never analyst verification.
-// The fixed catalog predates the supported five-year window: missing leading bars fail too.
+// Complete window coverage does not prove inception; leading missing bars fail too.
 export function provisionalAsset(
   c: Candidates,
   calendar: Calendar,
@@ -61,6 +62,7 @@ export function provisionalAsset(
   if (Object.keys(prices).some((d) => !sessions.includes(d)))
     throw new Error("UNVERIFIED_DATA");
   const actions: Action[] = c.actions
+    .filter((a) => !a.date || (a.date >= c.start && a.date <= c.end))
     .map<Action>((a) => {
       if (
         a.symbol !== symbol ||
@@ -105,7 +107,8 @@ export function provisionalAsset(
     from: c.start,
     through: c.end,
     complete: true,
-    inceptionVerified: true,
+    inceptionVerified: false,
+    periodCoverageVerified: true,
     pricesComplete: true,
     actionsComplete: true,
     accessComplete: true,
@@ -224,6 +227,7 @@ export async function fetchPersonalCalendar(
 }
 export function createPersonalLoader(config: Config, calendar: Calendar) {
   return async (q: AssetRefresh) => {
+    let observed: Candidates | undefined;
     try {
       const candidates = await fetchCandidates(config, {
         symbols: [q.symbol],
@@ -232,6 +236,7 @@ export function createPersonalLoader(config: Config, calendar: Calendar) {
         feed: "sip",
         signal: q.signal,
       });
+      observed = candidates;
       return {
         feed: "sip" as const,
         asset: provisionalAsset(candidates, calendar, q.symbol),
@@ -239,11 +244,60 @@ export function createPersonalLoader(config: Config, calendar: Calendar) {
     } catch (error) {
       if (error instanceof AdmissionFailure) throw error.failure;
       // Received data that contradicts a previously cached scope cannot fall back stale.
+      let contradictsPrevious = true;
+      if (observed && q.previous) {
+        const start = q.previous.from > q.from ? q.previous.from : q.from;
+        const end =
+          q.previous.through < q.through ? q.previous.through : q.through;
+        if (start <= end) {
+          try {
+            const overlap = provisionalAsset(
+              {
+                ...observed,
+                start,
+                end,
+                prices: Object.fromEntries(
+                  Object.entries(observed.prices).map(([symbol, prices]) => [
+                    symbol,
+                    Object.fromEntries(
+                      Object.entries(prices).filter(
+                        ([day]) => day >= start && day <= end,
+                      ),
+                    ),
+                  ]),
+                ),
+              },
+              calendar,
+              q.symbol,
+            );
+            const actionKey = (actions: Action[]) =>
+              JSON.stringify(
+                actions
+                  .filter((a) => a.date >= start && a.date <= end)
+                  .sort((a, b) => a.id.localeCompare(b.id))
+                  .map((a) =>
+                    Object.fromEntries(
+                      Object.entries(a).sort(([a], [b]) => a.localeCompare(b)),
+                    ),
+                  ),
+              );
+            contradictsPrevious =
+              Object.entries(overlap.prices).some(
+                ([day, price]) => q.previous!.prices[day] !== price,
+              ) || actionKey(overlap.actions) !== actionKey(q.previous.actions);
+          } catch {
+            /* A received contradiction within the old scope still revokes. */
+          }
+        } else contradictsPrevious = false;
+      }
       if (
         q.previous &&
+        contradictsPrevious &&
         (!(error instanceof AlpacaError) || error.code === "MALFORMED")
       )
-        throw new EvidenceError("EVIDENCE_CHANGED");
+        throw Object.assign(new EvidenceError("EVIDENCE_CHANGED"), {
+          limitation: marketFailure(error)?.code,
+        });
       throw error;
     }
   };

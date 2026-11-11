@@ -32,7 +32,7 @@ const dd = sub(div(total, peak), one);`,
   ],
   [
     "missing price substitution",
-    "younger verified asset",
+    "confirmed younger history",
     `if (price === undefined)
         return fail("MISSING_PRICE", \`\${a.symbol}: missing close on \${s}\`);`,
     `if (price === undefined) { map.set(s, decimal("1")); continue; }`,
