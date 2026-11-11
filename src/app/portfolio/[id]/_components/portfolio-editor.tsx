@@ -33,12 +33,14 @@ const field =
 
 export function PortfolioEditor({
   portfolio,
+  isNew,
   onChange,
   onClose,
   nameError = "",
   suggestedName,
 }: {
   portfolio: Portfolio;
+  isNew: boolean;
   onChange: (portfolio: Portfolio) => void;
   onClose: () => void;
   nameError?: string;
@@ -168,7 +170,7 @@ export function PortfolioEditor({
   return (
     <>
       <DialogTitle className="pr-8 text-2xl font-bold">
-        Edit portfolio
+        {isNew ? "New portfolio" : "Edit portfolio"}
       </DialogTitle>
       <DialogDescription className="text-muted-foreground mt-2 text-sm">
         Shape your mix. Valid changes update the results automatically.
@@ -185,7 +187,8 @@ export function PortfolioEditor({
             id="portfolio-name"
             maxLength={80}
             value={portfolio.name}
-            aria-invalid={!!nameError || !portfolio.name.trim()}
+            placeholder="New portfolio"
+            aria-invalid={!!nameError}
             aria-describedby={nameError ? "portfolio-name-error" : undefined}
             onChange={(e) => onChange({ ...portfolio, name: e.target.value })}
             className={`${field} aria-invalid:border-destructive aria-invalid:ring-destructive/30 mt-2 aria-invalid:ring-2`}
@@ -386,20 +389,17 @@ export function PortfolioEditor({
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
             {weights.valid
-              ? !amountValid || !portfolio.name.trim()
-                ? "Complete the name and starting amount."
+              ? !amountValid
+                ? "Complete the starting amount."
                 : "Allocation is valid. History is checked separately."
-              : weights.total > 10000
-                ? `${((weights.total - 10000) / 100).toFixed(2)}% over. Adjust the weights to continue.`
-                : "Use positive weights totaling exactly 100%, with up to two decimals."}
+              : !holdings.length
+                ? "Choose assets to start your allocation."
+                : weights.total > 10000
+                  ? `${((weights.total - 10000) / 100).toFixed(2)}% over. Adjust the weights to continue.`
+                  : "Use positive weights totaling exactly 100%, with up to two decimals."}
           </p>
         </div>
-        <Button
-          disabled={!!nameError || !portfolio.name.trim()}
-          onClick={onClose}
-        >
-          Done
-        </Button>
+        <Button onClick={onClose}>Done</Button>
       </div>
     </>
   );

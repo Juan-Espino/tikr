@@ -1,0 +1,60 @@
+# Development market-history acceptance
+
+Status: in progress, 2026-11-11. This is personal provisional Alpaca data, not corporate-action completeness, licensing or production certification. Live worktree: http://127.0.0.1:5001; development backend: stoic-corgi-586. No main checkout data or user portfolios were modified by QA.
+
+## Ordered acceptance ledger
+
+| # | Check, easiest to hardest | Evidence and current result |
+|---|---|---|
+| 1 | Environment starts, real credentials authenticate, SPY renders | Live API returns ready; Terra created QA SPY through editor and observed six 1W points. General source, no replay snapshot. Credential-cleared production build and actual worktree restart PASS; SPY dates/series identical before/after. |
+| 2 | SPY at 1W, 1M, YTD, 1Y, 5Y | PASS live matrix; SPY-only portfolio equals named SPY benchmark, common dates and amount. |
+| 3 | Individual SCHD, PLTR, RTX, BA, MSFT, AAPL, NVDA across all five ranges | PASS live matrix. Five-year results have 1,255 common daily points ending 2026-11-10. |
+| 4 | Create one-, two-, three- and six-holding portfolios | PASS actual live editor: QA SPY, Income, War, Six; each saved locally, defaults 1W, weights total 100%, real results. |
+| 5 | Equal/manual allocations, amount, edits and holding limit | PASS deterministic allocation and browser regression; Terra live CRUD PASS: own SCHD/SPY portfolio, $20,000, 60/40 then equal 50/50, pin/unpin, named duplicate and deletion of only that duplicate. Zero amount, zero/99% weights and seven-holding live requests reject 400. |
+| 6 | Existing storage reload, new routes and explicit range persistence | PASS Node/browser regression: legacy unmarked 1Y becomes 1W with notice; explicit 1Y survives; new portfolio/detail/editor default 1W. Terra live explicit 1Y reload PASS; all four dashboard cards still use 1W. |
+| 7 | Mixed portfolios across every range and navigation back | PASS live API War, Income, Tech, Six across five ranges. Terra live War range sequence 1W -> 1M -> YTD -> 1Y -> 5Y -> 1W PASS; dashboard remains ready. |
+| 8 | Compare one/two additional portfolios with SPY, same dates and amount | PASS live API two/three portfolios across five ranges with metric arithmetic checks. Terra live two-added-portfolio comparison, percentage/dollar mode and SPY toggle PASS; dates and initial $10,000 agree in the daily table. |
+| 9 | Short history/missing prices and unsupported actions | PASS IBIT: 1W/1M/YTD/1Y ready; 5Y ticker-specific missing history; repeated error stable; shorter result and SPY survive. Deterministic fixtures cover unsupported events, actual inception versus unknown leading gaps, two-session minimum and all affected holdings. Terra live error/reload/1Y recovery and subsequent dashboard SPY PASS; desktop/mobile screenshots reviewed, no fabricated chart. |
+| 10 | Professional operational errors, stale/loading/expiry and retry | PASS credential-cleared browser regression: no invented returns, bounded stream errors, stale date/status, expired results removed, one retry intent, per-card failure isolation. Server diagnostics retain safe stage/code. Added operational-error browser test PASS at390/1440px for revocation, guard and storage failures: professional copy, no operator instructions, no provisional disclaimer without results, no chart/overflow. |
+| 11 | Rapid changes, concurrent overlapping requests and efficiency | PASS live four-way warm requests; deterministic coalescing, revision races, obsolete responses and local admission queue. Latest full matrix: 90 API calls, 87 assertions, 19,352,268 local admitted I/O bytes; this is not platform billing. |
+| 12 | Restart, partial writes, terminated observations and durable recovery | PASS deterministic restart/process tests, exact revision receipts and negative recovery cases. Actual worktree restart PASS: SPY ready with identical dates and series; the fixture server was stopped separately after its completed regression run. Original revocations/guards retained; affected-asset correction remains revoked after restart while SPY-only history works. |
+| 13 | Desktop/mobile/tablet, keyboard/touch, overflow, console and CRUD | PASS 40/40 credential-cleared installed-Edge browser tests; actual live creation observed no console errors. Live mobile390/tablet768 show no document-level overflow; Terra live CRUD and IBIT error/recovery PASS; screenshots reviewed. |
+| 14 | Daily freshness, calendar/window rollover, corrections and budgets | PASS deterministic next-day/DST/pending-session/window-clamp tests, correction invalidation, atomic quotas and development-only allowance tests. Actual next eligible live cycle (2026-11-12 09:00 America/New_York) remains pending; synthetic time is not a live rollover observation. |
+
+## Approved development headroom
+
+Owner explicitly approved the November local development ceiling of **700,000,000 bytes** after the prior650 MB allowance. Applied only this checkout's ignored allowance settings and the bounded development validator; normal/production/hosted limits remain500,000,000 bytes. The allowance is hard-bound to November2026, including rejection of attempts to extend it through a different configured month. No paid service or backend deployment changed.
+
+At activation, the retained ledger stayed byte-for-byte unchanged at **3,667 calls / 648,652,082 I/O bytes**, leaving51,347,918 bytes. All existing guards, revocations and attempt history remain intact. The12 focused allowance/admission tests passed, including700 MB acceptance,700,000,001 refusal, production/hosted/default/other-month500 MB limits, durable corrections and process-guard recovery. Actual next-day acceptance remains pending its scheduled cutoff; allowance approval is not fresh-data evidence.
+
+A further concrete efficiency fix avoids scanning all32 catalog shards for history membership. History reads only the shards containing selected holdings andSPY; search retains the full catalog. The same one-minute memo, seven-day durable freshness, shard shape/membership, unique-key and common-revision validation apply. Selected memo entries are bounded and concurrent identical reads join. A new transaction-independent catalog test proves selective reads/coalescing and rejection of missing, mixed, stale, future, corrupt and wrong-shard records, plus activation disablement. A real repeated War1Y probe returned ready/252points twice in1,276/945ms, charging379,326 bytes across both requests; evidence `%TEMP%/tikr-selected-catalog-live.json`.
+
+## Completed checks
+
+- Full Node suite: 177/177, `node --conditions=react-server --experimental-strip-types --test` over every `tests/*.test.mjs`.
+- Convex transaction tests: 39/39 across 10 files, `pnpm exec vitest run`.
+- Financial fault probes: all five killed, `node tests/backtest-mutations.mjs`.
+- Browser regression: 40/40, credential-cleared mirror on loopback43127, installed Edge, Terra Medium.
+- Live matrix: `node scripts/market-history-acceptance.mjs --live`, 87 assertions passed, zero failures. Artifact directory: `%TEMP%/tikr-market-matrix-1znBbd` (`summary.json`, `results.json`). Provider bounds, guards and request budgets stay enforced.
+- Nine live negative endpoint cases: foreign origin 403; >12 KB body 413; zero amount, invalid allocation, zero weight, duplicate IDs, seven holdings, malformed ticker and unknown range each 400.
+- Lint and both TypeScript projects passed via `pnpm check`; credential-cleared production build, final changed-source formatting and Git/Markdown whitespace checks passed. Live UI checks are complete; actual next-cycle observation remains pending.
+
+## Root cause and safety boundaries
+
+Valid BA stock-merger and IBIT acquiree-only cash-merger response shapes were rejected by the old parser. With prior evidence, parsing failures became EVIDENCE_CHANGED and revoked the shared scope. Exact captured HTTP200 responses reproduce the defects; the original initiating request was not logged. A separate reproduced admission problem can strand received writes behind retained guards when concurrent fixed 64 MB reservations exceed remaining local allowance. Historical partial commits fit this mechanism, but missing historical write-stage logs limit certainty.
+
+The fixes validate those real response shapes, keep acquiree events unsupported when relevant, and retain true correction invalidation. The reviewed v5 policy records this substantive interpretation change. It does not erase older global revocations. General explicit guarded recovery requires fresh validated data, an atomic commit, matching readback and exact revision receipt; active observations and true revocations remain blocked. No daily counters or persistent guards were reset. Hosted revocation remains scope-wide; per-asset durable isolation applies to the local development path. New personal corrections also create a policy-bound revocation marker, independent of the monthly window. A deterministic storage-bridge test proves a changed window cannot enable reads, refresh, recovery discovery or confirmation for a revoked asset; unrelated SPY remains readable. A global policy revocation still blocks SPY too. Any transition to a different reviewed source policy requires separate evidence-backed review; a window change is not that review.
+
+Owner approved 700 MB only for November local development, from the usual 500 MB ceiling. No production/hosted limit or paid service changed. Exceeding the allowance must stop further live work rather than reset accounting or retry around the gate.
+
+## Live browser and restart evidence
+
+Terra Medium used isolated QA browser state, with preview attempted first and recorded timeout/unsupported-profile failures before installed Edge fallback. State files: `%TEMP%/tikr-live-ui-state.json` and `%TEMP%/tikr-qa-updated-state.json`. No user/default browser state was changed. Images: `%TEMP%/tikr-qa-war.png`, `tikr-qa-ranges.png`, `tikr-qa-390.png`, `tikr-qa-768.png`. Additional artifacts: `%TEMP%/tikr-ibit-remaining-report.json`, `tikr-ibit-5y-desktop.png`, `tikr-ibit-5y-mobile.png`. The final40-test browser run artifacts are under `%TEMP%/tikr-browser-e52d8bf47f9c4dc2baea698adbf19b9e`, including operational-history-390.png and1440.png. Screenshots reviewed for the existing layout; no typography redesign was made.
+
+Restart evidence: `%TEMP%/tikr-restart-before.json` and `tikr-restart-after.json`; exact SPY result series and November 3-10 period match. Live server remains on5001. Production build ran against a refreshed credential-cleared source mirror, using the same frozen dependencies and `SKIP_ENV_VALIDATION=1`; build log `%TEMP%/tikr-final-build.log`. No private configuration was copied to that mirror.
+
+The genuine next daily-cycle continuation is scheduled in this same thread for **2026-11-12 14:05 UTC (06:05 Pacific / 09:05 New York)**. It is bounded to existing core tickers and remaining approved allowance; an exhausted gate must be reported rather than bypassed. That check has not yet run.
+
+## PR assessment
+
+All currently executable acceptance categories pass. Actual next-cycle observation remains pending its eligibility cutoff; the additional approved allowance is now applied. Final credential-cleared production build after the selected-catalog efficiency change passed. A passing personal development matrix does not establish hosted release readiness, source finality, exhaustive corporate-action handling, public market-data rights or sustained platform costs. No commit, push, PR or merge has been performed.

@@ -517,29 +517,197 @@ test("split redemption before ex-date, invalid dates and symbol changes fail", a
   }
 });
 
-
 test("period coverage is explicit without fabricated inception; BA/RTX old events do not block a short period", () => {
   for (const symbol of ["BA", "RTX"]) {
-    const c = candidate(); c.symbols = [symbol]; c.prices = { [symbol]: c.prices.SPY };
-    c.actions = [{ id: "old", symbol, date: "2020-04-03", kind: "spin_offs", issues: ["unsupported action"] }];
+    const c = candidate();
+    c.symbols = [symbol];
+    c.prices = { [symbol]: c.prices.SPY };
+    c.actions = [
+      {
+        id: "old",
+        symbol,
+        date: "2020-04-03",
+        kind: "spin_offs",
+        issues: ["unsupported action"],
+      },
+    ];
     const a = provisionalAsset(c, calendar, symbol);
-    assert.equal(a.inceptionVerified, false); assert.equal(a.periodCoverageVerified, true);
+    assert.equal(a.inceptionVerified, false);
+    assert.equal(a.periodCoverageVerified, true);
     assert.deepEqual(a.actions, []);
     c.actions[0].date = days[1];
-    assert.throws(() => provisionalAsset(c, calendar, symbol), /UNSUPPORTED_ACTION/);
-    c.actions = []; delete c.prices[symbol][days[0]];
+    assert.throws(
+      () => provisionalAsset(c, calendar, symbol),
+      /UNSUPPORTED_ACTION/,
+    );
+    c.actions = [];
+    delete c.prices[symbol][days[0]];
     assert.throws(() => provisionalAsset(c, calendar, symbol), /MISSING_PRICE/);
   }
 });
 
-
 test("an older expansion gap does not revoke an intact narrow scope; an overlapping gap does", async () => {
   for (const missing of [days[0], days[1], "revised"]) {
-    const load = createPersonalLoader(config(async (url) => new URL(url).pathname.endsWith("bars")
-      ? ok({ bars: { SPY: days.filter((d) => d !== (missing === "revised" ? days[0] : missing)).map((d) => ({ t: `${d}T05:00:00Z`, c: missing === "revised" && d === days[1] ? 101 : 100 })) }, next_page_token: null })
-      : ok({ corporate_actions: {}, next_page_token: null })), calendar);
-    const previous = { ...provisionalAsset(candidate(), calendar, "SPY"), from: days[1], firstAvailable: days[1], prices: { [days[1]]: "100", [days[2]]: "100" } };
-    await assert.rejects(() => load({ symbol: "SPY", from: days[0], through: days[2], recheckFrom: days[0], previous, signal: new AbortController().signal }),
-      (e) => missing === days[0] ? e.message === "MISSING_PRICE" : e.code === "EVIDENCE_CHANGED" && e.limitation === "MISSING_PRICE");
+    const load = createPersonalLoader(
+      config(async (url) =>
+        new URL(url).pathname.endsWith("bars")
+          ? ok({
+              bars: {
+                SPY: days
+                  .filter(
+                    (d) => d !== (missing === "revised" ? days[0] : missing),
+                  )
+                  .map((d) => ({
+                    t: `${d}T05:00:00Z`,
+                    c: missing === "revised" && d === days[1] ? 101 : 100,
+                  })),
+              },
+              next_page_token: null,
+            })
+          : ok({ corporate_actions: {}, next_page_token: null }),
+      ),
+      calendar,
+    );
+    const previous = {
+      ...provisionalAsset(candidate(), calendar, "SPY"),
+      from: days[1],
+      firstAvailable: days[1],
+      prices: { [days[1]]: "100", [days[2]]: "100" },
+    };
+    await assert.rejects(
+      () =>
+        load({
+          symbol: "SPY",
+          from: days[0],
+          through: days[2],
+          recheckFrom: days[0],
+          previous,
+          signal: new AbortController().signal,
+        }),
+      (e) =>
+        missing === days[0]
+          ? e.message === "MISSING_PRICE"
+          : e.code === "EVIDENCE_CHANGED" && e.limitation === "MISSING_PRICE",
+    );
   }
+});
+
+test("stock merger acquirer-only response preserves existing history; acquiree and malformed terms still fail", async () => {
+  for (const role of ["acquirer", "acquiree", "malformed"]) {
+    const load = createPersonalLoader(
+      config(async (url) =>
+        ok(
+          url.includes("/bars")
+            ? {
+                bars: {
+                  SPY: days.map((d, i) => ({
+                    t: `${d}T05:00:00Z`,
+                    c: [100, 99, 110][i],
+                  })),
+                },
+                next_page_token: null,
+              }
+            : {
+                corporate_actions: {
+                  stock_mergers: [
+                    {
+                      id: "stock-merger",
+                      acquiree_symbol: role === "acquiree" ? "SPY" : "OTHER",
+                      acquirer_symbol: role === "acquiree" ? "OTHER" : "SPY",
+                      acquiree_rate: 1,
+                      acquirer_rate: role === "malformed" ? null : 0.1955,
+                      effective_date: days[1],
+                      process_date: days[1],
+                      payable_date: days[1],
+                    },
+                  ],
+                },
+                next_page_token: null,
+              },
+        ),
+      ),
+      calendar,
+    );
+    const request = {
+      symbol: "SPY",
+      from: days[0],
+      through: days[2],
+      recheckFrom: days[0],
+      previous: provisionalAsset(candidate(), calendar, "SPY"),
+      signal: new AbortController().signal,
+    };
+    if (role === "acquirer")
+      assert.deepEqual((await load(request)).asset.actions, []);
+    else
+      await assert.rejects(
+        () => load(request),
+        (e) => e.code === "EVIDENCE_CHANGED",
+      );
+  }
+});
+
+test("acquiree-only cash mergers without an acquirer do not turn an older expansion gap into a correction", async () => {
+  const oldDays = ["2023-05-01", ...days];
+  const full = { ...calendar, from: oldDays[0], sessions: oldDays };
+  const load = createPersonalLoader(
+    config(async (url) =>
+      ok(
+        url.includes("/bars")
+          ? {
+              bars: {
+                SPY: days.map((d, i) => ({
+                  t: `${d}T05:00:00Z`,
+                  c: [100, 99, 110][i],
+                })),
+              },
+              next_page_token: null,
+            }
+          : {
+              corporate_actions: {
+                cash_mergers: [
+                  {
+                    id: "legacy-cash-acquiree",
+                    acquiree_symbol: "SPY",
+                    effective_date: oldDays[0],
+                    process_date: oldDays[0],
+                    payable_date: oldDays[0],
+                    rate: 21.927943,
+                  },
+                ],
+              },
+              next_page_token: null,
+            },
+      ),
+    ),
+    full,
+  );
+  const previous = provisionalAsset(candidate(), calendar, "SPY");
+  await assert.rejects(
+    () =>
+      load({
+        symbol: "SPY",
+        from: oldDays[0],
+        through: days[2],
+        previous,
+        signal: new AbortController().signal,
+      }),
+    (e) => e.message === "MISSING_PRICE" && e.code !== "EVIDENCE_CHANGED",
+  );
+  const withinOld = {
+    ...previous,
+    from: oldDays[0],
+    firstAvailable: oldDays[0],
+    prices: { [oldDays[0]]: "100", ...previous.prices },
+  };
+  await assert.rejects(
+    () =>
+      load({
+        symbol: "SPY",
+        from: oldDays[0],
+        through: days[2],
+        previous: withinOld,
+        signal: new AbortController().signal,
+      }),
+    (e) => e.code === "EVIDENCE_CHANGED",
+  );
 });

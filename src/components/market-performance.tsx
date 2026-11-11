@@ -250,7 +250,7 @@ export function DataStatus({
       aria-live="polite"
       className="text-muted-foreground mt-3 text-xs leading-relaxed"
     >
-      {view.dataQuality === "personal-provisional" && (
+      {view.dataQuality === "personal-provisional" && view.series && (
         <span className="block">
           Personal provisional Alpaca data; subject to corrections.
           Corporate-action completeness is not independently verified.
@@ -259,8 +259,8 @@ export function DataStatus({
       {marketErrorMessage(view.code) ??
         (view.status === "blocked"
           ? view.dataQuality === "personal-provisional"
-            ? "Market data is unavailable. No estimated returns are shown."
-            : "Verified market data is unavailable. No estimated returns are shown."
+            ? "We couldn't load market history right now. Please try again later."
+            : "We couldn't load market history right now. Please try again later."
           : view.status === "refreshing"
             ? view.series
               ? view.dataQuality === "personal-provisional"

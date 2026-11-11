@@ -5,6 +5,7 @@ import {
   packCatalogShard,
   validateCatalog,
   validateShard,
+  validTicker,
   type CatalogAsset,
 } from "./asset-catalog.ts";
 import { convexStorage, revision } from "./market-storage.ts";
@@ -34,14 +35,18 @@ export function catalogStorage() {
     scope,
   );
 }
-async function readDurableCatalog() {
-  const rows = await catalogStorage().read(
-    Array.from({ length: 32 }, (_, i) => `catalog:${i}`),
-  );
+async function readDurableCatalog(symbols?: string[]) {
+  const shards = symbols
+    ? [...new Set(symbols.map(catalogShard))]
+    : Array.from({ length: 32 }, (_, i) => i);
+  const keys = shards.map((i) => `catalog:${i}`);
+  const rows = await catalogStorage().read(keys);
   // A remote mutation timestamp may lead the local host by a few milliseconds.
   // Bound skew explicitly; freshness still expires from the original timestamp.
   if (
-    rows.length !== 32 ||
+    rows.length !== keys.length ||
+    new Set(rows.map((r) => r.key)).size !== keys.length ||
+    rows.some((r) => !keys.includes(r.key)) ||
     rows.some(
       (r) =>
         !Number.isFinite(r.checkedAt) ||
@@ -56,7 +61,7 @@ async function readDurableCatalog() {
   );
   if (assets.length > 30000 || !assets.some((a) => a.ticker === "SPY"))
     throw Error("INVALID_CATALOG");
-  return assets;
+  return symbols ? assets.filter((a) => symbols.includes(a.ticker)) : assets;
 }
 // Memoized only for a minute; admission/guards remain independently enforced.
 let memo: { key: string; until: number; rows: CatalogAsset[] } | undefined;
@@ -64,11 +69,47 @@ let reading: { key: string; promise: Promise<CatalogAsset[]> } | undefined;
 function memoKey() {
   return `${hosted()}:${process.env.TIKR_CONVEX_URL}:${process.env.TIKR_CONVEX_SITE_URL}:${process.env.TIKR_PERSONAL_DATA_ENABLED}:${process.env.TIKR_HOSTED_DATA_ENABLED}`;
 }
-export async function readCatalog() {
+const selectedMemos = new Map<
+  string,
+  { until: number; rows: CatalogAsset[] }
+>();
+const selectedReads = new Map<string, Promise<CatalogAsset[]>>();
+export async function readCatalog(selected?: string[]) {
   catalogStorage(); // Never reuse a memo after activation is disabled.
   const key = memoKey();
-  if (memo?.key === key && memo.until > Date.now()) return memo.rows;
-  if (reading?.key === key) return reading.promise;
+  if (
+    selected &&
+    (selected.length > 19 || selected.some((s) => !validTicker(s)))
+  )
+    throw Error("INVALID_CATALOG");
+  const symbols = selected
+    ? [...new Set(["SPY", ...selected])].sort()
+    : undefined;
+  const pick = (rows: CatalogAsset[]) =>
+    symbols ? rows.filter((a) => symbols.includes(a.ticker)) : rows;
+  if (memo?.key === key && memo.until > Date.now()) return pick(memo.rows);
+  if (reading?.key === key) return reading.promise.then(pick);
+  if (symbols) {
+    const selectedKey = `${key}:${symbols.join(",")}`;
+    const saved = selectedMemos.get(selectedKey);
+    if (saved && saved.until > Date.now()) return saved.rows;
+    const pending = selectedReads.get(selectedKey);
+    if (pending) return pending;
+    // History needs membership for its holdings, not a scan of all 32 catalog shards.
+    // Keep the same freshness, shard validation, revision and provider-admission rules.
+    const promise = readDurableCatalog(symbols)
+      .then((rows) => {
+        if (selectedMemos.size >= 32)
+          selectedMemos.delete(selectedMemos.keys().next().value!);
+        selectedMemos.set(selectedKey, { until: Date.now() + 60000, rows });
+        return rows;
+      })
+      .finally(() => {
+        selectedReads.delete(selectedKey);
+      });
+    selectedReads.set(selectedKey, promise);
+    return promise;
+  }
   const promise = readDurableCatalog()
     .then((rows) => {
       memo = { key, until: Date.now() + 60000, rows };
@@ -195,9 +236,9 @@ export async function refreshCatalog(config: Config, cycle: string) {
 }
 
 let loading: Promise<CatalogAsset[]> | undefined;
-export async function availableCatalog() {
+export async function availableCatalog(symbols?: string[]) {
   try {
-    return await readCatalog();
+    return await readCatalog(symbols);
   } catch {
     /* one durable admitted refresh */
   }
@@ -215,7 +256,10 @@ export async function availableCatalog() {
       loading = undefined;
     });
   }
-  return loading;
+  const rows = await loading;
+  return symbols
+    ? rows.filter((a) => a.ticker === "SPY" || symbols.includes(a.ticker))
+    : rows;
 }
 
 type CatalogStage =

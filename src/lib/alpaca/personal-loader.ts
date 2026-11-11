@@ -35,8 +35,8 @@ export function createAdmittedTransport(
   };
 }
 
-export const PROVISIONAL_POLICY =
-  "personal-provisional-sip-v3-requested-period";
+import { PERSONAL_SOURCE_POLICY } from "../market-policy.ts";
+export const PROVISIONAL_POLICY = PERSONAL_SOURCE_POLICY;
 const provenance =
   "Personal provisional Alpaca SIP; subject to corrections; action completeness not independently established";
 

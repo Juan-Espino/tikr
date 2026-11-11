@@ -90,16 +90,15 @@ test("safe admission errors preserve Retry-After and never leak upstream text", 
       retryAt,
       issues: [{ symbol: "SPY", code: "REFRESH_COOLDOWN" }],
     });
-    expect(
-      new Set(
-        [
-          "BROWSING_RATE_LIMIT",
-          "REFRESH_COOLDOWN",
-          "SHARED_BUDGET_EXHAUSTED",
-          "MISSING_PRICE",
-        ].map(marketErrorMessage),
-      ).size,
-    ).toBe(4);
+    expect(marketErrorMessage("SHARED_BUDGET_EXHAUSTED")).toBe(
+      "We couldn't load market history right now. Please try again later.",
+    );
+    expect(marketErrorMessage("REFRESH_GUARDED")).toBe(
+      marketErrorMessage("EVIDENCE_REVOKED"),
+    );
+    expect(marketErrorMessage("MISSING_PRICE")).not.toBe(
+      marketErrorMessage("STORAGE_UNAVAILABLE"),
+    );
   } finally {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();

@@ -8,10 +8,12 @@ const portfolio = {
   updated: 1,
   amount: "10000",
   range: "1Y",
+  rangeChoice: "explicit",
 };
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(
     (p) =>
+      !localStorage.getItem("tikr-demo-v1") &&
       localStorage.setItem(
         "tikr-demo-v1",
         JSON.stringify({
@@ -62,10 +64,11 @@ test("market admission errors distinguish browsing, cooldown, shared budget and 
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const [code, message] of [
-      ["BROWSING_RATE_LIMIT", "Browsing is temporarily rate limited"],
-      ["REFRESH_COOLDOWN", "Market history refresh is cooling down"],
-      ["SHARED_BUDGET_EXHAUSTED", "The shared market-data budget is exhausted"],
+      ["BROWSING_RATE_LIMIT", "Market history is temporarily unavailable"],
+      ["REFRESH_COOLDOWN", "Market history is temporarily unavailable"],
+      ["SHARED_BUDGET_EXHAUSTED", "We couldn't load market history right now"],
       ["MISSING_PRICE", "Required market history is missing"],
+      ["EVIDENCE_REVOKED", "We couldn't load market history right now"],
     ]) {
       await page.route("**/api/market", (route) =>
         route.fulfill({
@@ -114,9 +117,12 @@ test("a refresh budget failure retains a dated stale result and its explanation"
   );
   await page.goto("/portfolio/test-one");
   await expect(
-    page.getByText("The shared market-data budget is exhausted.", {
-      exact: false,
-    }),
+    page.getByText(
+      "We couldn't load market history right now. Please try again later.",
+      {
+        exact: false,
+      },
+    ),
   ).toBeVisible();
   await expect(
     page.getByText("Showing the last verified result.", { exact: true }),
@@ -139,10 +145,16 @@ test("duplicate names block saving and duplication waits for a user-chosen name"
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   const input = page.getByLabel("Portfolio name", { exact: true });
   await input.fill("  SECOND PORTFOLIO  ");
+  await expect(input).not.toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText(/already exists/)).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Done", exact: true }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(input).toHaveAttribute("aria-invalid", "true");
   await expect(input).toHaveCSS("border-color", "rgb(248, 113, 113)");
   await expect(
-    page.getByRole("button", { name: "Done", exact: true }),
+    page.locator("button").filter({ hasText: "Save locally" }),
   ).toBeDisabled();
   await expect(input).toHaveValue("  SECOND PORTFOLIO  ");
   await input.fill("Core experiment");
@@ -154,6 +166,14 @@ test("duplicate names block saving and duplication waits for a user-chosen name"
   await expect(page.getByLabel("Portfolio name", { exact: true })).toHaveValue(
     "Core experiment",
   );
+  await expect(page.getByText(/already exists/)).toHaveCount(0);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.locator("#portfolio-name-error")).toContainText(
+    "already exists",
+  );
+  await expect(
+    page.locator("button").filter({ hasText: "Save locally" }),
+  ).toBeDisabled();
   expect(
     await page.evaluate(
       () => JSON.parse(localStorage.getItem("tikr-demo-v1")!).portfolios.length,
@@ -178,6 +198,66 @@ test("duplicate names block saving and duplication waits for a user-chosen name"
       "My chosen copy",
     ]),
   );
+});
+
+test("new portfolio starts with a placeholder and reports a duplicate after Done", async ({
+  page,
+}) => {
+  await page.route("**/api/market", (route) =>
+    route.fulfill({
+      status: 503,
+      json: { status: "blocked", code: "EVIDENCE_REVOKED" },
+    }),
+  );
+  await page.route("**/api/assets?*", (route) =>
+    route.fulfill({
+      json: [{ ticker: "SPY", name: "Synthetic SPY", exchange: "ARCA" }],
+    }),
+  );
+  await page.goto("/dashboard");
+  await page
+    .getByRole("button", { name: "Create portfolio", exact: true })
+    .click();
+
+  const input = page.getByLabel("Portfolio name", { exact: true });
+  await expect(input).toHaveValue("");
+  await expect(input).toHaveAttribute("placeholder", "New portfolio");
+  await expect(input).not.toHaveAttribute("aria-invalid", "true");
+  await expect(
+    page.getByRole("heading", { name: "New portfolio" }),
+  ).toBeVisible();
+  await expect(page.getByText("Enter a portfolio name.")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Done", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.locator("button").filter({ hasText: "Save locally" }),
+  ).toBeDisabled();
+
+  await input.fill("Second portfolio");
+  await expect(page.getByText(/already exists/)).toHaveCount(0);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(input).toHaveAttribute("aria-invalid", "true");
+  await expect(page.locator("#portfolio-name-error")).toContainText(
+    "already exists",
+  );
+  await expect(
+    page.locator("button").filter({ hasText: "Save locally" }),
+  ).toBeDisabled();
+
+  await input.fill("My new experiment");
+  await expect(page.getByText(/already exists/)).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Search assets" }).fill("SPY");
+  await page.getByRole("button", { name: /^SPY, / }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Save locally", exact: true }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Save locally", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(
+    page.getByRole("button", { name: "My new experiment, 1 assets" }),
+  ).toBeVisible();
 });
 test("saving changed holdings replaces the failed card and keeps other portfolios separate", async ({
   page,
@@ -273,7 +353,7 @@ test("unconfigured real endpoint blocks without inventing returns", async ({
   await page.goto("/portfolio/test-one");
   await expect(
     page.getByText(
-      "Verified market data is unavailable. No estimated returns are shown.",
+      "We couldn't load market history right now. Please try again later.",
     ),
   ).toBeVisible();
   await expect(
@@ -347,7 +427,7 @@ test("an obsolete response cannot replace a changed timeframe", async ({
     .click();
   await expect(
     page.getByText(
-      "Verified market data is unavailable. No estimated returns are shown.",
+      "We couldn't load market history right now. Please try again later.",
     ),
   ).toBeVisible();
   await page.waitForTimeout(1000);
@@ -423,7 +503,7 @@ test("evidence expiry removes an already displayed result", async ({
   await expect(page.getByText("Ending value", { exact: true })).toBeVisible();
   await expect(
     page.getByText(
-      "Verified market data is unavailable. No estimated returns are shown.",
+      "We couldn't load market history right now. Please try again later.",
     ),
   ).toBeVisible();
   await expect(page.getByText("Ending value", { exact: true })).toHaveCount(0);
@@ -546,7 +626,7 @@ test("a truncated refreshing stream cannot leave an endless loading result", asy
   await page.goto("/portfolio/test-one");
   await expect(
     page.getByText(
-      "Verified market data is unavailable. No estimated returns are shown.",
+      "We couldn't load market history right now. Please try again later.",
     ),
   ).toBeVisible();
 });
@@ -1407,10 +1487,10 @@ test("each ticker limitation is readable destructive text on desktop and mobile"
     await expect(list).toBeVisible();
     for (const [symbol, explanation] of [
       ["IPO", "2026-10-12"],
-      ["BA", "underlying cause is unknown"],
+      ["BA", "We couldn't load market history right now"],
       ["RTX", "corporate action"],
       ["GAP", "missing bar does not establish"],
-      ["LIMIT", "budget is exhausted"],
+      ["LIMIT", "We couldn't load market history right now"],
     ]) {
       const row = list
         .getByRole("listitem")
@@ -1437,5 +1517,105 @@ test("each ticker limitation is readable destructive text on desktop and mobile"
       fullPage: true,
     });
     await page.unroute("**/api/market");
+  }
+});
+
+test("legacy portfolio and draft hydrate to one week; explicit one year survives reload", async ({
+  page,
+}) => {
+  await page.route("**/api/market", (route) =>
+    route.fulfill({
+      status: 503,
+      json: { status: "blocked", code: "EVIDENCE_REVOKED" },
+    }),
+  );
+  await page.goto("/dashboard");
+  await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem("tikr-demo-v1")!);
+    for (const p of [...saved.portfolios, saved.draft])
+      if (p) delete p.rangeChoice;
+    localStorage.setItem("tikr-demo-v1", JSON.stringify(saved));
+  });
+  await page.goto("/portfolio/test-one");
+  await expect(
+    page.getByRole("button", { name: "Timeframe: 1W", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/Old storage did not record/)).toBeVisible();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "We couldn't load market history right now" }),
+  ).toBeVisible();
+  await page.reload();
+  const picker = page.getByRole("button", {
+    name: "Timeframe: 1W",
+    exact: true,
+  });
+  await expect(picker).toBeVisible();
+  await picker.focus();
+  await picker.press("ArrowLeft");
+  await page
+    .getByRole("button", { name: "Set timeframe to 1Y", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Timeframe: 1Y", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Timeframe: 1Y", exact: true }),
+  ).toBeVisible();
+});
+
+test("operational history failures show professional copy without backend recovery details", async ({
+  page,
+}) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const code of [
+      "EVIDENCE_REVOKED",
+      "REFRESH_GUARDED",
+      "STORAGE_UNAVAILABLE",
+    ]) {
+      await page.route("**/api/market", (route) =>
+        route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            status: "blocked",
+            code,
+            dataQuality: "personal-provisional",
+          }),
+        }),
+      );
+      await page.goto("/portfolio/test-one");
+      await expect(
+        page.getByText(
+          "We couldn't load market history right now. Please try again later.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      const body = await page.locator("body").innerText();
+      expect(body).not.toMatch(
+        /EVIDENCE_REVOKED|REFRESH_GUARDED|STORAGE_UNAVAILABLE|operator review|evidence-backed recovery|refresh guard|scope was revoked/i,
+      );
+      await expect(
+        page.getByText(
+          "Personal provisional Alpaca data; subject to corrections.",
+          { exact: false },
+        ),
+      ).toHaveCount(0);
+      await expect(page.locator(".recharts-line path")).toHaveCount(0);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      if (code === "REFRESH_GUARDED")
+        await page.screenshot({
+          path: `${process.env.TIKR_BROWSER_OUTPUT}/operational-history-${width}.png`,
+          fullPage: true,
+        });
+      await page.unroute("**/api/market");
+    }
   }
 });

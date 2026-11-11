@@ -7,6 +7,9 @@ import { ConvexHttpClient } from "convex/browser";
 import { localAdmission } from "./market-admission.ts";
 import { makeFunctionReference } from "convex/server";
 import { ConvexError } from "convex/values";
+import { withMarketWriteTurn } from "./market-write-queue.ts";
+import { storageReservation } from "./market-reservation.ts";
+import type { PERSONAL_SOURCE_POLICY } from "./market-policy.ts";
 export type Stored = {
   key: string;
   payload: string;
@@ -15,10 +18,15 @@ export type Stored = {
   checkedAt: number;
 };
 export interface MarketStorage {
-  /** Must durably disable reads for the current evidence revision without relying on Convex availability. */
-  revoke(): Promise<void>;
+  readonly namespace?: string;
+  /** Durably revoke the affected asset (or whole scope), independently of Convex availability. */
+  revoke(symbol?: string): Promise<void>;
   assertReadable(symbols: string[]): Promise<void>;
-  beginRefresh(symbol: string): Promise<() => Promise<void>>;
+  beginRefresh(
+    symbol: string,
+  ): Promise<(() => Promise<void>) & { endObservation?: () => Promise<void> }>;
+  recoverySymbols?(symbols: string[]): Promise<string[]>;
+  confirmRefresh?(symbol: string, headRevision: string): Promise<void>;
   read(keys: string[]): Promise<Stored[]>;
   acquire(
     key: string,
@@ -113,6 +121,7 @@ export function convexStorage(
   url: string,
   adminKey: string,
   evidenceRevision: string,
+  reviewedPolicy?: typeof PERSONAL_SOURCE_POLICY,
 ): MarketStorage {
   if (
     (!hosted() && !/^https:\/\/[a-z0-9-]+\.convex\.cloud$/.test(url)) ||
@@ -165,14 +174,29 @@ export function convexStorage(
     },
   }) as ConvexHttpClient & { setAdminAuth(token: string): void };
   if (!hosted()) client.setAdminAuth(adminKey);
+  // A calendar-window change is not a reviewed recovery from a real correction.
+  // Bind new personal revocations to the reviewed policy as well as its window.
+  const revocationScope = reviewedPolicy
+    ? revision({ revocationPolicy: reviewedPolicy })
+    : evidenceRevision;
+  async function assertPolicyActive(symbols: string[]) {
+    await (await localAdmission()).assertNotRevoked(revocationScope, symbols);
+  }
   async function call<T>(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<T> {
+    if (!hosted())
+      return withMarketWriteTurn(() => callAdmitted<T>(name, args));
+    return callAdmitted<T>(name, args);
+  }
+  async function callAdmitted<T>(
     name: string,
     args: Record<string, unknown>,
   ): Promise<T> {
     if (hosted()) return gateway<T>(name, args);
     const admission = await localAdmission();
-    const reserved =
-      name === "read" ? 10_000_000 : name === "write" ? 64_000_000 : 32_768;
+    const reserved = storageReservation(name, args);
     const settle = await admission.reserve(reserved, evidenceRevision);
     try {
       const result = await client.mutation(
@@ -204,20 +228,83 @@ export function convexStorage(
     }
   }
   return {
-    async revoke() {
+    namespace: revision({
+      url,
+      evidenceRevision,
+      site: hosted() ? process.env.TIKR_CONVEX_SITE_URL : undefined,
+    }),
+    async revoke(symbol) {
       if (hosted()) {
         await control("revoke", evidenceRevision);
         return;
       }
-      await (await localAdmission()).revoke(evidenceRevision);
+      const admission = await localAdmission();
+      await admission.revoke(revocationScope, symbol);
+      if (revocationScope !== evidenceRevision)
+        await admission.revoke(evidenceRevision, symbol);
     },
     async assertReadable(symbols) {
       if (hosted()) {
         await control("check", evidenceRevision, symbols);
         return;
       }
-      await (await localAdmission()).assertReadable(evidenceRevision, symbols);
+      const admission = await localAdmission();
+      await assertPolicyActive(symbols);
+      try {
+        await admission.assertReadable(evidenceRevision, symbols);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== "REFRESH_GUARDED")
+          throw error;
+        const { rows } = await call<{ rows: Stored[] }>("read", {
+          keys: symbols.map((s) => `asset:${s}`),
+        });
+        await admission.assertReadable(
+          evidenceRevision,
+          symbols,
+          Object.fromEntries(
+            rows.map((row) => [row.key.slice(6), row.revision]),
+          ),
+        );
+      }
+      await assertPolicyActive(symbols);
     },
+    ...(!hosted()
+      ? {
+          async recoverySymbols(symbols: string[]) {
+            await assertPolicyActive(symbols);
+            const guarded = await (
+              await localAdmission()
+            ).guardedSymbols(evidenceRevision, symbols);
+            await assertPolicyActive(symbols);
+            return guarded;
+          },
+          async confirmRefresh(symbol: string, headRevision: string) {
+            await assertPolicyActive([symbol]);
+            const { rows } = await call<{ rows: Stored[] }>("read", {
+              keys: [`asset:${symbol}`],
+            });
+            const head = rows.find((row) => row.key === `asset:${symbol}`);
+            const manifest = head
+              ? (JSON.parse(head.payload) as {
+                  evidenceRevision?: string;
+                  meta?: { symbol?: string };
+                  format?: string;
+                })
+              : undefined;
+            if (
+              head?.revision !== headRevision ||
+              manifest?.evidenceRevision !== evidenceRevision ||
+              manifest?.meta?.symbol !== symbol ||
+              manifest.format !== "monthly-v2"
+            )
+              throw Error("REVISION_CHANGED");
+            await (
+              await localAdmission()
+            ).confirmRefresh(evidenceRevision, symbol, headRevision);
+            await assertPolicyActive([symbol]);
+          },
+        }
+      : {}),
     async beginRefresh(symbol) {
       if (hosted()) {
         const token = randomUUID();
@@ -226,14 +313,28 @@ export function convexStorage(
           await control("finish", evidenceRevision, [symbol], token);
         };
       }
+      await assertPolicyActive([symbol]);
       return (await localAdmission()).beginRefresh(evidenceRevision, symbol);
     },
     async read(keys) {
-      const r = await call<{ status: string; rows: Stored[] }>("read", {
-        keys,
-      });
-      if (r.status !== "ok") throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
-      return r.rows;
+      if (keys.length > 80 || new Set(keys).size !== keys.length)
+        throw Error("READ_LIMIT");
+      const rows: Stored[] = [];
+      const batchSize = hosted() ? 80 : 8;
+      // Bound cold-cache in-flight reservations without weakening per-document bounds.
+      for (
+        let offset = 0;
+        offset < Math.max(1, keys.length);
+        offset += batchSize
+      ) {
+        const r = await call<{ status: string; rows: Stored[] }>("read", {
+          keys: keys.slice(offset, offset + batchSize),
+        });
+        if (r.status !== "ok")
+          throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
+        rows.push(...r.rows);
+      }
+      return rows;
     },
     async acquire(key, cycle, retry, from) {
       const token = randomUUID();
@@ -243,6 +344,7 @@ export function convexStorage(
         cycle,
         retry,
         ...(from ? { from } : {}),
+        ...(reviewedPolicy ? { reviewedPolicy } : {}),
       });
       if (r.status === "budget")
         throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");

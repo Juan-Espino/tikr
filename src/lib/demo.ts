@@ -46,18 +46,28 @@ const holdingSchema = z.object({
     .refine(validTicker),
   weight: z.string().max(12),
 });
-export const portfolioSchema = z.object({
-  id: z.string(),
-  name: z.string().max(80),
-  holdings: z.array(holdingSchema).max(6),
-  manual: z.boolean(),
-  pinned: z.boolean(),
-  updated: z.number().finite(),
-  amount: z.string().max(16),
-  range: z
-    .enum(ranges)
-    .transform((range) => (range === "Max" ? ("5Y" as const) : range)),
-});
+export const portfolioSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().max(80),
+    holdings: z.array(holdingSchema).max(6),
+    manual: z.boolean(),
+    pinned: z.boolean(),
+    updated: z.number().finite(),
+    amount: z.string().max(16),
+    rangeChoice: z.enum(["default", "explicit"]).optional(),
+    range: z
+      .enum(ranges)
+      .transform((range) => (range === "Max" ? ("5Y" as const) : range)),
+  })
+  .transform((p) => ({
+    ...p,
+    // v1 did not record intent. Migrate its ambiguous old default once.
+    range: p.range === "1Y" && !p.rangeChoice ? DEFAULT_RANGE : p.range,
+    rangeChoice:
+      p.rangeChoice ??
+      (p.range === "1Y" ? ("default" as const) : ("explicit" as const)),
+  }));
 export type Portfolio = z.infer<typeof portfolioSchema>;
 export function portfolioNameError(p: Portfolio, portfolios: Portfolio[]) {
   if (!p.name.trim()) return "Enter a portfolio name.";
@@ -117,13 +127,14 @@ export function validAmount(value: string) {
 export function newPortfolio(): Portfolio {
   return {
     id: crypto.randomUUID(),
-    name: "New portfolio",
+    name: "",
     holdings: [],
     manual: false,
     pinned: false,
     updated: Date.now(),
     amount: "10000",
     range: DEFAULT_RANGE,
+    rangeChoice: "default",
   };
 }
 export function examples(): Portfolio[] {

@@ -67,7 +67,9 @@ async function personalSource(symbols: string[]) {
     .slice(0, 10);
   // A catalog outage must not discard intact historical caches. Any source load
   // still requires a fresh validated catalog below, including on the local path.
-  const catalog = await availableCatalog().catch(() =>
+  const catalog = await availableCatalog([
+    ...new Set([...symbols, "SPY"]),
+  ]).catch(() =>
     [...new Set([...symbols, "SPY"])].map((ticker) => ({ ticker })),
   );
   if (symbols.some((s) => !catalog.some((a) => a.ticker === s)))
@@ -130,7 +132,7 @@ async function personalSource(symbols: string[]) {
     load: async (
       request: Parameters<ReturnType<typeof createPersonalLoader>>[0],
     ) => {
-      const eligible = await availableCatalog();
+      const eligible = await availableCatalog([request.symbol, "SPY"]);
       if (!eligible.some((a) => a.ticker === request.symbol))
         throw Error("INVALID_INPUT");
       return createPersonalLoader(config, calendar)(request);
@@ -283,7 +285,12 @@ async function openConfiguredMarket(request: MarketRequest) {
       );
   const { load } = source;
   const run = createDurableBacktests({
-    storage: convexStorage(url, key, source.revision),
+    storage: convexStorage(
+      url,
+      key,
+      source.revision,
+      provisional ? PROVISIONAL_POLICY : undefined,
+    ),
     calendar: () => source.calendar,
     historyStart: source.historyStart,
     evidenceRevision: source.revision,

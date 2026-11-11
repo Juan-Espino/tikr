@@ -1,4 +1,4 @@
-import { marketFailure } from "./market-errors.ts";
+import { MarketFailure, marketFailure } from "./market-errors.ts";
 import "server-only";
 import {
   createOnDemandBacktests,
@@ -14,7 +14,10 @@ import { backtest, preset } from "./backtest.ts";
 import type { Asset, Calendar, Preset } from "./backtest.ts";
 import { chunks, readValue, revision } from "./market-storage.ts";
 import type { MarketStorage, Stored } from "./market-storage.ts";
-const revokedStores = new WeakSet<MarketStorage>();
+const revokedAssets = new WeakMap<MarketStorage, Set<string>>();
+const revokedFor = (store: MarketStorage, symbols: string[]) =>
+  symbols.some((symbol) => revokedAssets.get(store)?.has(symbol));
+import { cachedAsset, rememberAsset } from "./market-asset-memory.ts";
 type AssetHead = {
   format: "monthly-v2";
   meta: Omit<Asset, "prices" | "actions">;
@@ -153,6 +156,10 @@ async function loadAsset(store: MarketStorage, head: Stored): Promise<Asset> {
     data.prices.some((k) => !k.startsWith(`price:${data.meta.symbol}:`))
   )
     throw new Error("INVALID_MANIFEST");
+  const cached = store.namespace
+    ? cachedAsset(store.namespace, data.meta.symbol, head.revision)
+    : undefined;
+  if (cached) return cached;
   const rows = await store.read(data.prices);
   const prices: Record<string, string> = {},
     actions: Asset["actions"] = [];
@@ -179,6 +186,8 @@ async function loadAsset(store: MarketStorage, head: Stored): Promise<Asset> {
     }) !== head.revision
   )
     throw new Error("REVISION_CHANGED");
+  if (store.namespace)
+    rememberAsset(store.namespace, data.meta.symbol, head.revision, asset);
   return asset;
 }
 
@@ -214,8 +223,21 @@ export function createDurableBacktests(options: {
         ...request.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol)),
       ]),
     ].sort();
-    await storage.assertReadable(symbols);
-    if (revokedStores.has(storage)) throw new Error("EVIDENCE_REVOKED");
+    let recovering: string[] = [];
+    try {
+      await storage.assertReadable(symbols);
+    } catch (error) {
+      if (
+        !retry ||
+        !storage.recoverySymbols ||
+        !(error instanceof Error) ||
+        error.message !== "REFRESH_GUARDED"
+      )
+        throw error;
+      recovering = await storage.recoverySymbols(symbols);
+      if (!recovering.length) throw error;
+    }
+    if (revokedFor(storage, symbols)) throw new Error("EVIDENCE_REVOKED");
     assertEvidence();
     const now = clock(),
       cycle = freshnessCycle(now),
@@ -263,6 +285,18 @@ export function createDurableBacktests(options: {
       ...symbols.map((s) => `asset:${s}`),
     ]);
     const headMap = new Map(heads.map((h) => [h.key, h]));
+    const completingRequest =
+      retry &&
+      symbols.some((symbol) => {
+        const head = headMap.get(`asset:${symbol}`);
+        if (!head) return true;
+        const meta = JSON.parse(head.payload) as AssetHead;
+        return (
+          freshnessCycle(new Date(head.checkedAt)) !== cycle ||
+          meta.evidenceRevision !== options.evidenceRevision ||
+          !covers(head, period.start)
+        );
+      });
     const savedHead = headMap.get(resultKey);
     let saved: Saved | undefined;
     if (
@@ -283,14 +317,15 @@ export function createDurableBacktests(options: {
         /* Missing/revised chunks cannot become a stale fallback. */
       }
     }
-    await storage.assertReadable(symbols);
-    if (revokedStores.has(storage)) throw new Error("EVIDENCE_REVOKED");
+    if (!recovering.length) await storage.assertReadable(symbols);
+    if (revokedFor(storage, symbols)) throw new Error("EVIDENCE_REVOKED");
     assertEvidence();
     if (saved?.cycle === cycle && !retry)
       return { initial: saved.view, settled: Promise.resolve(saved.view) };
-    const initial: CacheView = saved?.view.result
-      ? { ...saved.view, requested: period, status: "refreshing" }
-      : { status: "refreshing", requested: period };
+    const initial: CacheView =
+      !recovering.length && saved?.view.result
+        ? { ...saved.view, requested: period, status: "refreshing" }
+        : { status: "refreshing", requested: period };
     const settle = async (): Promise<CacheView> => {
       let knownCorrection = false;
       const loadedHeads = new Map<string, Stored>();
@@ -302,11 +337,14 @@ export function createDurableBacktests(options: {
         calendar: () => full,
         load: async (q) => {
           const key = `asset:${q.symbol}`;
+          const limitationKey = `limitation:${q.symbol}:${range}`;
           const old = headMap.get(key);
           if (
             old &&
             freshnessCycle(new Date(old.checkedAt)) === cycle &&
-            !retry &&
+            (!retry ||
+              ((recovering.length > 0 || completingRequest) &&
+                !recovering.includes(q.symbol))) &&
             !old.payload.includes('"invalidated":true') &&
             (JSON.parse(old.payload) as AssetHead).evidenceRevision ===
               options.evidenceRevision &&
@@ -321,6 +359,38 @@ export function createDurableBacktests(options: {
               pendingSession: (JSON.parse(old.payload) as AssetHead)
                 .pendingSession,
             };
+          }
+          if (!retry) {
+            const limited = (await storage.read([limitationKey]))[0];
+            if (limited) {
+              let limitation:
+                | {
+                    symbol?: string;
+                    code?: string;
+                    from?: string;
+                    through?: string;
+                    cycle?: string;
+                    evidenceRevision?: string;
+                  }
+                | undefined;
+              try {
+                limitation = JSON.parse(limited.payload) as typeof limitation;
+              } catch {
+                /* A corrupt limitation is never evidence. */
+              }
+              if (
+                limitation &&
+                limited.revision === revision(limitation) &&
+                limitation.symbol === q.symbol &&
+                limitation.cycle === cycle &&
+                limitation.evidenceRevision === options.evidenceRevision &&
+                limitation.from === q.from &&
+                limitation.through === q.through &&
+                (limitation.code === "MISSING_PRICE" ||
+                  limitation.code === "UNSUPPORTED_ACTION")
+              )
+                throw new MarketFailure(limitation.code);
+            }
           }
           const token = await storage.acquire(key, cycle, retry, q.from);
           if (!token) {
@@ -361,11 +431,23 @@ export function createDurableBacktests(options: {
           const finishGuard = await storage.beginRefresh(q.symbol);
           let received = false,
             safeToRelease = false;
+          let stage = "source";
           try {
             const previous = old
               ? await loadAsset(storage, old).catch(() => undefined)
               : undefined;
-            const refreshed = await options.load({ ...q, previous });
+            const retainedFrom =
+              previous && previous.from < q.from ? previous.from : q.from;
+            const refreshed = await options.load({
+              ...q,
+              // Explicit retries must not replace a wider validated cache with a narrow window.
+              // A monthly window rollover must not request dates outside the new calendar.
+              from:
+                retainedFrom < options.historyStart
+                  ? options.historyStart
+                  : retainedFrom,
+              previous,
+            });
             received = true;
             const asset = refreshed.asset;
             if (
@@ -403,13 +485,23 @@ export function createDurableBacktests(options: {
               refreshed.pendingSession,
               options.evidenceRevision,
             );
+            stage = "storage-read";
             const existing = await storage.read(records.map((r) => r.key));
             const changed = records.filter(
               (r) =>
                 r.key === key ||
                 existing.find((e) => e.key === r.key)?.revision !== r.revision,
             );
+            stage = "storage-write";
             await storage.write(key, token, changed);
+            await storage.confirmRefresh?.(q.symbol, records.at(-1)!.revision);
+            if (storage.namespace)
+              rememberAsset(
+                storage.namespace,
+                q.symbol,
+                records.at(-1)!.revision,
+                asset,
+              );
             loadedHeads.set(key, {
               ...records.at(-1)!,
               checkedAt: clock().valueOf(),
@@ -418,6 +510,17 @@ export function createDurableBacktests(options: {
             safeToRelease = true;
             return refreshed;
           } catch (error) {
+            console.error(
+              JSON.stringify({
+                event: "market_refresh_failure",
+                symbol: q.symbol,
+                stage,
+                from: q.from,
+                through: q.through,
+                received,
+                code: marketFailure(error)?.code ?? "UNCLASSIFIED_FAILURE",
+              }),
+            );
             if (
               old &&
               error instanceof Error &&
@@ -425,11 +528,17 @@ export function createDurableBacktests(options: {
               error.code === "EVIDENCE_CHANGED"
             ) {
               knownCorrection = true;
-              revokedStores.add(storage);
-              await storage.revoke();
+              const revoked = revokedAssets.get(storage) ?? new Set<string>();
+              revoked.add(q.symbol);
+              revokedAssets.set(storage, revoked);
+              await storage.revoke(q.symbol);
               const payload = JSON.stringify({
                 invalidated: true,
                 reason: "EVIDENCE_CHANGED",
+                symbol: q.symbol,
+                from: q.from,
+                through: q.through,
+                limitation: marketFailure(error)?.code ?? "UNVERIFIED_DATA",
               });
               await storage.write(key, token, [
                 {
@@ -441,9 +550,49 @@ export function createDurableBacktests(options: {
               ]);
             }
             if (!received && !knownCorrection) safeToRelease = true;
+            const failure = marketFailure(error);
+            if (
+              !received &&
+              !knownCorrection &&
+              (failure?.code === "MISSING_PRICE" ||
+                failure?.code === "UNSUPPORTED_ACTION")
+            ) {
+              const limitation = {
+                symbol: q.symbol,
+                code: failure.code,
+                from: q.from,
+                through: q.through,
+                cycle,
+                evidenceRevision: options.evidenceRevision,
+              };
+              await storage
+                .write(key, token, [
+                  {
+                    key: limitationKey,
+                    payload: JSON.stringify(limitation),
+                    revision: revision(limitation),
+                    dependencies: [],
+                  },
+                ])
+                .catch((cacheError) => {
+                  console.error(
+                    JSON.stringify({
+                      event: "market_limitation_cache_failure",
+                      symbol: q.symbol,
+                      code:
+                        marketFailure(cacheError)?.code ??
+                        "STORAGE_UNAVAILABLE",
+                    }),
+                  );
+                });
+            }
             throw error;
           } finally {
-            if (safeToRelease) await finishGuard();
+            try {
+              if (safeToRelease) await finishGuard();
+            } finally {
+              await finishGuard.endObservation?.();
+            }
             await storage.release(key, token).catch(() => undefined);
           }
         },
@@ -461,7 +610,7 @@ export function createDurableBacktests(options: {
         view = await core.open({ ...req, start: anchored.start }).settled;
       }
       assertEvidence();
-      if (knownCorrection || revokedStores.has(storage))
+      if (knownCorrection || revokedFor(storage, symbols))
         return {
           status: "blocked",
           requested: period,
@@ -471,6 +620,7 @@ export function createDurableBacktests(options: {
       if (!view.result) {
         const current = await storage.read(symbols.map((s) => `asset:${s}`));
         if (
+          !recovering.length &&
           saved?.view.result &&
           saved.validUntil > clock().valueOf() &&
           savedHead?.dependencies.every(
@@ -546,13 +696,18 @@ export function createDurableBacktests(options: {
       settled: settle()
         .then(async (view) => {
           await storage.assertReadable(symbols);
-          if (revokedStores.has(storage)) throw new Error("EVIDENCE_REVOKED");
+          if (revokedFor(storage, symbols)) throw new Error("EVIDENCE_REVOKED");
           assertEvidence();
           return view;
         })
         .catch(async (error): Promise<CacheView> => {
-          if (error instanceof Error && error.message === "REFRESH_GUARDED")
-            return (await open(request, range, retry)).settled;
+          // A user retry authorizes one attempt, not recursive guard recovery.
+          if (
+            !retry &&
+            error instanceof Error &&
+            error.message === "REFRESH_GUARDED"
+          )
+            return (await open(request, range, false)).settled;
           return {
             status: "blocked",
             requested: period,
@@ -603,7 +758,11 @@ export function createDurableBacktests(options: {
               };
           }
         }
-        return { status: "blocked", requested: period, code: "REFRESH_FAILED" };
+        return {
+          status: "blocked",
+          requested: period,
+          code: "REFRESH_GUARDED",
+        };
       };
       return {
         initial: { status: "refreshing", requested: period },
