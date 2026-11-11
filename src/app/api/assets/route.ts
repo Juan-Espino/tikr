@@ -1,3 +1,4 @@
+import { catalogMode } from "~/lib/catalog-mode";
 import { assets } from "~/lib/demo";
 import { marketFailure } from "~/lib/market-errors";
 import { availableCatalog } from "~/lib/catalog-server";
@@ -6,6 +7,13 @@ import { hosted, enterHosted, validMarketOrigin } from "~/lib/market-hosted";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
+// Read-only source inspection: never reads storage or initiates provider work.
+export function GET() {
+  return Response.json(
+    { mode: catalogMode() },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
 export async function POST(request: Request) {
   if (!validMarketOrigin(request)) return new Response(null, { status: 403 });
   const query = new URL(request.url).searchParams.get("q") ?? "";
@@ -26,7 +34,16 @@ export async function POST(request: Request) {
   }
   if (!query.trim())
     return Response.json([], { headers: { "Cache-Control": "no-store" } });
-  if (!hosted() && process.env.TIKR_PERSONAL_DATA_ENABLED !== "explicit")
+  const mode = catalogMode();
+  if (mode === "activation-required")
+    return Response.json(
+      { code: "CATALOG_NOT_ENABLED" },
+      {
+        status: 503,
+        headers: { "Cache-Control": "no-store", "X-Tikr-Catalog": mode },
+      },
+    );
+  if (mode === "sample")
     return Response.json(
       searchCatalog(
         assets.map((a) => ({
@@ -42,7 +59,7 @@ export async function POST(request: Request) {
   try {
     if (hosted()) leave = await enterHosted(request);
     return Response.json(searchCatalog(await availableCatalog(), query), {
-      headers: { "Cache-Control": "no-store" },
+      headers: { "Cache-Control": "no-store", "X-Tikr-Catalog": mode },
     });
   } catch (error) {
     const failure = marketFailure(error);
@@ -59,6 +76,7 @@ export async function POST(request: Request) {
             : 503,
         headers: {
           "Cache-Control": "no-store",
+          "X-Tikr-Catalog": mode,
           ...(failure?.retryAt
             ? {
                 "Retry-After": String(

@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test, vi } from "vitest";
 import { makeFunctionReference } from "convex/server";
 import schema from "./schema";
+import { packCatalogShard } from "../src/lib/asset-catalog";
 import { getDocumentSize } from "convex/values";
 import { MARKET_BUDGET, storageCharge } from "../src/lib/market-budget";
 const modules = import.meta.glob("./**/*.ts");
@@ -147,4 +148,61 @@ test("real Convex value size has bounded document/index charge", () => {
   expect(storageCharge(getDocumentSize(row))).toBeGreaterThan(
     3 * getDocumentSize(row),
   );
+});
+
+test("catalog replacement is atomic across all 32 shards on invalid document and storage refusal", async () => {
+  const t = await fixture();
+  const leaseKey = "catalog:refresh";
+  await t.mutation(ref("acquire"), {
+    key: leaseKey,
+    token,
+    cycle: "2026-11-10",
+    retry: true,
+  });
+  const entries = Array.from({ length: 32 }, (_, i) => ({
+    key: `catalog:${i}`,
+    payload: JSON.stringify(packCatalogShard([])),
+    revision: "a".repeat(64),
+    dependencies: [],
+  }));
+  expect(
+    (await t.mutation(ref("write"), { leaseKey, token, entries })).status,
+  ).toBe("ok");
+  await t.mutation(ref("acquire"), {
+    key: leaseKey,
+    token,
+    cycle: "2026-11-11",
+    retry: true,
+  });
+  const replacement = entries.map((e) => ({ ...e, revision: "b".repeat(64) }));
+  await expect(
+    t.mutation(ref("write"), {
+      leaseKey,
+      token,
+      entries: replacement.map((e, i) =>
+        i === 31 ? { ...e, payload: "x".repeat(61000) } : e,
+      ),
+    }),
+  ).rejects.toThrow("DOCUMENT_LIMIT");
+  expect(
+    (
+      await t.mutation(ref("read"), { keys: entries.map((e) => e.key) })
+    ).rows.map((e: { revision: string }) => e.revision),
+  ).toEqual(entries.map((e) => e.revision));
+  await t.run(async (ctx) => {
+    const budget = await ctx.db
+      .query("marketBudget")
+      .withIndex("by_key", (q) => q.eq("key", "global"))
+      .unique();
+    await ctx.db.patch(budget!._id, { storage: MARKET_BUDGET.storageBytes });
+  });
+  expect(
+    (await t.mutation(ref("write"), { leaseKey, token, entries: replacement }))
+      .status,
+  ).toBe("storage");
+  expect(
+    (
+      await t.mutation(ref("read"), { keys: entries.map((e) => e.key) })
+    ).rows.map((e: { revision: string }) => e.revision),
+  ).toEqual(entries.map((e) => e.revision));
 });

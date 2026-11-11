@@ -12,6 +12,19 @@ import {
 import { Button } from "~/components/ui/button";
 import { DialogDescription, DialogTitle } from "~/components/ui/dialog";
 
+const catalogMessages: Record<string, string> = {
+  CATALOG_NOT_ENABLED:
+    "Market data is configured but not enabled for this server. Enable the intended mode and restart; sample results are not substituted.",
+  STORAGE_CAPACITY:
+    "Market-data storage capacity is exhausted. Operator review is needed.",
+  CATALOG_PROVIDER:
+    "The catalog provider could not complete the import. Retry later; persistent failures need operator review.",
+  CATALOG_INVALID:
+    "Catalog validation failed. Operator review is needed before search can become available.",
+  CATALOG_LIMIT:
+    "Catalog import exceeded its bounded capacity. Operator review is needed.",
+};
+
 const field =
   "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm";
 
@@ -30,7 +43,7 @@ export function PortfolioEditor({
 }) {
   const [retrySearch, setRetrySearch] = useState(0);
   const [searchFailed, setSearchFailed] = useState(false);
-  const [sampleCatalog, setSampleCatalog] = useState(false);
+  const [catalogSource, setCatalogSource] = useState("unknown");
   const [search, setSearch] = useState("");
   const [filtered, setFiltered] = useState<CatalogAsset[]>([]);
   const [searchState, setSearchState] = useState(
@@ -52,6 +65,8 @@ export function PortfolioEditor({
         signal: controller.signal,
       })
         .then(async (response) => {
+          const source = response.headers.get("X-Tikr-Catalog");
+          if (!controller.signal.aborted) setCatalogSource(source ?? "unknown");
           if (!response.ok) {
             const failure = (await response.json()) as {
               code?: string;
@@ -61,26 +76,42 @@ export function PortfolioEditor({
               ? ` Try again after ${new Date(failure.retryAt).toLocaleTimeString()}.`
               : "";
             const message =
-              failure.code === "BROWSING_RATE_LIMIT"
+              catalogMessages[failure.code ?? ""] ??
+              (failure.code === "BROWSING_RATE_LIMIT"
                 ? "Search is temporarily rate limited."
                 : failure.code === "SHARED_BUDGET_EXHAUSTED"
                   ? "The shared data budget is exhausted."
                   : failure.code === "REFRESH_COOLDOWN"
                     ? "Catalog refresh is cooling down."
-                    : "Asset search unavailable. Try again later.";
+                    : "Asset search unavailable. Try again later.");
             throw Error(message + retry);
           }
-          if (!controller.signal.aborted)
-            setSampleCatalog(
-              response.headers.get("X-Tikr-Catalog") === "sample",
-            );
-          const rows = (await response.json()) as CatalogAsset[];
+          const rows: unknown = await response.json();
+          if (
+            !Array.isArray(rows) ||
+            rows.some(
+              (a: unknown) =>
+                !a ||
+                typeof a !== "object" ||
+                !("ticker" in a) ||
+                typeof a.ticker !== "string" ||
+                !("name" in a) ||
+                typeof a.name !== "string" ||
+                !("exchange" in a) ||
+                typeof a.exchange !== "string",
+            )
+          )
+            throw Error("Invalid search response");
           if (!controller.signal.aborted) {
-            setFiltered(rows);
+            setFiltered(rows as CatalogAsset[]);
             setSearchState(
               rows.length
                 ? `${rows.length} results. History availability is checked separately.`
-                : "No matching assets.",
+                : source === "sample"
+                  ? "No matches in the six-asset sample catalog. Other assets require configured market data."
+                  : source === "personal" || source === "hosted"
+                    ? "No matching assets in the configured catalog."
+                    : "No matching assets.",
             );
           }
         })
@@ -90,6 +121,7 @@ export function PortfolioEditor({
             setSearchState(
               error instanceof Error &&
                 [
+                  ...Object.values(catalogMessages),
                   "Search is temporarily rate limited.",
                   "The shared data budget is exhausted.",
                   "Catalog refresh is cooling down.",
@@ -196,7 +228,15 @@ export function PortfolioEditor({
             Choose assets
           </h3>
           <span className="text-muted-foreground text-sm">
-            {sampleCatalog ? "Sample catalog" : "U.S. asset catalog"}
+            {catalogSource === "sample"
+              ? "Sample catalog: six demo assets; market data is not configured"
+              : catalogSource === "personal"
+                ? "Personal Alpaca catalog"
+                : catalogSource === "hosted"
+                  ? "Hosted Alpaca catalog"
+                  : catalogSource === "activation-required"
+                    ? "Market catalog not enabled"
+                    : "Asset catalog"}
           </span>
         </div>
         <div className="relative mt-3 flex items-center">

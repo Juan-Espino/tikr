@@ -1,6 +1,8 @@
 import "server-only";
+import { marketFailure, type MarketFailureCode } from "./market-errors.ts";
 import {
   catalogShard,
+  packCatalogShard,
   validateCatalog,
   validateShard,
   type CatalogAsset,
@@ -36,12 +38,14 @@ async function readDurableCatalog() {
   const rows = await catalogStorage().read(
     Array.from({ length: 32 }, (_, i) => `catalog:${i}`),
   );
+  // A remote mutation timestamp may lead the local host by a few milliseconds.
+  // Bound skew explicitly; freshness still expires from the original timestamp.
   if (
     rows.length !== 32 ||
     rows.some(
       (r) =>
         !Number.isFinite(r.checkedAt) ||
-        r.checkedAt > Date.now() ||
+        r.checkedAt > Date.now() + 5000 ||
         Date.now() - r.checkedAt > 7 * 86400000,
     ) ||
     new Set(rows.map((r) => r.revision)).size !== 1
@@ -85,7 +89,14 @@ export async function refreshCatalog(config: Config, cycle: string) {
   }
   const storage = catalogStorage(),
     key = "catalog:refresh";
-  const token = await storage.acquire(key, cycle, true);
+  let stage: CatalogStage = "admission";
+  let bytes = 0,
+    count = 0,
+    status = 0;
+  const token = await storage.acquire(key, cycle, true).catch((error) => {
+    catalogDiagnostic("admission", 0, 0, 0);
+    throw error;
+  });
   if (!token) {
     for (let i = 0; i < 6; i++) {
       await new Promise((r) => setTimeout(r, 2000));
@@ -103,6 +114,7 @@ export async function refreshCatalog(config: Config, cycle: string) {
     throw Error("CATALOG_UNAVAILABLE");
   }
   try {
+    stage = "provider";
     const response = await (config.transport ?? fetch)(
       "https://paper-api.alpaca.markets/v2/assets?status=active&asset_class=us_equity",
       {
@@ -115,10 +127,12 @@ export async function refreshCatalog(config: Config, cycle: string) {
         cache: "no-store",
       },
     );
+    status = response.status;
     if (!response.ok || !response.body) {
       void response.body?.cancel().catch(() => undefined);
       throw Error("CATALOG_UNAVAILABLE");
     }
+    stage = "stream";
     const reader = response.body.getReader();
     const parts: Uint8Array[] = [];
     let size = 0;
@@ -127,8 +141,10 @@ export async function refreshCatalog(config: Config, cycle: string) {
         const part = await reader.read();
         if (part.done) break;
         size += part.value.length;
-        if (size > 8 * 1024 * 1024) {
-          await reader.cancel();
+        bytes = size;
+        if (size > 16 * 1024 * 1024) {
+          stage = "size";
+          await reader.cancel().catch(() => undefined);
           throw Error("CATALOG_LIMIT");
         }
         parts.push(part.value);
@@ -136,24 +152,43 @@ export async function refreshCatalog(config: Config, cycle: string) {
     } finally {
       reader.releaseLock();
     }
-    const rows = validateCatalog(
-      JSON.parse(Buffer.concat(parts).toString("utf8")),
+    stage = "decode";
+    const decoded: unknown = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts)),
     );
+    count = Array.isArray(decoded) ? decoded.length : 0;
+    stage = "validation";
+    const rows = validateCatalog(decoded);
     const rev = revision(rows);
     const entries = Array.from({ length: 32 }, (_, i) => ({
       key: `catalog:${i}`,
-      payload: JSON.stringify(rows.filter((a) => catalogShard(a.ticker) === i)),
+      payload: JSON.stringify(
+        packCatalogShard(rows.filter((a) => catalogShard(a.ticker) === i)),
+      ),
       revision: rev,
       dependencies: [],
     }));
+    stage = "size";
     if (
       entries.some((e) => Buffer.byteLength(e.payload) > 50000) ||
       Buffer.byteLength(JSON.stringify(entries)) > 900000
     )
       throw Error("CATALOG_LIMIT");
+    stage = "storage";
     await storage.write(key, token, entries);
     memo = { key: memoKey(), until: Date.now() + 60000, rows };
     return rows;
+  } catch (error) {
+    const failure = marketFailure(error);
+    catalogDiagnostic(stage, status, bytes, count, failure?.code);
+    if (failure && !failure.code.startsWith("CATALOG_")) throw failure;
+    if (stage === "admission") throw error;
+    if (stage === "provider" || stage === "stream")
+      throw Error("CATALOG_PROVIDER");
+    if (stage === "decode" || stage === "validation")
+      throw Error("CATALOG_INVALID");
+    if (stage === "size") throw Error("CATALOG_LIMIT");
+    throw error;
   } finally {
     await storage.release(key, token).catch(() => undefined);
   }
@@ -170,8 +205,8 @@ export async function availableCatalog() {
     const { keyId, secret } = providerCredentials();
     const transport = createAdmittedTransport(async () => {
       if (hosted()) {
-        for (let i = 0; i < 4; i++) await control("provider", scope);
-      } else await (await localAdmission()).reserve(8 * 1024 * 1024);
+        for (let i = 0; i < 8; i++) await control("provider", scope);
+      } else await (await localAdmission()).reserve(16 * 1024 * 1024);
     });
     loading = refreshCatalog(
       { keyId, secret, transport },
@@ -181,4 +216,31 @@ export async function availableCatalog() {
     });
   }
   return loading;
+}
+
+type CatalogStage =
+  | "admission"
+  | "provider"
+  | "stream"
+  | "decode"
+  | "validation"
+  | "size"
+  | "storage";
+function catalogDiagnostic(
+  stage: CatalogStage,
+  status: number,
+  bytes: number,
+  rows: number,
+  code?: MarketFailureCode,
+) {
+  console.error(
+    JSON.stringify({
+      event: "catalog_failure",
+      stage,
+      status,
+      bytes,
+      rows,
+      code,
+    }),
+  );
 }

@@ -113,3 +113,17 @@ test("received SDK response bytes are capped before JSON parsing and overflow ca
     await assert.rejects(store.read([]), /STORAGE_UNAVAILABLE/);
     assert.equal(cancelled, true);
   }));
+
+test("storage capacity refusal remains distinct from I/O budget exhaustion", async () =>
+  fixture(async ({ store }) => {
+    globalThis.fetch = async () =>
+      Response.json({
+        status: "success",
+        value: { status: "storage" },
+        logLines: [],
+      });
+    await assert.rejects(
+      store.write("catalog:refresh", "synthetic", []),
+      (error) => error.code === "STORAGE_CAPACITY",
+    );
+  }));

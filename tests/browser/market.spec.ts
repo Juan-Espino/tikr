@@ -1164,7 +1164,12 @@ test("credential-free demo search is labeled and supports touch selection", asyn
   await page.goto("http://127.0.0.1:43127/portfolio/test-one");
   await page.getByRole("button", { name: "Edit", exact: true }).tap();
   await page.getByRole("textbox", { name: "Search assets" }).fill("Apple");
-  await expect(page.getByText("Sample catalog", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "Sample catalog: six demo assets; market data is not configured",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "AAPL, Apple Inc.", exact: true })
     .tap();
@@ -1215,4 +1220,76 @@ test("six-holding limit is announced; rate limit shows timing and search retry r
   await expect(result).toBeDisabled();
   await page.getByRole("button", { name: "Remove SCHD", exact: true }).click();
   await expect(result).toBeEnabled();
+});
+
+for (const width of [390, 1440]) {
+  test(`catalog failure messages distinguish stages at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.route("**/api/market", (route) =>
+      route.fulfill({ json: sample() }),
+    );
+    let code = "CATALOG_PROVIDER";
+    await page.route("**/api/assets?*", (route) =>
+      route.fulfill({
+        status: code === "REFRESH_COOLDOWN" ? 429 : 503,
+        json: {
+          code,
+          ...(code === "REFRESH_COOLDOWN"
+            ? { retryAt: Date.now() + 60000 }
+            : {}),
+        },
+      }),
+    );
+    await page.goto("/portfolio/test-one");
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await page.getByRole("textbox", { name: "Search assets" }).fill("NEW");
+    await expect(
+      page.getByText(/The catalog provider could not complete/),
+    ).toBeVisible();
+    for (const [next, message] of [
+      ["CATALOG_INVALID", /Catalog validation failed/],
+      ["CATALOG_LIMIT", /Catalog import exceeded/],
+      ["STORAGE_CAPACITY", /Market-data storage capacity/],
+      ["REFRESH_COOLDOWN", /Catalog refresh is cooling down.*Try again after/],
+    ]) {
+      code = next as string;
+      await page.getByRole("button", { name: "Retry search" }).click();
+      await expect(page.getByText(message as RegExp)).toBeVisible();
+    }
+  });
+}
+
+test("literal PLTR sample search and malformed successful responses are not live matches", async ({
+  page,
+}) => {
+  await page.route("**/api/market", (route) =>
+    route.fulfill({ status: 503, json: { code: "DATA_UNAVAILABLE" } }),
+  );
+  let malformed = false;
+  await page.route("**/api/assets?*", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: { "X-Tikr-Catalog": "sample" },
+      json: malformed ? { results: [] } : [],
+    }),
+  );
+  await page.goto("/portfolio/test-one");
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("textbox", { name: "Search assets" }).fill("PLTR");
+  await expect(
+    page.getByText(/No matches in the six-asset sample catalog/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /PLTR, Palantir/ }),
+  ).toHaveCount(0);
+  malformed = true;
+  await page.getByRole("textbox", { name: "Search assets" }).fill("Palantir");
+  await expect(
+    page.getByText("Asset search unavailable. Try again later."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Retry search" }),
+  ).toBeVisible();
 });

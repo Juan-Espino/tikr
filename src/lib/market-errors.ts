@@ -1,5 +1,10 @@
 // Public, bounded failure vocabulary. Never forward upstream exception text.
 export const marketFailureCodes = [
+  "CATALOG_NOT_ENABLED",
+  "CATALOG_PROVIDER",
+  "CATALOG_INVALID",
+  "CATALOG_LIMIT",
+  "CATALOG_UNAVAILABLE",
   "BROWSING_RATE_LIMIT",
   "REFRESH_COOLDOWN",
   "SHARED_BUDGET_EXHAUSTED",
@@ -9,6 +14,7 @@ export const marketFailureCodes = [
   "MISSING_PRICE",
   "DATA_UNAVAILABLE",
   "STORAGE_UNAVAILABLE",
+  "STORAGE_CAPACITY",
 ] as const;
 export type MarketFailureCode = (typeof marketFailureCodes)[number];
 export class MarketFailure extends Error {
@@ -48,6 +54,8 @@ export function marketErrorMessage(code?: string) {
       return "The shared market-data budget is exhausted. More browsing or retries cannot refresh it.";
     case "TEAM_BUDGET_UNVERIFIED":
       return "Market data is paused until the shared budget review is renewed.";
+    case "STORAGE_CAPACITY":
+      return "Market-data storage capacity is exhausted. Operator review is needed.";
     case "MISSING_PRICE":
       return "Required market history is missing. No estimated returns are substituted.";
     default:

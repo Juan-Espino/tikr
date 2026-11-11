@@ -1,3 +1,5 @@
+Asset search clarification (2026-11-10): show the actual sample/personal/hosted catalog source after a response. Empty sample search explains its six-asset scope; configured-but-disabled market data shows an activation error and no sample substitute. Malformed successful responses show unavailable/retry feedback. Existing layout and visual rules are unchanged.
+
 Asset search implementation (2026-11-10): retain the existing editor styling and native keyboard/touch buttons. Search waits 180 ms after input, aborts superseded requests and rejects superseded responses. Announce prompt/loading/result-count/empty/unavailable states. Results show ticker and provider name, without an inferred ETF label; history availability is checked separately. At six holdings, disable additions while keeping selected assets removable and announce the limit. Show labeled sample results in the unconfigured demo, safe rate/budget/cooldown messages with known retry timing, and a Retry search action after failure.
 
 # Tikr design direction
