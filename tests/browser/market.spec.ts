@@ -1230,9 +1230,11 @@ for (const width of [390, 1440]) {
     await page.route("**/api/market", (route) =>
       route.fulfill({ json: sample() }),
     );
+    let calls = 0;
     let code = "CATALOG_PROVIDER";
-    await page.route("**/api/assets?*", (route) =>
-      route.fulfill({
+    await page.route("**/api/assets?*", (route) => {
+      calls++;
+      return route.fulfill({
         status: code === "REFRESH_COOLDOWN" ? 429 : 503,
         json: {
           code,
@@ -1240,15 +1242,23 @@ for (const width of [390, 1440]) {
             ? { retryAt: Date.now() + 60000 }
             : {}),
         },
-      }),
-    );
+      });
+    });
     await page.goto("/portfolio/test-one");
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByRole("textbox", { name: "Search assets" }).fill("NEW");
     await expect(
       page.getByText(/The catalog provider could not complete/),
     ).toBeVisible();
+    await page
+      .getByRole("textbox", { name: "Search assets" })
+      .fill("NEW company");
+    await page.waitForTimeout(600);
+    expect(calls).toBe(1);
     for (const [next, message] of [
+      ["REFRESH_BUSY", /Other data requests are still running/],
+      ["TEAM_BUDGET_UNVERIFIED", /shared data budget needs operator review/],
+      ["SHARED_BUDGET_EXHAUSTED", /shared data budget is exhausted/],
       ["CATALOG_INVALID", /Catalog validation failed/],
       ["CATALOG_LIMIT", /Catalog import exceeded/],
       ["STORAGE_CAPACITY", /Market-data storage capacity/],

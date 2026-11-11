@@ -8,22 +8,13 @@ import schema from "./schema";
 const modules = import.meta.glob("./**/*.ts");
 const ref = (name: string) => makeFunctionReference<"mutation">(name);
 
-test("configurable global burst protection refills and invalid configuration fails closed", async () => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.stubEnv("TIKR_BROWSE_GLOBAL_PER_MINUTE", "2");
+test("browsing ignores former visitor/global settings and exceeds both bursts", async () => {
+  vi.stubEnv("TIKR_BROWSE_GLOBAL_PER_MINUTE", "0");
   try {
     const f = await fixture();
-    expect(await f.open("1".repeat(64))).toBeNull();
-    expect(await f.open("2".repeat(64))).toBeNull();
-    const denied = await f.open("3".repeat(64));
-    expect(denied?.code).toBe("BROWSING_RATE_LIMIT");
-    vi.setSystemTime(denied!.retryAt!);
-    expect(await f.open("3".repeat(64))).toBeNull();
-    vi.stubEnv("TIKR_BROWSE_GLOBAL_PER_MINUTE", "0");
-    await expect(f.open()).rejects.toThrow("INVALID_ADMISSION_CONFIG");
+    for (let i = 0; i < 300; i++) expect(await f.open()).toBeNull();
   } finally {
     vi.unstubAllEnvs();
-    vi.useRealTimers();
   }
 });
 
@@ -148,51 +139,66 @@ test("ordinary browsing exceeds the former daily caps, refills, and retains hist
     vi.useRealTimers();
   }
 });
-test("visitor burst limit is independent for full hashes and expires without touching guards or revocations", async () => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  try {
-    const f = await fixture();
-    for (let i = 0; i < 60; i++) expect(await f.open()).toBeNull();
-    const denied = await f.open();
-    expect(denied?.code).toBe("BROWSING_RATE_LIMIT");
-    expect(denied?.retryAt).toBeGreaterThanOrEqual(Date.now() + 1001);
-    expect(denied?.retryAt).toBeLessThanOrEqual(Date.now() + 1002);
-    expect(await f.open("a".repeat(63) + "b")).toBeNull();
-    vi.setSystemTime(denied!.retryAt!);
-    expect(await f.open()).toBeNull();
-    await f.call("begin", undefined, undefined, ["SPY"]);
-    await f.call("revoke");
-    const before = await f.t.run((ctx) => ctx.db.query("marketBudget").first());
-    vi.setSystemTime(Date.now() + 600001);
-    await f.t.mutation(ref("hosted:expireVisitors"), {});
-    const state = await f.t.run(async (ctx) =>
-      JSON.parse((await ctx.db.query("marketHosted").first())!.payload),
+test("visitor registry no longer bounds admission; guards and revocations survive", async () => {
+  const f = await fixture();
+  for (let i = 0; i < 260; i++)
+    expect(await f.open(i.toString(16).padStart(64, "0"))).toBeNull();
+  await f.call("begin", undefined, undefined, ["SPY"]);
+  await f.call("revoke");
+  expect((await f.call("check"))?.code).toBe("EVIDENCE_REVOKED");
+  const state = await f.t.run(async (ctx) =>
+    JSON.parse((await ctx.db.query("marketHosted").first())!.payload),
+  );
+  expect(Object.keys(state.guards)).toHaveLength(1);
+  expect(state.visitors).toBeUndefined();
+});
+
+test("catalog retries ignore old attempt records but preserve atomic lease ownership", async () => {
+  const f = await fixture();
+  const args = {
+    key: "catalog:refresh",
+    cycle: "2026-11-10",
+    retry: true,
+    token: crypto.randomUUID(),
+  };
+  await f.t.run((ctx) =>
+    ctx.db
+      .insert("marketLeases", {
+        key: args.key,
+        token: args.token,
+        cycle: args.cycle,
+        attempts: 100000,
+        attemptedAt: Date.now(),
+        expires: 0,
+      })
+      .then(() => undefined),
+  );
+  for (let i = 0; i < 3; i++) {
+    expect((await f.t.mutation(ref("market:acquire"), args)).status).toBe(
+      "acquired",
     );
-    expect(state.visitors).toEqual({});
-    expect(Object.keys(state.guards)).toHaveLength(1);
-    expect(state.revoked).toEqual(["b".repeat(64)]);
     expect(
-      await f.t.run((ctx) => ctx.db.query("marketBudget").first()),
-    ).toEqual(before);
-  } finally {
-    vi.useRealTimers();
+      (
+        await f.t.mutation(ref("market:acquire"), {
+          ...args,
+          token: crypto.randomUUID(),
+        })
+      ).status,
+    ).toBe("busy");
+    await f.t.mutation(ref("market:release"), {
+      ...{ key: args.key },
+      token: crypto.randomUUID(),
+    });
+    expect((await f.t.mutation(ref("market:acquire"), args)).status).toBe(
+      "busy",
+    );
+    await f.t.mutation(ref("market:release"), {
+      key: args.key,
+      token: args.token,
+    });
   }
 });
-test("visitor cardinality is bounded, with a timed refusal instead of hash collisions", async () => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  try {
-    const f = await fixture();
-    for (let i = 1; i <= 256; i++) {
-      expect(await f.open(i.toString(16).padStart(64, "0"))).toBeNull();
-      vi.setSystemTime(Date.now() + 250);
-    }
-    const denied = await f.open("f".repeat(64));
-    expect(denied?.code).toBe("BROWSING_RATE_LIMIT");
-    expect(denied?.retryAt).toBeGreaterThan(Date.now());
-  } finally {
-    vi.useRealTimers();
-  }
-});
+
 test("manual retries share durable cooldown and atomic monthly admission across callers", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-10T14:00:00Z"));

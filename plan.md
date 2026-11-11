@@ -1,3 +1,18 @@
+Owner follow-up (2026-11-10): after local completion, commit/push this dedicated branch and open a PR against main. Merge, deployment, live calls and credentials remain unauthorized. No reviewer agents requested.
+
+## Owner-testing limiter removal (2026-11-10)
+
+Implemented locally in the dedicated worktree: remove visitor/global browsing rates and visitor registry admission; retain four in-flight hosted resource slots and shared budgets. Catalog leases ignore historical attempt/cooldown lockout while retaining busy/token ownership checks and attempt records. Search failure waits for explicit Retry search. No persistent ledgers or guards reset; no main changes, credentials, live calls, deployment or publication.
+
+Release checklist:
+- [ ] Final broader-release task: reinstate appropriate server-side request limits and verify retry/error behavior, shared budgets and platform protections.
+- [ ] Separately authorize and verify coordinated Next/Convex deployment, preserving existing state and compatible readers; local checks do not prove deployed behavior.
+- [ ] Resolve public display/caching rights and separately authorize live verification/activation as applicable.
+
+Verification: frozen-lockfile install completed without manifest/lockfile changes. Full Vitest suite passed (33 tests/10 files), including retries after two failed imports, one provider import for overlapping callers, old attempt-record compatibility, lease ownership, browsing beyond former rates/cardinality, and existing budgets/guards/revocations. Focused Node admission/durable/catalog suites passed (29 tests). `pnpm check` passed (lint plus app and Convex TypeScript); `pnpm build` passed. Four focused Edge Playwright tests passed, including error/retry states at 390px and 1440px and no new search request on typing after failure. Browser artifacts use system temp; the credential-cleared loopback verification server was stopped. `git diff --check` passed. No live/deployed verification is claimed.
+
+Compatibility: retain the mounted limiter and legacy expiry callback for already-scheduled work, plus optional visitor/bucket arguments and historical state fields. New requests neither create visitor records nor call the limiter. Existing `TIKR_BROWSE_CONCURRENCY` remains a resource bound (default four; 1?16). For a separately authorized rollout, deploy compatible Convex control/acquire code before Next: old Next callers may still send visitor hashes, while new Next callers omit them. Do not reset budgets, attempts, leases or guards. Next task is owner review of the local diff; deployment and broader-release limiting remain pending.
+
 ## PR publication authorized (2026-11-10)
 
 Owner authorized committing/pushing this bound feature branch and opening a PR to main after the market-history clarification. Scope is catalog import/search and diagnostics; price/action/history validation and production deployment remain separate. Reuse the recorded successful local checks and one live development catalog trial; do not issue another provider request or run another review agent. Keep private .env.local and secret-tool files out of Git. Main remains unchanged. Earlier no-publication/no-activation statements below record their historical checkpoints, not the current authorization/state.

@@ -7,25 +7,19 @@ const components = componentsGeneric() as unknown as {
   rateLimiter: ComponentApi;
 };
 export const limiter = new RateLimiter(components.rateLimiter);
-export function browsingLimits() {
-  const setting = (name: string, fallback: number, max: number) => {
-    const raw = process.env[name];
-    if (raw === undefined) return fallback;
-    const value = Number(raw);
-    if (
-      !/^\d+$/.test(raw) ||
-      !Number.isSafeInteger(value) ||
-      value < 1 ||
-      value > max
-    )
-      throw Error("INVALID_ADMISSION_CONFIG");
-    return value;
-  };
-  return {
-    visitor: setting("TIKR_BROWSE_PER_MINUTE", 60, 600),
-    global: setting("TIKR_BROWSE_GLOBAL_PER_MINUTE", 240, 2400),
-    concurrency: setting("TIKR_BROWSE_CONCURRENCY", 4, 16),
-  };
+// Retained only for already-scheduled legacy visitor expiry callbacks.
+
+// In-flight work bounds resource use independently of request rates.
+export function hostedConcurrency() {
+  const raw = process.env.TIKR_BROWSE_CONCURRENCY;
+  if (raw === undefined) return 4;
+  const value = Number(raw);
+  if (
+    !/^\d+$/.test(raw) ||
+    !Number.isSafeInteger(value) ||
+    value < 1 ||
+    value > 16
+  )
+    throw Error("INVALID_ADMISSION_CONFIG");
+  return value;
 }
-export const VISITOR_TTL = 10 * 60000;
-export const MAX_VISITORS = 256;

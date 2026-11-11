@@ -136,13 +136,17 @@ export const acquire = internalMutation({
     if (row && row.expires > now)
       return { status: "busy" as const, chargedIo: 32768 };
     const attempts = row?.cycle === args.cycle ? row.attempts : 0;
-    if (attempts >= (args.retry ? 2 : 1))
+    if (args.key !== "catalog:refresh" && attempts >= (args.retry ? 2 : 1))
       return {
         status: "daily" as const,
         retryAt: nextCycle(args.cycle),
         chargedIo: 32768,
       };
-    if (attempts > 0 && now - row!.attemptedAt < 60000)
+    if (
+      args.key !== "catalog:refresh" &&
+      attempts > 0 &&
+      now - row!.attemptedAt < 60000
+    )
       return {
         status: "cooldown" as const,
         retryAt: row!.attemptedAt + 60000,

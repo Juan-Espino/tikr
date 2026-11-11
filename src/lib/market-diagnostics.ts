@@ -4,6 +4,7 @@ import { AlpacaError } from "./alpaca/adapter.ts";
 const codes = new Set([
   "BROWSING_RATE_LIMIT",
   "REFRESH_COOLDOWN",
+  "REFRESH_BUSY",
   "SHARED_BUDGET_EXHAUSTED",
   "TEAM_BUDGET_UNVERIFIED",
   "REFRESH_FAILED",
