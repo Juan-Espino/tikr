@@ -72,7 +72,18 @@ test("instrumented six-asset fresh and cached hosted operations (synthetic, not 
         return response;
       }
       let value: unknown;
-      if (url.pathname === "/v2/calendar")
+      if (url.pathname === "/v2/assets")
+        value = ["SPY", "AAPL", "MSFT", "AMZN", "SCHD", "NVDA"].map(
+          (symbol) => ({
+            symbol,
+            name: symbol,
+            exchange: "NASDAQ",
+            status: "active",
+            class: "us_equity",
+            tradable: true,
+          }),
+        );
+      else if (url.pathname === "/v2/calendar")
         value = days.map((date) => ({ date }));
       else if (url.pathname === "/v2/stocks/bars") {
         const symbol = url.searchParams.get("symbols")!;
@@ -140,7 +151,7 @@ test("instrumented six-asset fresh and cached hosted operations (synthetic, not 
   };
   try {
     const fresh = await open();
-    expect(fresh.providerCalls).toBe(13);
+    expect(fresh.providerCalls).toBe(14);
     metrics = empty();
     const cached = await open();
     expect(cached.providerCalls).toBe(0);
@@ -160,4 +171,4 @@ test("instrumented six-asset fresh and cached hosted operations (synthetic, not 
     vi.unstubAllEnvs();
     vi.useRealTimers();
   }
-});
+}, 15000);

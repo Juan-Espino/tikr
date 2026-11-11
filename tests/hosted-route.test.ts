@@ -138,10 +138,21 @@ test("anonymous production request streams results; bounded invalid inputs never
       403,
     );
     expect((await POST(request("x".repeat(12001)))).status).toBe(413);
+    expect(
+      (await POST(request(valid.replace("SPY", "../UNKNOWN")))).status,
+    ).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+    vi.mocked(openMarket).mockRejectedValueOnce(Error("INVALID_INPUT"));
     expect((await POST(request(valid.replace("SPY", "UNKNOWN")))).status).toBe(
       400,
     );
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        body: expect.stringContaining('"op":"leave"'),
+      }),
+    );
   } finally {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();

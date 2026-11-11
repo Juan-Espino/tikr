@@ -1,8 +1,9 @@
+import { validTicker } from "./asset-catalog.ts";
 import { z } from "zod";
-import { assets, allocation, validAmount } from "./demo";
+import { allocation, validAmount } from "./demo";
 const holding = z
   .object({
-    symbol: z.string().refine((s) => assets.some((a) => a.ticker === s)),
+    symbol: z.string().refine(validTicker),
     weight: z.string().max(12),
   })
   .strict();

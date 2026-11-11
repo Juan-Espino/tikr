@@ -1,3 +1,5 @@
+Asset search implementation (2026-11-10): retain the existing editor styling and native keyboard/touch buttons. Search waits 180 ms after input, aborts superseded requests and rejects superseded responses. Announce prompt/loading/result-count/empty/unavailable states. Results show ticker and provider name, without an inferred ETF label; history availability is checked separately. At six holdings, disable additions while keeping selected assets removable and announce the limit. Show labeled sample results in the unconfigured demo, safe rate/budget/cooldown messages with known retry timing, and a Retry search action after failure.
+
 # Tikr design direction
 
 Market admission feedback (approved 2026-11-10): existing status text distinguishes browsing rate limits, refresh cooldowns, shared budget exhaustion and missing history, with a readable retry-after time when known. Retain dated stale-result context, accessible live status and the existing retry control. This is feedback within the existing visual system; no visual redesign is approved.

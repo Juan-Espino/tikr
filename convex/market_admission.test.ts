@@ -1,3 +1,4 @@
+import { catalogShard } from "../src/lib/asset-catalog";
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
@@ -65,6 +66,27 @@ test("exhausted manual attempts report the next New York cutoff across DST", asy
 });
 async function fixture() {
   const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    for (const symbol of ["SPY", "AAPL", "MSFT", "AMZN", "SCHD", "NVDA"]) {
+      const key = `catalog:${catalogShard(symbol)}`;
+      const old = await ctx.db
+        .query("marketEntries")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      const rows = old ? JSON.parse(old.payload) : [];
+      rows.push({ ticker: symbol, name: symbol, exchange: "NASDAQ" });
+      if (old) await ctx.db.patch(old._id, { payload: JSON.stringify(rows) });
+      else
+        await ctx.db.insert("marketEntries", {
+          key,
+          payload: JSON.stringify(rows),
+          revision: "a".repeat(64),
+          dependencies: [],
+          checkedAt: Date.now(),
+          cost: 1000,
+        });
+    }
+  });
   rateLimiterTest.register(t);
   await t.mutation(ref("market:configure"), {
     otherStorage: 0,
@@ -173,6 +195,7 @@ test("visitor cardinality is bounded, with a timed refusal instead of hash colli
 });
 test("manual retries share durable cooldown and atomic monthly admission across callers", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-10T14:00:00Z"));
   try {
     const f = await fixture();
     const args = {
@@ -193,8 +216,14 @@ test("manual retries share durable cooldown and atomic monthly admission across 
       retry: true,
     });
     expect(cooldown.status).toBe("cooldown");
-    expect(cooldown.retryAt).toBe(Date.now() + 60000);
-    vi.setSystemTime(Date.now() + 60000);
+    const lease = await f.t.run((ctx) =>
+      ctx.db
+        .query("marketLeases")
+        .withIndex("by_key", (q) => q.eq("key", args.key))
+        .unique(),
+    );
+    expect(cooldown.retryAt).toBe(lease!.attemptedAt + 60000);
+    vi.setSystemTime(cooldown.retryAt!);
     const results = await Promise.all(
       [0, 1].map(() =>
         f.t.mutation(ref("market:acquire"), {

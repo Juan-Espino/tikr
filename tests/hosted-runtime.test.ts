@@ -32,6 +32,7 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
     ALPACA_API_SECRET_KEY: "synthetic",
   }))
     vi.stubEnv(name, value);
+  let catalogUnavailable = false;
   let calendarCalls = 0,
     barCalls = 0;
   let holdResultRead = false,
@@ -48,6 +49,22 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
     "fetch",
     vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input));
+      if (url.pathname === "/v2/assets" && catalogUnavailable)
+        throw Error("Synthetic catalog outage");
+      if (url.pathname === "/v2/assets")
+        return Response.json(
+          ["NEW", "SPY", "AAPL", "MSFT", "AMZN", "SCHD", "NVDA"].map(
+            (symbol) => ({
+              symbol,
+              name: symbol,
+              exchange: "NASDAQ",
+              status: "active",
+              class: "us_equity",
+              tradable: true,
+            }),
+          ),
+        );
+
       if (url.hostname === "synthetic.convex.site") {
         const operation = JSON.parse(String(init?.body));
         if (
@@ -76,7 +93,7 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
         barCalls++;
         return Response.json({
           bars: {
-            SPY: days.map((date, i) => ({
+            [url.searchParams.get("symbols")!]: days.map((date, i) => ({
               t: date + "T05:00:00Z",
               c: 100 + i,
             })),
@@ -121,6 +138,28 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
     expect(next.period?.end).toBe("2026-11-06");
     expect(calendarCalls).toBe(2);
     expect(barCalls).toBe(2);
+    const originalHoldings = request.portfolios[0]!.holdings;
+    request.portfolios[0]!.holdings = [{ symbol: "NEW", weight: "100" }];
+    const expanded = await openHost();
+    expect(expanded.status).toBe("ready");
+    expect(expanded.series?.[0]?.ending).toBe("102.00");
+    request.portfolios[0]!.holdings = [{ symbol: "NOTLISTED", weight: "100" }];
+    await expect(openHost()).rejects.toThrow("INVALID_INPUT");
+    request.portfolios[0]!.holdings = originalHoldings;
+    catalogUnavailable = true;
+    vi.setSystemTime(Date.now() + 61000);
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("marketEntries").collect())
+        if (row.key.startsWith("catalog:"))
+          await ctx.db.patch(row._id, { checkedAt: 0 });
+    });
+    expect((await openHost()).status).toBe("ready");
+    catalogUnavailable = false;
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("marketEntries").collect())
+        if (row.key.startsWith("catalog:"))
+          await ctx.db.patch(row._id, { checkedAt: Date.now() });
+    });
     holdResultRead = true;
     const inFlight = openHost();
     await readStarted;

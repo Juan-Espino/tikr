@@ -1,3 +1,4 @@
+import { catalogShard, validateShard } from "../src/lib/asset-catalog";
 import { internalMutation } from "./_generated/server";
 import { makeFunctionReference } from "convex/server";
 import type { MutationCtx } from "./_generated/server";
@@ -46,10 +47,8 @@ export const control = internalMutation({
       !/^[a-f0-9]{64}$/.test(a.scope) ||
       !/^[a-f0-9-]{36}$/.test(a.token) ||
       (a.visitor !== undefined && !/^[a-f0-9]{64}$/.test(a.visitor)) ||
-      a.symbols.length > 6 ||
-      a.symbols.some(
-        (s) => !["AAPL", "MSFT", "NVDA", "SCHD", "AMZN", "SPY"].includes(s),
-      )
+      a.symbols.length > 19 ||
+      a.symbols.some((s) => !/^[A-Z][A-Z0-9.-]{0,15}$/.test(s))
     )
       throw Error("INVALID_CONTROL");
     const now = Date.now();
@@ -64,9 +63,36 @@ export const control = internalMutation({
     // Release and revocation must remain possible after quota exhaustion.
     if (
       !["revoke", "finish", "leave"].includes(a.op) &&
-      !(await budget(ctx, a.op === "provider" ? 2 * 1024 * 1024 : 131072, now))
+      !(await budget(
+        ctx,
+        a.op === "provider"
+          ? 2 * 1024 * 1024
+          : 131072 + (a.op === "begin" ? a.symbols.length * 120000 : 0),
+        now,
+      ))
     )
       return { code: "SHARED_BUDGET_EXHAUSTED" };
+    if (a.op === "begin") {
+      for (const symbol of a.symbols) {
+        const catalog = await ctx.db
+          .query("marketEntries")
+          .withIndex("by_key", (q) =>
+            q.eq("key", `catalog:${catalogShard(symbol)}`),
+          )
+          .unique();
+        if (
+          !catalog ||
+          catalog.checkedAt > now ||
+          now - catalog.checkedAt > 7 * 86400000 ||
+          !validateShard(
+            JSON.parse(catalog.payload),
+            catalogShard(symbol),
+          ).some((a) => a.ticker === symbol)
+        )
+          throw Error("INVALID_CONTROL");
+      }
+    }
+
     if (a.op === "revoke") {
       if (!s.revoked.includes(a.scope)) {
         if (s.revoked.length >= 16) throw Error("REVOCATION_LIMIT");

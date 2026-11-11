@@ -1,3 +1,4 @@
+import { validTicker } from "./asset-catalog.ts";
 import { z } from "zod";
 
 export const assets = [
@@ -41,7 +42,7 @@ const holdingSchema = z.object({
     .string()
     // Preserve browser-local demo portfolios saved before the SPY switch.
     .transform((ticker) => (ticker === "VOO" ? "SPY" : ticker))
-    .refine((t) => assets.some((a) => a.ticker === t)),
+    .refine(validTicker),
   weight: z.string().max(12),
 });
 export const portfolioSchema = z.object({
