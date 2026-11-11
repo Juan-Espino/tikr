@@ -255,6 +255,7 @@ export function convexStorage(
         token,
         entries,
       });
+      if (r.status === "storage") throw new MarketFailure("STORAGE_CAPACITY");
       if (r.status !== "ok") throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
     },
     async release(key, token) {
