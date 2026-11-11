@@ -32,5 +32,5 @@ test('legacy sample holdings migrate to SPY without losing saved portfolios or d
  assert.deepEqual(restored.portfolios[0],{...portfolio,holdings:[{ticker:'SPY',weight:'100'}]});
  assert.deepEqual(restored.draft.holdings,[{ticker:'SPY',weight:'25'},{ticker:'MSFT',weight:'75'}]);
  assert.doesNotThrow(()=>series(restored.portfolios[0].holdings,'5Y',2500));
- assert.equal(storageSchema.safeParse({version:1,portfolios:[{...portfolio,holdings:[{ticker:'UNKNOWN',weight:'100'}]}],draft:null}).success,false);
+ assert.equal(storageSchema.safeParse({version:1,portfolios:[{...portfolio,holdings:[{ticker:'../UNKNOWN',weight:'100'}]}],draft:null}).success,false);
 });

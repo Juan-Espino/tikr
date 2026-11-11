@@ -19,7 +19,7 @@ import { display, percent } from "./backtest.ts";
 import Decimal from "decimal.js";
 import type { MarketRequest, MarketResponse } from "./market-contract";
 import type { CacheView } from "./market-cache.ts";
-import { assets } from "./demo";
+import { availableCatalog } from "./catalog-server.ts";
 import { localAdmission } from "./market-admission.ts";
 import {
   createAdmittedTransport,
@@ -30,7 +30,7 @@ import {
 import { freshnessCycle } from "./market-cache.ts";
 import type { Config } from "./alpaca/adapter.ts";
 let personalCalendar: { key: string; value: Promise<Calendar> } | undefined;
-async function personalSource() {
+async function personalSource(symbols: string[]) {
   const { keyId, secret } = (() => {
     try {
       return providerCredentials();
@@ -65,6 +65,13 @@ async function personalSource() {
   const start = new Date(Date.parse(monthStart) - 7 * 86400000)
     .toISOString()
     .slice(0, 10);
+  // A catalog outage must not discard intact historical caches. Any source load
+  // still requires a fresh validated catalog below, including on the local path.
+  const catalog = await availableCatalog().catch(() =>
+    [...new Set([...symbols, "SPY"])].map((ticker) => ({ ticker })),
+  );
+  if (symbols.some((s) => !catalog.some((a) => a.ticker === s)))
+    throw Error("INVALID_INPUT");
   const key = `${start}:${cycle}`;
   if (personalCalendar?.key !== key) {
     const value = (async () => {
@@ -118,8 +125,16 @@ async function personalSource() {
   });
   return {
     calendar,
+    catalog,
     historyStart: start,
-    load: createPersonalLoader(config, calendar),
+    load: async (
+      request: Parameters<ReturnType<typeof createPersonalLoader>>[0],
+    ) => {
+      const eligible = await availableCatalog();
+      if (!eligible.some((a) => a.ticker === request.symbol))
+        throw Error("INVALID_INPUT");
+      return createPersonalLoader(config, calendar)(request);
+    },
     revision: revision({ policy: PROVISIONAL_POLICY, start }),
     expires: now.valueOf() + 24 * 60 * 60 * 1000,
   };
@@ -263,7 +278,9 @@ async function openConfiguredMarket(request: MarketRequest) {
           ...Object.values(data.reviews).map((r) => Date.parse(r.expiresAt)),
         ),
       }
-    : await personalSource();
+    : await personalSource(
+        request.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol)),
+      );
   const { load } = source;
   const run = createDurableBacktests({
     storage: convexStorage(url, key, source.revision),
@@ -271,7 +288,11 @@ async function openConfiguredMarket(request: MarketRequest) {
     historyStart: source.historyStart,
     evidenceRevision: source.revision,
     evidenceValidUntil: () => source.expires,
-    supportedSymbols: assets.map((a) => a.ticker),
+    supportedSymbols: data
+      ? Object.keys(data.reviews)
+      : (source as Awaited<ReturnType<typeof personalSource>>).catalog.map(
+          (a) => a.ticker,
+        ),
     load,
   });
   const job = await run(

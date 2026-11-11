@@ -1,3 +1,4 @@
+import { catalogShard } from "../src/lib/asset-catalog";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
@@ -10,6 +11,27 @@ const modules = import.meta.glob("./**/*.ts");
 
 test("overlapping hosts cannot exceed concurrency or both acquire a refresh guard", async () => {
   const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    for (const symbol of ["SPY", "AAPL", "MSFT", "AMZN", "SCHD", "NVDA"]) {
+      const key = `catalog:${catalogShard(symbol)}`;
+      const old = await ctx.db
+        .query("marketEntries")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      const rows = old ? JSON.parse(old.payload) : [];
+      rows.push({ ticker: symbol, name: symbol, exchange: "NASDAQ" });
+      if (old) await ctx.db.patch(old._id, { payload: JSON.stringify(rows) });
+      else
+        await ctx.db.insert("marketEntries", {
+          key,
+          payload: JSON.stringify(rows),
+          revision: "a".repeat(64),
+          dependencies: [],
+          checkedAt: Date.now(),
+          cost: 1000,
+        });
+    }
+  });
   rateLimiterTest.register(t);
   await t.mutation(makeFunctionReference<"mutation">("market:configure"), {
     otherStorage: 0,
@@ -59,6 +81,27 @@ test("overlapping hosts cannot exceed concurrency or both acquire a refresh guar
 });
 test("HTTP gateway rejects anonymous access and cannot invoke operator functions", async () => {
   const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    for (const symbol of ["SPY", "AAPL", "MSFT", "AMZN", "SCHD", "NVDA"]) {
+      const key = `catalog:${catalogShard(symbol)}`;
+      const old = await ctx.db
+        .query("marketEntries")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      const rows = old ? JSON.parse(old.payload) : [];
+      rows.push({ ticker: symbol, name: symbol, exchange: "NASDAQ" });
+      if (old) await ctx.db.patch(old._id, { payload: JSON.stringify(rows) });
+      else
+        await ctx.db.insert("marketEntries", {
+          key,
+          payload: JSON.stringify(rows),
+          revision: "a".repeat(64),
+          dependencies: [],
+          checkedAt: Date.now(),
+          cost: 1000,
+        });
+    }
+  });
   rateLimiterTest.register(t);
   vi.stubEnv("TIKR_MARKET_GATEWAY_KEY", "synthetic-only-00000000000000000000");
   vi.stubEnv("TIKR_HOSTED_DATA_ENABLED", "explicit");
@@ -104,6 +147,27 @@ test("production origin validation rejects missing, forged and preview origins",
 });
 test("two hosts share bounded admission, persistent guards, revocation and monthly budgets", async () => {
   const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    for (const symbol of ["SPY", "AAPL", "MSFT", "AMZN", "SCHD", "NVDA"]) {
+      const key = `catalog:${catalogShard(symbol)}`;
+      const old = await ctx.db
+        .query("marketEntries")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      const rows = old ? JSON.parse(old.payload) : [];
+      rows.push({ ticker: symbol, name: symbol, exchange: "NASDAQ" });
+      if (old) await ctx.db.patch(old._id, { payload: JSON.stringify(rows) });
+      else
+        await ctx.db.insert("marketEntries", {
+          key,
+          payload: JSON.stringify(rows),
+          revision: "a".repeat(64),
+          dependencies: [],
+          checkedAt: Date.now(),
+          cost: 1000,
+        });
+    }
+  });
   rateLimiterTest.register(t);
   await t.mutation(makeFunctionReference<"mutation">("market:configure"), {
     otherStorage: 0,
@@ -166,4 +230,85 @@ test("hosted storage failures do not return data or expose upstream errors", asy
   );
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+});
+
+test("catalog eligibility accepts nineteen distinct compared symbols and rejects unknown symbols without clearing guards", async () => {
+  const t = convexTest(schema, modules);
+  await t.mutation(makeFunctionReference<"mutation">("market:configure"), {
+    otherStorage: 0,
+    otherIo: 0,
+    otherCalls: 0,
+    reviewedThrough: Date.now() + 86400000,
+  });
+  const symbols = ["SPY", ...Array.from({ length: 18 }, (_, i) => `NEW${i}`)];
+  await t.run(async (ctx) => {
+    for (let i = 0; i < 32; i++)
+      await ctx.db.insert("marketEntries", {
+        key: `catalog:${i}`,
+        payload: JSON.stringify(
+          symbols
+            .filter((s) => catalogShard(s) === i)
+            .map((ticker) => ({ ticker, name: ticker, exchange: "NASDAQ" })),
+        ),
+        revision: "a".repeat(64),
+        dependencies: [],
+        checkedAt: Date.now(),
+        cost: 1000,
+      });
+  });
+  const args = {
+    op: "check",
+    scope: "a".repeat(64),
+    token: crypto.randomUUID(),
+    symbols,
+  };
+  expect(
+    await t.mutation(makeFunctionReference<"mutation">("hosted:control"), args),
+  ).toBeNull();
+  await expect(
+    t.mutation(makeFunctionReference<"mutation">("hosted:control"), {
+      ...args,
+      op: "begin",
+      symbols: ["UNKNOWN"],
+    }),
+  ).rejects.toThrow("INVALID_CONTROL");
+  await t.mutation(makeFunctionReference<"mutation">("hosted:control"), {
+    ...args,
+    op: "begin",
+    symbols: ["NEW0"],
+  });
+  await expect(
+    t.mutation(makeFunctionReference<"mutation">("hosted:control"), {
+      ...args,
+      symbols: ["NEW0"],
+    }),
+  ).resolves.toMatchObject({ code: "REFRESH_GUARDED" });
+});
+
+test("catalog outage does not prevent cached readability checks or guard completion and revocation", async () => {
+  const t = convexTest(schema, modules);
+  await t.mutation(makeFunctionReference<"mutation">("market:configure"), {
+    otherStorage: 0,
+    otherIo: 0,
+    otherCalls: 0,
+    reviewedThrough: Date.now() + 86400000,
+  });
+  const args = {
+    scope: "a".repeat(64),
+    token: crypto.randomUUID(),
+    symbols: ["NEW"],
+  };
+  for (const op of ["check", "finish", "leave", "revoke"])
+    expect(
+      await t.mutation(makeFunctionReference<"mutation">("hosted:control"), {
+        ...args,
+        op,
+      }),
+    ).toBeNull();
+  await expect(
+    t.mutation(makeFunctionReference<"mutation">("hosted:control"), {
+      ...args,
+      op: "begin",
+    }),
+  ).rejects.toThrow("INVALID_CONTROL");
 });

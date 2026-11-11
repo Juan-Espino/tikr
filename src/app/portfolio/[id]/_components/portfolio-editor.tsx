@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import type { CatalogAsset } from "~/lib/asset-catalog";
+import { useEffect, useState } from "react";
 import { Check, Plus, Search, X } from "lucide-react";
 import {
   allocation,
-  assets,
   equalWeights,
   validAmount,
   type Portfolio,
@@ -28,11 +28,89 @@ export function PortfolioEditor({
   nameError?: string;
   suggestedName?: string;
 }) {
+  const [retrySearch, setRetrySearch] = useState(0);
+  const [searchFailed, setSearchFailed] = useState(false);
+  const [sampleCatalog, setSampleCatalog] = useState(false);
   const [search, setSearch] = useState("");
+  const [filtered, setFiltered] = useState<CatalogAsset[]>([]);
+  const [searchState, setSearchState] = useState(
+    "Enter a ticker or company name.",
+  );
+  useEffect(() => {
+    const controller = new AbortController();
+    setFiltered([]);
+    setSearchFailed(false);
+    if (!search.trim()) {
+      setSearchState("Enter a ticker or company name.");
+      return;
+    }
+    setSearchState("Searching...");
+    const timer = setTimeout(() => {
+      void fetch(`/api/assets?q=${encodeURIComponent(search)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const failure = (await response.json()) as {
+              code?: string;
+              retryAt?: number;
+            };
+            const retry = failure.retryAt
+              ? ` Try again after ${new Date(failure.retryAt).toLocaleTimeString()}.`
+              : "";
+            const message =
+              failure.code === "BROWSING_RATE_LIMIT"
+                ? "Search is temporarily rate limited."
+                : failure.code === "SHARED_BUDGET_EXHAUSTED"
+                  ? "The shared data budget is exhausted."
+                  : failure.code === "REFRESH_COOLDOWN"
+                    ? "Catalog refresh is cooling down."
+                    : "Asset search unavailable. Try again later.";
+            throw Error(message + retry);
+          }
+          if (!controller.signal.aborted)
+            setSampleCatalog(
+              response.headers.get("X-Tikr-Catalog") === "sample",
+            );
+          const rows = (await response.json()) as CatalogAsset[];
+          if (!controller.signal.aborted) {
+            setFiltered(rows);
+            setSearchState(
+              rows.length
+                ? `${rows.length} results. History availability is checked separately.`
+                : "No matching assets.",
+            );
+          }
+        })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted) {
+            setSearchFailed(true);
+            setSearchState(
+              error instanceof Error &&
+                [
+                  "Search is temporarily rate limited.",
+                  "The shared data budget is exhausted.",
+                  "Catalog refresh is cooling down.",
+                ].some((m) => error.message.startsWith(m))
+                ? error.message
+                : "Asset search unavailable. Try again later.",
+            );
+          }
+        });
+    }, 180);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [search, retrySearch]);
   const { holdings } = portfolio;
   const weights = allocation(holdings);
   const amountValid = validAmount(portfolio.amount);
   function select(ticker: string) {
+    if (holdings.length >= 6 && !holdings.some((h) => h.ticker === ticker))
+      return;
     const tickers = holdings.some((h) => h.ticker === ticker)
       ? holdings.filter((h) => h.ticker !== ticker).map((h) => h.ticker)
       : [...holdings.map((h) => h.ticker), ticker];
@@ -49,11 +127,6 @@ export function PortfolioEditor({
         : equalWeights(tickers),
     });
   }
-  const filtered = assets.filter((asset) =>
-    `${asset.ticker} ${asset.name}`
-      .toLowerCase()
-      .includes(search.trim().toLowerCase()),
-  );
   return (
     <>
       <DialogTitle className="pr-8 text-2xl font-bold">
@@ -122,7 +195,9 @@ export function PortfolioEditor({
           <h3 id="add-assets-title" className="text-lg">
             Choose assets
           </h3>
-          <span className="text-muted-foreground text-sm">Sample catalog</span>
+          <span className="text-muted-foreground text-sm">
+            {sampleCatalog ? "Sample catalog" : "U.S. asset catalog"}
+          </span>
         </div>
         <div className="relative mt-3 flex items-center">
           <Search
@@ -145,6 +220,7 @@ export function PortfolioEditor({
               <Button
                 key={asset.ticker}
                 variant="outline"
+                disabled={!selected && holdings.length >= 6}
                 aria-pressed={selected}
                 aria-label={`${asset.ticker}, ${asset.name}`}
                 onClick={() => select(asset.ticker)}
@@ -165,10 +241,21 @@ export function PortfolioEditor({
             );
           })}
         </div>
-        {!filtered.length && (
-          <p className="text-muted-foreground mt-3 text-sm">
-            No matching assets in this sample catalog.
+        <p role="status" className="text-muted-foreground mt-3 text-sm">
+          {searchState}
+        </p>
+        {holdings.length >= 6 && (
+          <p role="status" className="mt-2 text-sm">
+            Six holdings maximum. Remove a holding to add another.
           </p>
+        )}
+        {searchFailed && (
+          <Button
+            variant="outline"
+            onClick={() => setRetrySearch((n) => n + 1)}
+          >
+            Retry search
+          </Button>
         )}
       </section>
       <section

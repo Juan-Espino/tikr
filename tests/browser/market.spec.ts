@@ -219,6 +219,12 @@ test("saving changed holdings replaces the failed card and keeps other portfolio
   await card.click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "Remove NVDA", exact: true }).click();
+  await page.route("**/api/assets?*", (route) =>
+    route.fulfill({
+      json: [{ ticker: "SPY", name: "Synthetic SPY", exchange: "ARCA" }],
+    }),
+  );
+  await page.getByRole("textbox", { name: "Search assets" }).fill("SPY");
   await page.getByRole("button", { name: /^SPY, / }).click();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: "Save locally", exact: true }).click();
@@ -1068,4 +1074,145 @@ test("provisional quality is visible in the workspace and compact dashboard", as
   await expect(
     page.getByText(/Personal provisional Alpaca data/).first(),
   ).toBeVisible();
+});
+
+test("catalog search debounces, ignores superseded responses, supports keyboard selection and equal weights", async ({
+  page,
+}) => {
+  await page.route("**/api/market", (route) =>
+    route.fulfill({ json: sample() }),
+  );
+  let calls = 0;
+  await page.route("**/api/assets?*", async (route) => {
+    calls++;
+    const q = new URL(route.request().url()).searchParams.get("q");
+    if (q === "old") await new Promise((r) => setTimeout(r, 500));
+    await route
+      .fulfill({
+        json:
+          q === "none"
+            ? []
+            : [
+                {
+                  ticker: q === "old" ? "OLD" : "NEW",
+                  name: "New synthetic company",
+                  exchange: "NASDAQ",
+                },
+              ],
+      })
+      .catch(() => {});
+  });
+  await page.goto("/portfolio/test-one");
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "Search assets" });
+  await expect(page.getByText("Enter a ticker or company name.")).toBeVisible();
+  await input.fill("old");
+  await page.waitForTimeout(220);
+  await input.fill("new");
+  const result = page.getByRole("button", {
+    name: "NEW, New synthetic company",
+    exact: true,
+  });
+  await expect(result).toBeVisible();
+  await page.waitForTimeout(550);
+  await expect(
+    page.getByRole("button", {
+      name: "OLD, New synthetic company",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await result.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("textbox", { name: "NEW allocation percent" }),
+  ).toHaveValue("50.00");
+  await expect(
+    page.getByRole("textbox", { name: "SPY allocation percent" }),
+  ).toHaveValue("50.00");
+  await expect(result).toHaveAttribute("aria-pressed", "true");
+  await input.fill("none");
+  await expect(page.getByText("No matching assets.")).toBeVisible();
+  expect(calls).toBe(3);
+  await page.route("**/api/assets?*", (route) =>
+    route.fulfill({ status: 503, json: {} }),
+  );
+  await input.fill("error");
+  await expect(
+    page.getByText("Asset search unavailable. Try again later."),
+  ).toBeVisible();
+});
+
+test("credential-free demo search is labeled and supports touch selection", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    viewport: { width: 390, height: 844 },
+  });
+  const page = await context.newPage();
+  await page.addInitScript(
+    (p) =>
+      localStorage.setItem(
+        "tikr-demo-v1",
+        JSON.stringify({ version: 1, portfolios: [p], draft: p }),
+      ),
+    portfolio,
+  );
+  await page.route("**/api/market", (route) =>
+    route.fulfill({ json: sample() }),
+  );
+  await page.goto("http://127.0.0.1:43127/portfolio/test-one");
+  await page.getByRole("button", { name: "Edit", exact: true }).tap();
+  await page.getByRole("textbox", { name: "Search assets" }).fill("Apple");
+  await expect(page.getByText("Sample catalog", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "AAPL, Apple Inc.", exact: true })
+    .tap();
+  await expect(
+    page.getByRole("textbox", { name: "AAPL allocation percent" }),
+  ).toHaveValue("50.00");
+  await context.close();
+});
+test("six-holding limit is announced; rate limit shows timing and search retry recovers", async ({
+  page,
+}) => {
+  await page.addInitScript((p) => {
+    p.holdings = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "SCHD"].map(
+      (ticker, i) => ({ ticker, weight: i === 5 ? "16.65" : "16.67" }),
+    );
+    localStorage.setItem(
+      "tikr-demo-v1",
+      JSON.stringify({ version: 1, portfolios: [p], draft: p }),
+    );
+  }, portfolio);
+  await page.route("**/api/market", (route) =>
+    route.fulfill({ json: sample() }),
+  );
+  let limited = true;
+  await page.route("**/api/assets?*", (route) =>
+    limited
+      ? route.fulfill({
+          status: 429,
+          json: { code: "BROWSING_RATE_LIMIT", retryAt: Date.now() + 1000 },
+        })
+      : route.fulfill({
+          json: [{ ticker: "NEW", name: "New company", exchange: "NASDAQ" }],
+        }),
+  );
+  await page.goto("/portfolio/test-one");
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("textbox", { name: "Search assets" }).fill("NEW");
+  await expect(
+    page.getByText(/Search is temporarily rate limited/),
+  ).toBeVisible();
+  await expect(page.getByText(/Six holdings maximum/)).toBeVisible();
+  limited = false;
+  await page.getByRole("button", { name: "Retry search" }).click();
+  const result = page.getByRole("button", {
+    name: "NEW, New company",
+    exact: true,
+  });
+  await expect(result).toBeDisabled();
+  await page.getByRole("button", { name: "Remove SCHD", exact: true }).click();
+  await expect(result).toBeEnabled();
 });

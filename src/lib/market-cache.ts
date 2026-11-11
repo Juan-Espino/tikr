@@ -154,7 +154,7 @@ export function createOnDemandBacktests(options: CacheOptions) {
   if (
     !supported.has("SPY") ||
     supported.size !== options.supportedSymbols.length ||
-    supported.size > 50 ||
+    supported.size > 30000 ||
     [...supported].some((s) => !/^[A-Z][A-Z0-9.-]{0,15}$/.test(s))
   )
     fail("INVALID_INPUT");

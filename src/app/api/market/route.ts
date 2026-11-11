@@ -140,6 +140,8 @@ export async function POST(request: Request) {
   } catch (error) {
     diagnose("runtime", error);
     await leave?.().catch((error: unknown) => diagnose("admission", error));
+    if (error instanceof Error && error.message === "INVALID_INPUT")
+      return blocked("INVALID_INPUT", 400);
     const failure = marketFailure(error);
     return blocked(
       failure?.code ?? "DATA_NOT_VERIFIED",
