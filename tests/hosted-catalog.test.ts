@@ -178,3 +178,49 @@ test("durable catalog survives cold reader; cached refresh uses no provider; inv
     vi.unstubAllEnvs();
   }
 }, 20000);
+
+test("two failed imports remain retryable and overlapping callers import once", async () => {
+  vi.resetModules();
+  state.rows = [];
+  state.busy = false;
+  state.writes = 0;
+  vi.stubEnv("TIKR_PERSONAL_DATA_ENABLED", "explicit");
+  vi.stubEnv("TIKR_CONVEX_URL", "https://synthetic.convex.cloud");
+  vi.stubEnv("TIKR_CONVEX_ADMIN_KEY", "synthetic");
+  const { refreshCatalog } = await import("../src/lib/catalog-server");
+  const transport = vi.fn(async () => new Response(null, { status: 503 }));
+  const config = {
+    keyId: "synthetic",
+    secret: "synthetic",
+    transport: transport as typeof fetch,
+  };
+  try {
+    for (let i = 0; i < 2; i++)
+      await expect(refreshCatalog(config, "2026-11-10")).rejects.toThrow(
+        "CATALOG_PROVIDER",
+      );
+    transport.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+      return Response.json([
+        {
+          symbol: "SPY",
+          name: "Synthetic SPY",
+          status: "active",
+          class: "us_equity",
+          exchange: "NYSE",
+          tradable: true,
+        },
+      ]);
+    });
+    const results = await Promise.all([
+      refreshCatalog(config, "2026-11-10"),
+      refreshCatalog(config, "2026-11-10"),
+    ]);
+    expect(results[0]).toEqual(results[1]);
+    expect(transport).toHaveBeenCalledTimes(3);
+    expect(state.writes).toBe(1);
+  } finally {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  }
+});

@@ -200,10 +200,11 @@ test("two hosts share bounded admission, persistent guards, revocation and month
     await a("enter", id);
     await b("leave", id);
   }
-  await expect(b("enter", token)).rejects.toThrow("BROWSING_RATE_LIMIT");
+  await expect(b("enter", token)).resolves.toBeNull();
+  await b("leave", token);
   const ids = Array.from({ length: 4 }, () => crypto.randomUUID());
   for (const id of ids) await a("enter", id, [], 1);
-  await expect(b("enter", token, [], 2)).rejects.toThrow("BROWSING_RATE_LIMIT");
+  await expect(b("enter", token, [], 2)).rejects.toThrow("REFRESH_BUSY");
   await a("begin", token, ["SPY"]);
   await expect(b("check", crypto.randomUUID(), ["SPY"])).rejects.toThrow(
     "REFRESH_GUARDED",

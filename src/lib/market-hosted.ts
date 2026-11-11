@@ -2,7 +2,7 @@ import type { MarketFailureCode } from "./market-errors.ts";
 import { MarketFailure, marketFailureCodes } from "./market-errors.ts";
 import { diagnose } from "./market-diagnostics.ts";
 import "server-only";
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 export const hosted = () => process.env.TIKR_MARKET_HOSTED_ORIGIN !== undefined;
 export async function gateway<T>(
   name: string,
@@ -74,20 +74,11 @@ export const control = (
     token,
     ...(visitor ? { visitor } : {}),
   });
-export async function enterHosted(request: Request) {
-  // Vercel overwrites this header; deploy only behind Vercel, never trust client X-Forwarded-For.
-  const ip = request.headers.get("x-vercel-forwarded-for");
-  if (!ip || ip.length > 128) throw Error("VISITOR_REQUIRED");
-  const key = process.env.TIKR_MARKET_GATEWAY_KEY;
-  if (!key || key.length < 32) throw Error("HOSTED_CONFIG");
-  // Keyed hash prevents offline enumeration of raw network addresses.
-  const visitor = createHmac("sha256", key)
-    .update("market-visitor:" + ip)
-    .digest("hex");
+export async function enterHosted(_request: Request) {
   const token = randomUUID(),
     scope = "0".repeat(64);
-  await control("enter", scope, [], token, visitor);
-  return () => control("leave", scope, [], token, visitor);
+  await control("enter", scope, [], token);
+  return () => control("leave", scope, [], token);
 }
 export function validMarketOrigin(request: Request) {
   try {

@@ -80,7 +80,7 @@ export async function readCatalog() {
   reading = { key, promise };
   return promise;
 }
-// Shared admitted refresh: durable daily lease prevents per-keystroke provider calls.
+// Shared admitted refresh: durable lease serializes imports without failed-attempt lockout.
 export async function refreshCatalog(config: Config, cycle: string) {
   try {
     return await readCatalog();

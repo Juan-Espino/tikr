@@ -1,13 +1,7 @@
 import { catalogShard, validateShard } from "../src/lib/asset-catalog";
 import { internalMutation } from "./_generated/server";
-import { makeFunctionReference } from "convex/server";
 import type { MutationCtx } from "./_generated/server";
-import {
-  limiter,
-  browsingLimits,
-  MAX_VISITORS,
-  VISITOR_TTL,
-} from "./market_limits";
+import { limiter, hostedConcurrency } from "./market_limits";
 import { v } from "convex/values";
 import { budget } from "./market";
 
@@ -107,54 +101,14 @@ export const control = internalMutation({
     } else {
       if (s.revoked.includes(a.scope)) return { code: "EVIDENCE_REVOKED" };
       if (a.op === "enter") {
-        if (!a.visitor) throw Error("INVALID_CONTROL");
-        const limits = browsingLimits();
-        await expire(ctx, s, now);
+        // Keep the shared in-flight resource bound; browsing has no request quota.
         for (const [t, expires] of Object.entries(s.active))
           if (expires <= now) delete s.active[t];
-        let retryAt: number | undefined;
-        if (Object.keys(s.active).length >= limits.concurrency)
-          retryAt = Math.min(...Object.values(s.active));
-        if (
-          !s.visitors![a.visitor] &&
-          Object.keys(s.visitors!).length >= MAX_VISITORS
-        )
-          retryAt = Math.max(
-            retryAt ?? 0,
-            Math.min(...Object.values(s.visitors!)),
-          );
-        if (retryAt) return { code: "BROWSING_RATE_LIMIT", retryAt };
-        if (!s.visitors![a.visitor]) {
-          s.visitors![a.visitor] = now + VISITOR_TTL;
-          await ctx.scheduler.runAfter(
-            VISITOR_TTL,
-            makeFunctionReference<"mutation">("hosted:expireVisitors"),
-            {},
-          );
-        }
-        const config = (rate: number) => ({
-          kind: "token bucket" as const,
-          rate,
-          capacity: rate,
-          period: 60000,
-        });
-        const global = await limiter.limit(ctx, "browse-global", {
-          config: config(limits.global),
-        });
-        const visitor = global.ok
-          ? await limiter.limit(ctx, "browse-visitor", {
-              key: a.visitor,
-              config: config(limits.visitor),
-            })
-          : global;
-        if (!visitor.ok) {
-          await save(ctx, row?._id, s);
+        if (Object.keys(s.active).length >= hostedConcurrency())
           return {
-            code: "BROWSING_RATE_LIMIT",
-            retryAt:
-              now + Math.max(1, Math.ceil(visitor.retryAfter ?? 60000)) + 1,
+            code: "REFRESH_BUSY",
+            retryAt: Math.min(...Object.values(s.active)),
           };
-        }
         s.active[a.token] = now + 120000;
       }
       if (

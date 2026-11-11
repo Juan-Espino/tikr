@@ -23,12 +23,12 @@ test("credentials fail closed; legacy works and canonical takes precedence", () 
     providerCredentials({ ...legacy, ALPACA_API_KEY_ID: "" }),
   ).toThrow("PROVIDER_NOT_CONFIGURED");
 });
-test("missing trusted visitor and malformed gateway config make no outgoing requests", async () => {
+test("malformed gateway config make no outgoing requests", async () => {
   const fetch = vi.fn();
   vi.stubGlobal("fetch", fetch);
   await expect(
     enterHosted(new Request("https://tikr.example")),
-  ).rejects.toThrow("VISITOR_REQUIRED");
+  ).rejects.toThrow("HOSTED_CONFIG");
   vi.stubEnv("TIKR_CONVEX_SITE_URL", "https://wrong.example");
   vi.stubEnv("TIKR_MARKET_GATEWAY_KEY", "synthetic-test-only-00000000000000");
   const log = vi.spyOn(console, "error").mockImplementation(() => {});

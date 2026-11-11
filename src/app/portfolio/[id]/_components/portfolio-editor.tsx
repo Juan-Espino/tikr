@@ -1,7 +1,7 @@
 "use client";
 
 import type { CatalogAsset } from "~/lib/asset-catalog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Plus, Search, X } from "lucide-react";
 import {
   allocation,
@@ -17,6 +17,9 @@ const catalogMessages: Record<string, string> = {
     "Market data is configured but not enabled for this server. Enable the intended mode and restart; sample results are not substituted.",
   STORAGE_CAPACITY:
     "Market-data storage capacity is exhausted. Operator review is needed.",
+  REFRESH_BUSY:
+    "Other data requests are still running. Please retry when they finish.",
+  TEAM_BUDGET_UNVERIFIED: "The shared data budget needs operator review.",
   CATALOG_PROVIDER:
     "The catalog provider could not complete the import. Retry later; persistent failures need operator review.",
   CATALOG_INVALID:
@@ -41,6 +44,7 @@ export function PortfolioEditor({
   nameError?: string;
   suggestedName?: string;
 }) {
+  const failedRetry = useRef<number | null>(null);
   const [retrySearch, setRetrySearch] = useState(0);
   const [searchFailed, setSearchFailed] = useState(false);
   const [catalogSource, setCatalogSource] = useState("unknown");
@@ -51,6 +55,7 @@ export function PortfolioEditor({
   );
   useEffect(() => {
     const controller = new AbortController();
+    if (failedRetry.current === retrySearch) return;
     setFiltered([]);
     setSearchFailed(false);
     if (!search.trim()) {
@@ -117,6 +122,7 @@ export function PortfolioEditor({
         })
         .catch((error: unknown) => {
           if (!controller.signal.aborted) {
+            failedRetry.current = retrySearch;
             setSearchFailed(true);
             setSearchState(
               error instanceof Error &&

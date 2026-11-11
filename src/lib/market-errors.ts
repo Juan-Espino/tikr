@@ -7,6 +7,7 @@ export const marketFailureCodes = [
   "CATALOG_UNAVAILABLE",
   "BROWSING_RATE_LIMIT",
   "REFRESH_COOLDOWN",
+  "REFRESH_BUSY",
   "SHARED_BUDGET_EXHAUSTED",
   "TEAM_BUDGET_UNVERIFIED",
   "REFRESH_GUARDED",
@@ -47,6 +48,8 @@ export function marketErrorMessage(code?: string) {
   switch (code) {
     case "BROWSING_RATE_LIMIT":
       return "Browsing is temporarily rate limited. Please wait before opening more results.";
+    case "REFRESH_BUSY":
+      return "Other data requests are still running. Please retry when they finish.";
     case "REFRESH_COOLDOWN":
       return "Market history refresh is cooling down. Please wait before retrying.";
     case "SHARED_BUDGET_EXHAUSTED":
