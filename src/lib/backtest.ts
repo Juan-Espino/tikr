@@ -2,6 +2,7 @@ export type Code =
   | "INVALID_INPUT"
   | "UNVERIFIED_DATA"
   | "INSUFFICIENT_COVERAGE"
+  | "SHORT_HISTORY"
   | "MISSING_PRICE"
   | "UNSUPPORTED_ACTION"
   | "NUMERIC_LIMIT";
@@ -111,6 +112,8 @@ export type Asset = {
   through: string;
   complete: boolean;
   inceptionVerified: boolean;
+  // Requested-window coverage does not establish lifetime inception.
+  periodCoverageVerified?: boolean;
   pricesComplete: boolean;
   actionsComplete: boolean;
   accessComplete: boolean;
@@ -220,7 +223,8 @@ export function backtest(input: Input) {
       return fail("INVALID_INPUT", "Duplicate or empty symbol");
     if (
       a.complete !== true ||
-      a.inceptionVerified !== true ||
+      (a.inceptionVerified !== true &&
+        !(a.periodCoverageVerified === true && a.firstAvailable <= start)) ||
       a.pricesComplete !== true ||
       a.actionsComplete !== true ||
       a.accessComplete !== true ||
@@ -257,6 +261,7 @@ export function backtest(input: Input) {
         );
       actionIds.add(action.id);
       date(action.date);
+      if (action.date < start || action.date > end) continue;
       if (action.type === "unsupported")
         return fail("UNSUPPORTED_ACTION", `${a.symbol}: ${action.description}`);
       if (action.type === "split") {
@@ -312,11 +317,15 @@ export function backtest(input: Input) {
   }
   const included = [...used].map((s) => bySymbol.get(s)!);
   const requestedSessions = c.sessions.filter((s) => s >= start && s <= end);
-  const earliest = included.reduce(
-    (v, a) => (a.firstAvailable > v ? a.firstAvailable : v),
-    start,
+  const short = included.find(
+    (a) => a.firstAvailable > (requestedSessions[0] ?? end),
   );
-  const sessions = requestedSessions.filter((s) => s >= earliest);
+  if (short)
+    return fail(
+      "SHORT_HISTORY",
+      `${short.symbol}: confirmed history starts ${short.firstAvailable}`,
+    );
+  const sessions = requestedSessions;
   if (sessions.length < 2)
     return fail(
       "INSUFFICIENT_COVERAGE",

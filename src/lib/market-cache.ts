@@ -2,10 +2,16 @@ import { marketFailure, type MarketFailureCode } from "./market-errors.ts";
 import "server-only";
 import { createHash } from "node:crypto";
 import { backtest, BacktestError } from "./backtest.ts";
-import type { Asset, Calendar, Portfolio } from "./backtest.ts";
+import type {
+  Asset,
+  Calendar,
+  Portfolio,
+  Code as BacktestCode,
+} from "./backtest.ts";
 
 type Result = ReturnType<typeof backtest>;
 type Code =
+  | BacktestCode
   | MarketFailureCode
   | "INVALID_INPUT"
   | "CALENDAR_UNAVAILABLE"
@@ -25,7 +31,7 @@ export class CacheError extends Error {
 const fail = (code: Code): never => {
   throw new CacheError(code);
 };
-const POLICY = "alpaca-raw-sip-next-day-0900-v1";
+const POLICY = "alpaca-raw-sip-next-day-0900-requested-v2";
 const date = (value: string) => {
   if (
     typeof value !== "string" ||
@@ -104,7 +110,7 @@ export type CacheView = {
   dataRevisions?: Record<string, string>;
   code?: Code;
   retryAt?: number;
-  issues?: { symbol: string; code: Code }[];
+  issues?: { symbol: string; code: Code; firstAvailable?: string }[];
 };
 export type AssetRefresh = {
   symbol: string;
@@ -269,11 +275,15 @@ export function createOnDemandBacktests(options: CacheOptions) {
       sessions: ctx.sessions.filter((s) => s >= historyStart && s <= through),
     });
   }
-  function fresh(entry: Entry | undefined, ctx: ReturnType<typeof context>) {
+  function fresh(
+    entry: Entry | undefined,
+    ctx: ReturnType<typeof context>,
+    from: string,
+  ) {
     return (
       !!entry &&
       entry.cycle === ctx.cycle &&
-      entry.asset.from <= historyStart &&
+      entry.asset.from <= from &&
       entry.calendarRevision === calendarRevision(ctx, entry.asset.through) &&
       (entry.asset.through >= ctx.latest ||
         (entry.pendingSession === ctx.latest &&
@@ -284,7 +294,8 @@ export function createOnDemandBacktests(options: CacheOptions) {
     asset: Asset,
     symbol: string,
     ctx: ReturnType<typeof context>,
-    pendingSession?: string,
+    pendingSession: string | undefined,
+    from: string,
   ) {
     const requiredThrough =
       pendingSession === ctx.latest
@@ -300,12 +311,15 @@ export function createOnDemandBacktests(options: CacheOptions) {
       asset?.symbol !== symbol ||
       asset.priceBasis !== "raw" ||
       asset.complete !== true ||
-      asset.inceptionVerified !== true ||
+      (asset.inceptionVerified !== true &&
+        !(
+          asset.periodCoverageVerified === true && asset.firstAvailable <= from
+        )) ||
       asset.pricesComplete !== true ||
       asset.actionsComplete !== true ||
       asset.accessComplete !== true ||
       !asset.provenance ||
-      date(asset.from) > historyStart ||
+      date(asset.from) > from ||
       date(asset.through) < requiredThrough ||
       !asset.prices ||
       !Array.isArray(asset.actions) ||
@@ -327,22 +341,30 @@ export function createOnDemandBacktests(options: CacheOptions) {
     }
     for (const day of ctx.sessions)
       if (
-        day >= historyStart &&
+        day >= from &&
         day >= first &&
         day <= asset.through &&
         !Object.hasOwn(asset.prices, day)
       )
-        fail("UNVERIFIED_DATA");
+        fail("MISSING_PRICE");
   }
   function refresh(
     symbol: string,
     ctx: ReturnType<typeof context>,
     retry: boolean,
+    from: string,
   ): Promise<void> | undefined {
     if (running.has(symbol)) return running.get(symbol)!;
     const now = clock();
     const last = attempts.get(symbol);
+    const previous = entries.get(symbol);
+    const expansion =
+      previous?.cycle === ctx.cycle &&
+      previous.asset.from > from &&
+      !errors.has(symbol) &&
+      Date.parse(previous.checkedAt) >= (last?.at ?? 0);
     if (
+      !expansion &&
       last?.cycle === ctx.cycle &&
       (!retry || last.count >= 2 || now.valueOf() - last.at < cooldown)
     ) {
@@ -367,11 +389,9 @@ export function createOnDemandBacktests(options: CacheOptions) {
         const payload = await Promise.race([
           options.load({
             symbol,
-            from: historyStart,
+            from,
             through: ctx.latest,
-            recheckFrom: ctx.sessions
-              .filter((s) => s >= historyStart)
-              .slice(-5)[0]!,
+            recheckFrom: ctx.sessions.filter((s) => s >= from).slice(-5)[0]!,
             previous: entries.has(symbol)
               ? clone(entries.get(symbol)!.asset)
               : undefined,
@@ -381,7 +401,7 @@ export function createOnDemandBacktests(options: CacheOptions) {
         ]);
         if (payload?.feed !== "sip") fail("UNVERIFIED_DATA");
         const asset = clone(payload.asset);
-        admit(asset, symbol, ctx, payload.pendingSession);
+        admit(asset, symbol, ctx, payload.pendingSession, from);
         const revision = hash({ policy: POLICY, feed: "sip", asset });
         const previous = entries.get(symbol);
         if (previous && previous.revision !== revision) invalidate(symbol);
@@ -455,7 +475,49 @@ export function createOnDemandBacktests(options: CacheOptions) {
       saved = undefined;
     }
     const pending = symbols.some((s) => running.has(s));
-    if (symbols.every((s) => fresh(entries.get(s), ctx))) {
+    const firstSession = ctx.sessions.find((s) => s >= request.start);
+    const issues: NonNullable<CacheView["issues"]> = symbols.flatMap(
+      (symbol): NonNullable<CacheView["issues"]> => {
+        const entry = entries.get(symbol);
+        if (!fresh(entry, ctx, request.start)) return [];
+        const a = entry!.asset;
+        if (
+          firstSession &&
+          a.inceptionVerified &&
+          a.firstAvailable > firstSession
+        )
+          return [
+            {
+              symbol,
+              code: "SHORT_HISTORY",
+              firstAvailable: a.firstAvailable,
+            },
+          ];
+        if (
+          a.actions.some(
+            (e) =>
+              e.type === "unsupported" &&
+              e.date >= request.start &&
+              e.date <= (request.end === "latest" ? ctx.latest : request.end),
+          )
+        )
+          return [{ symbol, code: "UNSUPPORTED_ACTION" }];
+        return [];
+      },
+    );
+    if (issues.length)
+      return {
+        ...base,
+        status: "blocked",
+        code: issues[0]!.code,
+        issues: [
+          ...issues,
+          ...symbols
+            .filter((symbol) => errors.has(symbol))
+            .map((symbol) => ({ symbol, code: errors.get(symbol)! })),
+        ],
+      };
+    if (symbols.every((s) => fresh(entries.get(s), ctx, request.start))) {
       const revisions = Object.fromEntries(
         symbols.map((s) => [s, entries.get(s)!.revision]),
       );
@@ -545,12 +607,12 @@ export function createOnDemandBacktests(options: CacheOptions) {
                   .filter((symbol) => e.message.startsWith(symbol + ":"))
                   .map((symbol) => ({
                     symbol,
-                    code: "CALCULATION_FAILED" as const,
+                    code: e.code,
                   }))
               : undefined,
           code:
             e instanceof BacktestError
-              ? "CALCULATION_FAILED"
+              ? e.code
               : e instanceof CacheError
                 ? e.code
                 : "CALCULATION_FAILED",
@@ -600,16 +662,30 @@ export function createOnDemandBacktests(options: CacheOptions) {
       const tasks = symbols
         .filter(
           (s) =>
-            !fresh(entries.get(s), ctx) ||
+            !fresh(entries.get(s), ctx, request.start) ||
             (retry && !!entries.get(s)?.pendingSession),
         )
-        .map((s) => refresh(s, ctx, retry))
+        .map((s) => refresh(s, ctx, retry, request.start))
         .filter((t): t is Promise<void> => !!t);
       const initial = view(request, symbols, key);
       return {
         initial,
         settled: tasks.length
-          ? Promise.all(tasks).then(() => view(request, symbols, key))
+          ? Promise.all(tasks).then(async () => {
+              // A wider caller may have joined a narrower in-flight load. Expand
+              // only after that successful scope commits, under the same lock.
+              const expansions = symbols
+                .filter((s) => {
+                  const entry = entries.get(s);
+                  return (
+                    entry && entry.asset.from > request.start && !errors.has(s)
+                  );
+                })
+                .map((s) => refresh(s, ctx, retry, request.start))
+                .filter((task): task is Promise<void> => !!task);
+              await Promise.all(expansions);
+              return view(request, symbols, key);
+            })
           : Promise.resolve(initial),
       };
     },

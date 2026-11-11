@@ -388,7 +388,7 @@ export function PortfolioEditor({
             {weights.valid
               ? !amountValid || !portfolio.name.trim()
                 ? "Complete the name and starting amount."
-                : "Results are up to date."
+                : "Allocation is valid. History is checked separately."
               : weights.total > 10000
                 ? `${((weights.total - 10000) / 100).toFixed(2)}% over. Adjust the weights to continue.`
                 : "Use positive weights totaling exactly 100%, with up to two decimals."}

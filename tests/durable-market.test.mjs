@@ -499,3 +499,30 @@ test("pending newest data anchors the preset to the earlier shared verified endp
     end: "2024-01-11",
   });
 });
+
+
+test("durable full and partial manifests respect the requested window across restart and revisions", async () => {
+  const f = fixture();
+  const days = ["2024-10-01", "2024-10-29", ...sessions];
+  f.options.calendar = () => ({ ...calendar, from: days[0], sessions: days });
+  f.options.historyStart = days[0];
+  const calls = [];
+  f.options.load = async (q) => {
+    calls.push(q.from);
+    return { feed: "sip", asset: { ...asset(q.symbol), from: q.from, firstAvailable: days[0],
+      prices: Object.fromEntries(days.filter((d) => d >= q.from).map((d) => [d, "100"])) } };
+  };
+  const first = await (await createDurableBacktests(f.options)(req, "1W")).settled;
+  assert.equal(first.status, "ready"); assert.ok(calls.every((d) => d === "2024-10-29"));
+  const again = await (await createDurableBacktests(f.options)(req, "1W")).settled;
+  assert.equal(again.status, "ready"); assert.equal(calls.length, 2);
+  // Synthetic store permits expansion under the same per-symbol lock; production
+  // transaction coverage is exercised in convex/market.test.ts.
+  f.store.acquire = async () => "token";
+  const expanded = await (await createDurableBacktests(f.options)(req, "Max")).settled;
+  assert.equal(expanded.status, "ready"); assert.ok(calls.slice(2).every((d) => d === days[0]));
+  assert.notDeepEqual(expanded.dataRevisions, first.dataRevisions);
+  const narrow = await (await createDurableBacktests(f.options)(req, "1W")).settled;
+  assert.equal(narrow.status, "ready"); assert.equal(calls.length, 4);
+  assert.equal(narrow.result.actual.start, "2024-10-29");
+});

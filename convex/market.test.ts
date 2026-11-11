@@ -206,3 +206,67 @@ test("catalog replacement is atomic across all 32 shards on invalid document and
     ).rows.map((e: { revision: string }) => e.revision),
   ).toEqual(entries.map((e) => e.revision));
 });
+
+test("window expansion retains symbol exclusion and cannot bypass failed-attempt cooldown", async () => {
+  vi.useFakeTimers();
+  const t = await fixture();
+  const args = {
+    key: "asset:SPY",
+    token,
+    cycle: "2026-11-10",
+    retry: false,
+    from: "2026-11-03",
+  };
+  expect((await t.mutation(ref("acquire"), args)).status).toBe("acquired");
+  expect(
+    (await t.mutation(ref("acquire"), { ...args, from: "2025-11-10" })).status,
+  ).toBe("busy");
+  await t.mutation(ref("write"), {
+    leaseKey: args.key,
+    token,
+    entries: [
+      {
+        ...entry,
+        payload: JSON.stringify({
+          format: "monthly-v2",
+          meta: { from: args.from },
+        }),
+      },
+    ],
+  });
+  expect(
+    (await t.mutation(ref("acquire"), { ...args, from: "2025-11-10" })).status,
+  ).toBe("acquired");
+  await t.mutation(ref("release"), { key: args.key, token });
+  expect(
+    (await t.mutation(ref("acquire"), { ...args, from: "2021-11-10" })).status,
+  ).toBe("daily");
+  expect(
+    (
+      await t.mutation(ref("acquire"), {
+        ...args,
+        from: "2025-11-10",
+        retry: true,
+      })
+    ).status,
+  ).toBe("cooldown");
+  vi.advanceTimersByTime(61000);
+  expect(
+    (
+      await t.mutation(ref("acquire"), {
+        ...args,
+        from: "2025-11-10",
+        retry: true,
+      })
+    ).status,
+  ).toBe("acquired");
+  const lease = await t.run(async (ctx) =>
+    ctx.db
+      .query("marketLeases")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .unique(),
+  );
+  expect(lease?.attempts).toBe(3);
+  expect(lease?.scopeAttempts).toBe(2);
+  vi.useRealTimers();
+});

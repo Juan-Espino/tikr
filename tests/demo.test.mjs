@@ -34,3 +34,15 @@ test('legacy sample holdings migrate to SPY without losing saved portfolios or d
  assert.doesNotThrow(()=>series(restored.portfolios[0].holdings,'5Y',2500));
  assert.equal(storageSchema.safeParse({version:1,portfolios:[{...portfolio,holdings:[{ticker:'../UNKNOWN',weight:'100'}]}],draft:null}).success,false);
 });
+
+
+test('new portfolios and examples default to one week; saved choices survive parsing', async () => {
+  const { newPortfolio, examples, storageSchema } = await import('../src/lib/demo.ts');
+  assert.equal(newPortfolio().range, '1W');
+  assert.ok(examples().every((p) => p.range === '1W'));
+  for (const range of ['1W', '1M', 'YTD', '1Y', '5Y']) {
+    const p = { ...newPortfolio(), range };
+    const saved = storageSchema.parse({ version: 1, portfolios: [p], draft: p });
+    assert.equal(saved.portfolios[0].range, range); assert.equal(saved.draft.range, range);
+  }
+});

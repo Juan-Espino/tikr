@@ -17,6 +17,9 @@ export default defineSchema({
     cycle: v.string(),
     attempts: v.number(),
     attemptedAt: v.number(),
+    completed: v.optional(v.boolean()),
+    completedFrom: v.optional(v.string()),
+    scopeAttempts: v.optional(v.number()),
   }).index("by_key", ["key"]),
   marketBudget: defineTable({
     key: v.string(),

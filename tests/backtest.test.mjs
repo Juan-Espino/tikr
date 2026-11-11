@@ -248,7 +248,7 @@ test("younger listing cannot hide an older holding or benchmark gap before the s
     end: days[3],
     amount: "100",
   };
-  assert.equal(backtest(input).actual.start, days[1]);
+  throwsCode(() => backtest(input), "SHORT_HISTORY");
   for (const symbol of ["A", "SPY"]) {
     const missing = structuredClone(input);
     delete missing.assets.find((item) => item.symbol === symbol).prices[
@@ -257,13 +257,12 @@ test("younger listing cannot hide an older holding or benchmark gap before the s
     assert.throws(
       () => backtest(missing),
       (error) =>
-        error.code === "MISSING_PRICE" &&
-        error.message.includes(`${symbol}: missing close on ${days[0]}`),
+        error.code === "SHORT_HISTORY",
     );
   }
 });
 
-test("requires at least two common completed sessions, including after listing adjustment", () => {
+test("requires at least two common completed sessions, without silently adjusting for listing", () => {
   const a = asset("A", ["100", "100", "100", "100"]);
   assert.throws(
     () => run(a, { start: days[3], end: days[3] }),
@@ -272,9 +271,9 @@ test("requires at least two common completed sessions, including after listing a
       error.message.includes("at least two completed trading sessions"),
   );
   a.firstAvailable = days[3];
-  throwsCode(() => run(a), "INSUFFICIENT_COVERAGE");
+  throwsCode(() => run(a), "SHORT_HISTORY");
   a.firstAvailable = "2024-01-10";
-  throwsCode(() => run(a), "INSUFFICIENT_COVERAGE");
+  throwsCode(() => run(a), "SHORT_HISTORY");
   a.firstAvailable = days[0];
   const result = run(a, { end: days[1] });
   assert.equal(result.portfolios[0].points.length, 2);
@@ -283,18 +282,19 @@ test("requires at least two common completed sessions, including after listing a
   assert.equal(result.actual.end, days[1]);
 });
 
-test("younger verified asset moves all comparisons; a gap is never treated as inception", () => {
+test("confirmed younger history blocks the whole requested period; a shorter period may succeed", () => {
   const a = asset("A", ["100", "100", "100", "100"], [], {
     firstAvailable: days[1],
   });
-  const r = run(a);
+  throwsCode(() => run(a), "SHORT_HISTORY");
+  const r = run(a, { start: days[1] });
   assert.equal(r.actual.start, days[1]);
   assert.equal(r.benchmark.points[0].date, days[1]);
-  assert.equal(r.shortened, true);
+  assert.equal(r.shortened, false);
   delete a.prices[days[2]];
-  throwsCode(() => run(a), "MISSING_PRICE");
+  throwsCode(() => run(a, { start: days[1] }), "MISSING_PRICE");
   a.firstAvailable = "2024-01-10";
-  throwsCode(() => run(a), "INSUFFICIENT_COVERAGE");
+  throwsCode(() => run(a), "SHORT_HISTORY");
 });
 test("unknown completeness, unsupported and ambiguous actions fail closed", () => {
   const a = asset("A", ["100", "100", "100", "100"]);
@@ -542,7 +542,7 @@ test("decimal context stays within the fixture error budget through repeated rei
   );
 });
 
-test("shared younger comparison shifts every result and benchmark; invalid inputs fail", () => {
+test("shared younger comparison blocks the requested period; invalid inputs fail", () => {
   const a = asset("A", ["100", "200", "100", "100"]);
   const b = asset("B", [undefined, "100", "100", "100"], [], {
     firstAvailable: days[1],
@@ -559,9 +559,10 @@ test("shared younger comparison shifts every result and benchmark; invalid input
     end: days[3],
     amount: "100",
   };
-  const r = backtest(input);
+  throwsCode(() => backtest(input), "SHORT_HISTORY");
+  const r = backtest({ ...input, start: days[1] });
   assert.equal(r.actual.start, days[1]);
-  assert.deepEqual(r.shortenedBy, [{ symbol: "B", firstAvailable: days[1] }]);
+  assert.deepEqual(r.shortenedBy, []);
   for (const series of [...r.portfolios, r.benchmark])
     assert.equal(series.points[0].date, days[1]);
   for (const weight of ["0", "99.99", "100.01", "1e2"]) {
@@ -578,4 +579,15 @@ test("shared younger comparison shifts every result and benchmark; invalid input
   const noSpy = structuredClone(input);
   noSpy.assets.pop();
   throwsCode(() => backtest(noSpy), "INVALID_INPUT");
+});
+
+
+test("a selected short period ignores older unsupported actions and older price gaps", () => {
+  const a = asset("A", [undefined, "100", "110", "120"], [{ id: "old", type: "unsupported", date: days[0], description: "synthetic old event" }]);
+  const r = run(a, { start: days[1] });
+  assert.equal(r.portfolios[0].ending, "120");
+  assert.equal(r.actual.start, days[1]);
+  throwsCode(() => run(a), "UNSUPPORTED_ACTION");
+  a.actions = [];
+  throwsCode(() => run(a), "MISSING_PRICE");
 });

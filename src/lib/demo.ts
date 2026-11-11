@@ -35,6 +35,7 @@ export const assets = [
   },
 ] as const;
 export const ranges = ["1W", "1M", "YTD", "1Y", "5Y", "Max"] as const;
+export const DEFAULT_RANGE = "1W" as const;
 export type Range = Exclude<(typeof ranges)[number], "Max">;
 export type Holding = { ticker: string; weight: string };
 const holdingSchema = z.object({
@@ -122,7 +123,7 @@ export function newPortfolio(): Portfolio {
     pinned: false,
     updated: Date.now(),
     amount: "10000",
-    range: "1Y",
+    range: DEFAULT_RANGE,
   };
 }
 export function examples(): Portfolio[] {

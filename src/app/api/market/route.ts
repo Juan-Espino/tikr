@@ -1,14 +1,27 @@
 import { marketFailure } from "~/lib/market-errors";
 import { diagnose } from "~/lib/market-diagnostics";
 import { hosted, enterHosted, validMarketOrigin } from "~/lib/market-hosted";
-import { marketRequestSchema } from "~/lib/market-contract";
+import {
+  type MarketResponse,
+  marketRequestSchema,
+} from "~/lib/market-contract";
 import { openMarket } from "~/lib/market-runtime";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-const blocked = (code: string, status = 503, retryAt?: number) =>
+const blocked = (
+  code: string,
+  status = 503,
+  retryAt?: number,
+  issues?: MarketResponse["issues"],
+) =>
   Response.json(
-    { status: "blocked", code, ...(retryAt ? { retryAt } : {}) },
+    {
+      status: "blocked",
+      code,
+      ...(retryAt ? { retryAt } : {}),
+      ...(issues ? { issues } : {}),
+    },
     {
       status,
       headers: {
@@ -81,6 +94,7 @@ export async function POST(request: Request) {
           final.code,
           final.code === "REFRESH_COOLDOWN" ? 429 : 503,
           final.retryAt,
+          final.issues,
         );
       }
       job = { initial: final, settled: Promise.resolve(final) };

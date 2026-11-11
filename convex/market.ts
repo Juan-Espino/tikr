@@ -114,17 +114,31 @@ export const read = internalMutation({
   },
 });
 export const acquire = internalMutation({
+  returns: v.object({
+    status: v.union(
+      v.literal("budget"),
+      v.literal("busy"),
+      v.literal("daily"),
+      v.literal("cooldown"),
+      v.literal("limit"),
+      v.literal("acquired"),
+    ),
+    chargedIo: v.optional(v.number()),
+    retryAt: v.optional(v.number()),
+  }),
   args: {
     key: v.string(),
     token: v.string(),
     cycle: v.string(),
     retry: v.boolean(),
+    from: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     validKey(args.key);
     if (
       !/^[a-f0-9-]{36}$/.test(args.token) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(args.cycle)
+      !/^\d{4}-\d{2}-\d{2}$/.test(args.cycle) ||
+      (args.from !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(args.from))
     )
       throw new Error("INVALID_LEASE");
     const now = Date.now();
@@ -136,7 +150,22 @@ export const acquire = internalMutation({
     if (row && row.expires > now)
       return { status: "busy" as const, chargedIo: 32768 };
     const attempts = row?.cycle === args.cycle ? row.attempts : 0;
-    if (args.key !== "catalog:refresh" && attempts >= (args.retry ? 2 : 1))
+    // Expanding a successfully committed window is new work, under the same
+    // symbol lease. Failed attempts, retries and arbitrary scope strings cannot
+    // bypass cooldowns. Budgets and active lease ownership still apply.
+    const expansion =
+      args.key.startsWith("asset:") &&
+      args.from !== undefined &&
+      row?.completed === true &&
+      row.completedFrom !== undefined &&
+      row.completedFrom > args.from;
+    const scopeAttempts =
+      row?.cycle === args.cycle ? (row.scopeAttempts ?? row.attempts) : 0;
+    if (
+      args.key !== "catalog:refresh" &&
+      !expansion &&
+      scopeAttempts >= (args.retry ? 2 : 1)
+    )
       return {
         status: "daily" as const,
         retryAt: nextCycle(args.cycle),
@@ -144,6 +173,7 @@ export const acquire = internalMutation({
       };
     if (
       args.key !== "catalog:refresh" &&
+      !expansion &&
       attempts > 0 &&
       now - row!.attemptedAt < 60000
     )
@@ -157,6 +187,8 @@ export const acquire = internalMutation({
       token: args.token,
       cycle: args.cycle,
       attempts: attempts + 1,
+      completed: false,
+      scopeAttempts: expansion ? 1 : scopeAttempts + 1,
       attemptedAt: now,
       expires: now + 60000,
     };
@@ -171,6 +203,10 @@ export const acquire = internalMutation({
   },
 });
 export const write = internalMutation({
+  returns: v.object({
+    status: v.union(v.literal("budget"), v.literal("storage"), v.literal("ok")),
+    chargedIo: v.optional(v.number()),
+  }),
   args: { leaseKey: v.string(), token: v.string(), entries: v.array(entry) },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -237,7 +273,33 @@ export const write = internalMutation({
       storage: b.storage + delta,
       entries: b.entries + added,
     });
-    await ctx.db.patch(lease._id, { expires: 0 });
+    let completedFrom: string | undefined;
+    if (args.leaseKey.startsWith("asset:")) {
+      const head = args.entries.find((e) => e.key === args.leaseKey);
+      if (head) {
+        try {
+          const data = JSON.parse(head.payload) as {
+            format?: string;
+            meta?: { from?: string };
+          };
+          if (
+            data.format === "monthly-v2" &&
+            typeof data.meta?.from === "string" &&
+            /^\d{4}-\d{2}-\d{2}$/.test(data.meta.from)
+          )
+            completedFrom = data.meta.from;
+        } catch {
+          /* Invalid metadata cannot authorize a future expansion. */
+        }
+      }
+    }
+    // Record scope in the same transaction as the successful head write. Reading
+    // the small lease later avoids an extra unbudgeted full source-head read.
+    await ctx.db.patch(lease._id, {
+      expires: 0,
+      completed: true,
+      ...(completedFrom ? { completedFrom } : {}),
+    });
     return { status: "ok" as const, chargedIo: io + 8192 };
   },
 });

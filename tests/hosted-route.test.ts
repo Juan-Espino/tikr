@@ -77,6 +77,7 @@ test("safe admission errors preserve Retry-After and never leak upstream text", 
         status: "blocked",
         code: "REFRESH_COOLDOWN",
         retryAt,
+        issues: [{ symbol: "SPY", code: "REFRESH_COOLDOWN" }],
         dataQuality: "reviewed",
         evidenceExpiresAt: new Date(Date.now() + 86400000).toISOString(),
       }),
@@ -87,6 +88,7 @@ test("safe admission errors preserve Retry-After and never leak upstream text", 
     expect(await response.json()).toMatchObject({
       code: "REFRESH_COOLDOWN",
       retryAt,
+      issues: [{ symbol: "SPY", code: "REFRESH_COOLDOWN" }],
     });
     expect(
       new Set(
