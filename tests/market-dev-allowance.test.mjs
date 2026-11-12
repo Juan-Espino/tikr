@@ -4,10 +4,10 @@ import { developmentIoAllowance } from "../src/lib/market-dev-allowance.ts";
 const approved = {
   NODE_ENV: "development",
   TIKR_DEV_IO_ALLOWANCE_MONTH: "2026-11",
-  TIKR_DEV_IO_ALLOWANCE_BYTES: "700000000",
+  TIKR_DEV_IO_ALLOWANCE_BYTES: "750000000",
 };
 test("reviewed headroom is local development and month scoped, without changing ordinary limits", () => {
-  assert.equal(developmentIoAllowance(approved, "2026-11"), 700000000);
+  assert.equal(developmentIoAllowance(approved, "2026-11"), 750000000);
   assert.equal(
     developmentIoAllowance(
       { ...approved, TIKR_DEV_IO_ALLOWANCE_BYTES: "650000000" },
@@ -43,7 +43,7 @@ test("partial, malformed and excessive allowances fail closed", () => {
   for (const change of [
     { TIKR_DEV_IO_ALLOWANCE_MONTH: undefined },
     { TIKR_DEV_IO_ALLOWANCE_MONTH: "bad" },
-    { TIKR_DEV_IO_ALLOWANCE_BYTES: "700000001" },
+    { TIKR_DEV_IO_ALLOWANCE_BYTES: "750000001" },
     { TIKR_DEV_IO_ALLOWANCE_BYTES: "0" },
     { TIKR_DEV_IO_ALLOWANCE_BYTES: "NaN" },
   ])

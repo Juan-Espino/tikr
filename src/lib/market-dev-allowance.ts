@@ -24,7 +24,7 @@ export function developmentIoAllowance(
   if (
     !Number.isSafeInteger(bytes) ||
     bytes < MARKET_BUDGET.monthlyIoBytes ||
-    bytes > 700_000_000
+    bytes > 750_000_000
   )
     throw Error("ADMISSION_CONFIG");
   return reviewedMonth === "2026-11" && reviewedMonth === month
