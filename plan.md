@@ -1,3 +1,11 @@
+## Approved bear branding integration (2026-11-11, main exception)
+
+Integrated the approved 27-frame bear turn into shared TikrLogo using a CSS sprite and no new dependency/client component. The 13.39-second cycle includes the turn, one-second right hold, return and ten-second final rest; reduced motion is static. Replaced the browser favicon (16/32/48/64 PNG-backed ICO) and touch icon with the static bear head; metadata uses a versioned favicon URL to avoid the old cached mark. Prior environment/generated-type edits and owner-approved unused-asset deletions are preserved. Preview artwork remains outside the app; only the 57 KB header sprite and static icon exports are shipped. Verification: pnpm check passed lint and both TypeScript projects; focused Prettier and git diff --check passed (existing line-ending warnings only). Asset inspection confirmed a 56,988-byte sprite, 10,578-byte touch PNG and 5,104-byte ICO. Removed the superseded 1.2 MB bear-aviator asset after confirming no source references remain. No new dependencies. No application browser or production-build verification was performed. Next: owner local review; no commit, push or deployment authorized.
+
+## Local environment setup (2026-11-11)
+
+Owner authorized main local environment setup and example documentation. Private T3 input populated the development Convex URL/admin key in ignored `.env.local`; enabled local personal-provisional mode with hosted origin unset. Existing Alpaca fallback credentials are retained. Saved gateway settings are inactive in local mode. Updated `.env.example` with placeholders and local/hosted guidance. No secret values are recorded. No deployment, live calls, commit or push performed. Next: restart dev server and verify connectivity; development target identity, admission review and live history remain unverified.
+
 ## Owner-approved history UX and requested periods (2026-11-10)
 
 Implemented in the bound `feat-history-period-limitations` worktree from a clean status. Main was not touched. No agents, credentials, live provider requests, deployment/provisioning, commits, pushes, PRs, merges or ledger/guard cleanup were used. Historical publication/activation permissions below do not authorize them for this task.
