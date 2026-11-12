@@ -6,12 +6,12 @@ import { Manrope } from "next/font/google";
 import { ConvexClientProvider } from "./convex-client-provider";
 
 export const metadata: Metadata = {
-  title: "Tikr | Historical portfolio lab",
+  title: "Tikr",
   description:
     "Build hypothetical portfolios with an explicitly labeled local sample-data demo.",
   icons: {
-    icon: [{ url: "/brand/bear-aviator.png", type: "image/png" }],
-    apple: "/brand/bear-aviator.png",
+    icon: [{ url: "/favicon.ico?v=2", type: "image/x-icon" }],
+    apple: "/brand/tikr-icon.png",
   },
 };
 
