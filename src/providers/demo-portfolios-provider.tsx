@@ -35,11 +35,28 @@ function usePortfolioStore() {
           )
         )
           throw new Error("Invalid saved portfolio");
+        const legacy = JSON.parse(raw) as {
+          portfolios: { range: string; rangeChoice?: string }[];
+          draft?: { range: string; rangeChoice?: string };
+        };
+        if (
+          [...legacy.portfolios, legacy.draft].some(
+            (p) => p?.range === "1Y" && !p.rangeChoice,
+          )
+        )
+          setNotice(
+            "Older saved 1Y periods were reset to the new 1W default. Old storage did not record whether 1Y was chosen explicitly; select 1Y again to keep it.",
+          );
         setPortfolios(stored.portfolios);
         setDraft(stored.draft);
         if (/"ticker"\s*:\s*"VOO"/.test(raw)) {
-          setNotice(
-            "The demo now uses SPY. Previous VOO sample holdings were updated to SPY; your saved portfolios and draft were preserved.",
+          setNotice((previous) =>
+            [
+              previous,
+              "The demo now uses SPY. Previous VOO sample holdings were updated to SPY; your saved portfolios and draft were preserved.",
+            ]
+              .filter(Boolean)
+              .join(" "),
           );
         }
       }

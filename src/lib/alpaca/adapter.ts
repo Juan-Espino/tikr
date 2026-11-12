@@ -441,14 +441,30 @@ export async function fetchCandidates(
         for (const item of rows) {
           const row = object(item),
             id = text(row.id);
-          // Cash consideration affects acquiree shares; the acquirer is also returned by the API.
-          if (kind === "cash_mergers" && row.symbol == null) {
+          // Merger terms exchange acquiree shares. An acquirer-only match does not
+          // change shares already held in the acquirer; its raw price still applies.
+          if (
+            (kind === "cash_mergers" || kind === "stock_mergers") &&
+            row.symbol == null
+          ) {
             const acquiree = text(row.acquiree_symbol),
-              acquirer = text(row.acquirer_symbol);
-            if (!symbols.includes(acquiree) && symbols.includes(acquirer)) {
+              acquirer =
+                row.acquirer_symbol == null
+                  ? undefined
+                  : text(row.acquirer_symbol);
+            if (
+              !symbols.includes(acquiree) &&
+              acquirer &&
+              symbols.includes(acquirer)
+            ) {
               const processed = date(row.process_date);
               date(row.effective_date);
-              positive(row.rate);
+              if (acquiree === acquirer) return fail("MALFORMED");
+              if (kind === "stock_mergers") {
+                positive(row.acquiree_rate);
+                positive(row.acquirer_rate);
+                if (row.payable_date != null) date(row.payable_date);
+              } else positive(row.rate);
               if (processed < start || processed > end || ids.has(id))
                 return fail("MALFORMED");
               ids.add(id);

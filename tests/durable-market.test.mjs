@@ -500,7 +500,6 @@ test("pending newest data anchors the preset to the earlier shared verified endp
   });
 });
 
-
 test("durable full and partial manifests respect the requested window across restart and revisions", async () => {
   const f = fixture();
   const days = ["2024-10-01", "2024-10-29", ...sessions];
@@ -509,20 +508,397 @@ test("durable full and partial manifests respect the requested window across res
   const calls = [];
   f.options.load = async (q) => {
     calls.push(q.from);
-    return { feed: "sip", asset: { ...asset(q.symbol), from: q.from, firstAvailable: days[0],
-      prices: Object.fromEntries(days.filter((d) => d >= q.from).map((d) => [d, "100"])) } };
+    return {
+      feed: "sip",
+      asset: {
+        ...asset(q.symbol),
+        from: q.from,
+        firstAvailable: days[0],
+        prices: Object.fromEntries(
+          days.filter((d) => d >= q.from).map((d) => [d, "100"]),
+        ),
+      },
+    };
   };
-  const first = await (await createDurableBacktests(f.options)(req, "1W")).settled;
-  assert.equal(first.status, "ready"); assert.ok(calls.every((d) => d === "2024-10-29"));
-  const again = await (await createDurableBacktests(f.options)(req, "1W")).settled;
-  assert.equal(again.status, "ready"); assert.equal(calls.length, 2);
+  const first = await (
+    await createDurableBacktests(f.options)(req, "1W")
+  ).settled;
+  assert.equal(first.status, "ready");
+  assert.ok(calls.every((d) => d === "2024-10-29"));
+  const again = await (
+    await createDurableBacktests(f.options)(req, "1W")
+  ).settled;
+  assert.equal(again.status, "ready");
+  assert.equal(calls.length, 2);
   // Synthetic store permits expansion under the same per-symbol lock; production
   // transaction coverage is exercised in convex/market.test.ts.
   f.store.acquire = async () => "token";
-  const expanded = await (await createDurableBacktests(f.options)(req, "Max")).settled;
-  assert.equal(expanded.status, "ready"); assert.ok(calls.slice(2).every((d) => d === days[0]));
+  const expanded = await (
+    await createDurableBacktests(f.options)(req, "Max")
+  ).settled;
+  assert.equal(expanded.status, "ready");
+  assert.ok(calls.slice(2).every((d) => d === days[0]));
   assert.notDeepEqual(expanded.dataRevisions, first.dataRevisions);
-  const narrow = await (await createDurableBacktests(f.options)(req, "1W")).settled;
-  assert.equal(narrow.status, "ready"); assert.equal(calls.length, 4);
+  const narrow = await (
+    await createDurableBacktests(f.options)(req, "1W")
+  ).settled;
+  assert.equal(narrow.status, "ready");
+  assert.equal(calls.length, 4);
   assert.equal(narrow.result.actual.start, "2024-10-29");
+});
+
+test("explicit recovery commits freshly validated history and receipts without deleting abandoned guards", async () => {
+  const { mkdtemp, rm, readdir, stat } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join, resolve, sep, basename } = await import("node:path");
+  const { createAdmission } = await import("../src/lib/market-admission.ts");
+  const dir = await mkdtemp(join(tmpdir(), "tikr-recover-"));
+  try {
+    const f = fixture(),
+      scope = "b".repeat(64),
+      gate = createAdmission(dir);
+    f.options.evidenceRevision = scope;
+    f.store.recoverySymbols = (symbols) => gate.guardedSymbols(scope, symbols);
+    f.store.assertReadable = async (symbols) =>
+      gate.assertReadable(
+        scope,
+        symbols,
+        Object.fromEntries(
+          symbols.map((s) => [s, f.rows.get("asset:" + s)?.revision]),
+        ),
+      );
+    f.store.beginRefresh = (symbol) => gate.beginRefresh(scope, symbol);
+    f.store.confirmRefresh = async (symbol, headRevision) => {
+      assert.equal(f.rows.get("asset:" + symbol)?.revision, headRevision);
+      await gate.confirmRefresh(scope, symbol, headRevision);
+    };
+    assert.equal(
+      (await (await createDurableBacktests(f.options)(req, "Max")).settled)
+        .status,
+      "ready",
+    );
+    await (await gate.beginRefresh(scope, "SPY")).endObservation();
+    const guard = (await readdir(dir)).find((n) => n.endsWith(".flag"));
+    const before = await stat(join(dir, guard));
+    const calls = f.calls();
+    const recover = await createDurableBacktests(f.options)(req, "Max", true);
+    assert.equal(recover.initial.result, undefined);
+    assert.equal((await recover.settled).status, "ready");
+    assert.equal(f.calls(), calls + 1);
+    assert.equal(
+      (
+        await (
+          await createDurableBacktests({
+            ...f.options,
+            storage: { ...f.store },
+          })(req, "Max")
+        ).settled
+      ).status,
+      "ready",
+    );
+    const after = await stat(join(dir, guard));
+    assert.equal(after.mtimeMs, before.mtimeMs);
+    await gate.revoke(scope);
+    await assert.rejects(
+      createDurableBacktests(f.options)(req, "Max", true),
+      /EVIDENCE_REVOKED/,
+    );
+  } finally {
+    if (
+      !resolve(dir).startsWith(resolve(tmpdir()) + sep) ||
+      !basename(dir).startsWith("tikr-recover-")
+    )
+      throw Error("UNSAFE_CLEANUP");
+    await rm(dir, { recursive: true });
+  }
+});
+
+test("one explicit guarded retry terminates after source, write or receipt failure", async () => {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join, resolve, sep, basename } = await import("node:path");
+  const { createAdmission } = await import("../src/lib/market-admission.ts");
+  for (const mode of ["source", "write", "receipt"]) {
+    const dir = await mkdtemp(join(tmpdir(), "tikr-recover-"));
+    try {
+      const f = fixture(),
+        scope = "f".repeat(64),
+        gate = createAdmission(dir);
+      f.options.evidenceRevision = scope;
+      f.store.recoverySymbols = (s) => gate.guardedSymbols(scope, s);
+      f.store.assertReadable = async (s) =>
+        gate.assertReadable(
+          scope,
+          s,
+          Object.fromEntries(
+            s.map((x) => [x, f.rows.get("asset:" + x)?.revision]),
+          ),
+        );
+      f.store.beginRefresh = (s) => gate.beginRefresh(scope, s);
+      f.store.confirmRefresh = (s, r) => gate.confirmRefresh(scope, s, r);
+      await (
+        await createDurableBacktests(f.options)(req, "Max")
+      ).settled;
+      await (await gate.beginRefresh(scope, "SPY")).endObservation();
+      let calls = 0;
+      f.options.load = async (q) => {
+        calls++;
+        if (calls > 1) throw Error("UNBOUNDED_RETRY");
+        if (mode === "source") throw Error("SOURCE_UNAVAILABLE");
+        return { feed: "sip", asset: asset(q.symbol) };
+      };
+      if (mode === "write")
+        f.store.write = async () => {
+          throw Error("STORAGE_UNAVAILABLE");
+        };
+      if (mode === "receipt")
+        f.store.confirmRefresh = async () => {
+          throw Error("RECEIPT_UNAVAILABLE");
+        };
+      const final = await (
+        await createDurableBacktests(f.options)(req, "Max", true)
+      ).settled;
+      assert.equal(final.status, "blocked");
+      assert.equal(final.code, "REFRESH_GUARDED");
+      assert.equal(final.result, undefined);
+      assert.equal(calls, 1);
+    } finally {
+      if (
+        !resolve(dir).startsWith(resolve(tmpdir()) + sep) ||
+        !basename(dir).startsWith("tikr-recover-")
+      )
+        throw Error("UNSAFE_CLEANUP");
+      await rm(dir, { recursive: true });
+    }
+  }
+});
+
+test("partial recovery cannot use a saved stale portfolio when another symbol fails", async () => {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join, resolve, sep, basename } = await import("node:path");
+  const { createAdmission } = await import("../src/lib/market-admission.ts");
+  const dir = await mkdtemp(join(tmpdir(), "tikr-recover-"));
+  try {
+    const f = fixture(),
+      scope = "9".repeat(64),
+      gate = createAdmission(dir);
+    f.options.evidenceRevision = scope;
+    f.store.recoverySymbols = (s) => gate.guardedSymbols(scope, s);
+    f.store.assertReadable = async (s) =>
+      gate.assertReadable(
+        scope,
+        s,
+        Object.fromEntries(
+          s.map((x) => [x, f.rows.get("asset:" + x)?.revision]),
+        ),
+      );
+    f.store.beginRefresh = (s) => gate.beginRefresh(scope, s);
+    f.store.confirmRefresh = (s, r) => gate.confirmRefresh(scope, s, r);
+    assert.equal(
+      (await (await createDurableBacktests(f.options)(req, "Max")).settled)
+        .status,
+      "ready",
+    );
+    const old = f.rows.get("asset:SPY").revision;
+    await (await gate.beginRefresh(scope, "SPY")).endObservation();
+    f.setNow("2024-11-07T14:00:00Z");
+    f.options.load = async (q) => {
+      if (q.symbol === "AAA") throw Error("SOURCE_UNAVAILABLE");
+      return { feed: "sip", asset: asset(q.symbol) };
+    };
+    const attempt = await createDurableBacktests(f.options)(req, "Max", true);
+    assert.equal(attempt.initial.result, undefined);
+    const final = await attempt.settled;
+    assert.equal(final.status, "blocked");
+    assert.equal(final.result, undefined);
+    assert.equal(f.rows.get("asset:SPY").revision, old);
+    await f.store.assertReadable(["SPY"]); // Its proof succeeded; the portfolio must still be blocked.
+  } finally {
+    if (
+      !resolve(dir).startsWith(resolve(tmpdir()) + sep) ||
+      !basename(dir).startsWith("tikr-recover-")
+    )
+      throw Error("UNSAFE_CLEANUP");
+    await rm(dir, { recursive: true });
+  }
+});
+
+test("warm asset memory avoids monthly reads but still respects durable revisions and revocation", async () => {
+  const f = fixture();
+  f.store.namespace = "durable-memory-isolation";
+  let monthlyReads = 0;
+  const read = f.store.read;
+  f.store.read = async (keys) => {
+    monthlyReads += keys.filter((k) => k.startsWith("price:")).length;
+    return read(keys);
+  };
+  const first = await (
+    await createDurableBacktests(f.options)(req, "Max")
+  ).settled;
+  assert.equal(first.status, "ready");
+  const calls = f.calls();
+  monthlyReads = 0;
+  const warm = await (
+    await createDurableBacktests(f.options)({ ...req, amount: "2000" }, "Max")
+  ).settled;
+  assert.equal(warm.status, "ready");
+  assert.equal(monthlyReads, 0);
+  assert.equal(f.calls(), calls);
+  assert.equal(warm.result.portfolios[0].points[0].value, "2000");
+  f.rows.get("asset:AAA").revision = "f".repeat(64);
+  const changed = await (
+    await createDurableBacktests(f.options)({ ...req, amount: "3000" }, "Max")
+  ).settled;
+  assert.equal(changed.status, "blocked");
+  assert.equal(changed.result, undefined);
+  assert.ok(monthlyReads > 0);
+  await f.store.revoke();
+  await assert.rejects(
+    createDurableBacktests(f.options)(req, "Max"),
+    /EVIDENCE_REVOKED/,
+  );
+});
+
+test("a changed supported history window clamps retained coverage to the new calendar", async () => {
+  const f = fixture();
+  f.options.evidenceRevision = "old-window";
+  await (
+    await createDurableBacktests(f.options)(req, "Max")
+  ).settled;
+  f.options.evidenceRevision = "new-window";
+  f.options.historyStart = sessions[1];
+  f.options.calendar = () => ({
+    ...calendar,
+    from: sessions[1],
+    sessions: sessions.slice(1),
+  });
+  const requested = [];
+  f.options.load = async (q) => {
+    requested.push(q.from);
+    return {
+      feed: "sip",
+      asset: {
+        ...asset(q.symbol),
+        from: sessions[1],
+        firstAvailable: sessions[1],
+        prices: Object.fromEntries(
+          sessions.slice(1).map((d, i) => [d, String(110 + i * 10)]),
+        ),
+      },
+    };
+  };
+  const final = await (
+    await createDurableBacktests(f.options)(req, "Max", true)
+  ).settled;
+  assert.equal(final.status, "ready");
+  assert.deepEqual(requested, [sessions[1], sessions[1]]);
+  assert.equal(final.result.actual.start, sessions[1]);
+});
+
+test("known period limitations survive restart without another source attempt and do not block other periods", async () => {
+  const f = fixture();
+  let failingCalls = 0;
+  f.options.load = async (q) => {
+    if (q.symbol === "AAA") {
+      failingCalls++;
+      throw new MarketFailure("MISSING_PRICE");
+    }
+    return { feed: "sip", asset: asset(q.symbol) };
+  };
+  const first = await (
+    await createDurableBacktests(f.options)(req, "Max")
+  ).settled;
+  assert.equal(first.status, "blocked");
+  assert.equal(first.code, "MISSING_PRICE");
+  assert.equal(failingCalls, 1);
+  const restarted = await (
+    await createDurableBacktests({ ...f.options, storage: { ...f.store } })(
+      req,
+      "Max",
+    )
+  ).settled;
+  assert.equal(restarted.status, "blocked");
+  assert.equal(restarted.code, "MISSING_PRICE");
+  assert.equal(failingCalls, 1);
+  assert.equal(
+    (
+      await (
+        await createDurableBacktests(f.options)(
+          {
+            portfolios: [
+              { id: "spy-only", holdings: [{ symbol: "SPY", weight: "100" }] },
+            ],
+            amount: "1000",
+          },
+          "Max",
+        )
+      ).settled
+    ).status,
+    "ready",
+  );
+});
+
+test("retrying incomplete coverage does not refetch a fresh unrelated benchmark", async () => {
+  const f = fixture();
+  await (
+    await createDurableBacktests(f.options)(req, "Max")
+  ).settled;
+  const narrow = {
+    ...asset("AAA"),
+    from: sessions[1],
+    firstAvailable: sessions[1],
+    prices: { [sessions[1]]: "110", [sessions[2]]: "120" },
+  };
+  await f.store.write("asset:AAA", "token", assetRecords(narrow));
+  const requested = [];
+  f.options.load = async (q) => {
+    requested.push(q.symbol);
+    throw new MarketFailure("MISSING_PRICE");
+  };
+  const final = await (
+    await createDurableBacktests(f.options)(req, "Max", true)
+  ).settled;
+  assert.equal(final.status, "blocked");
+  assert.equal(final.code, "MISSING_PRICE");
+  assert.deepEqual(requested, ["AAA"]);
+});
+
+test("a real asset revocation survives restart while unrelated SPY remains readable", async () => {
+  const { mkdtemp } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { createAdmission } = await import("../src/lib/market-admission.ts");
+  const dir = await mkdtemp(join(tmpdir(), "tikr-correction-isolation-"));
+  const f = fixture(),
+    scope = "c".repeat(64);
+  f.store.revoke = (symbol) => createAdmission(dir).revoke(scope, symbol);
+  f.store.assertReadable = (symbols) =>
+    createAdmission(dir).assertReadable(scope, symbols);
+  const run = createDurableBacktests(f.options);
+  assert.equal((await (await run(req, "Max")).settled).status, "ready");
+  f.options.load = async (q) => {
+    if (q.symbol === "AAA") {
+      const error = new Error("changed");
+      error.code = "EVIDENCE_CHANGED";
+      throw error;
+    }
+    return { feed: "sip", asset: asset(q.symbol) };
+  };
+  const corrected = await (
+    await createDurableBacktests(f.options)(req, "Max", true)
+  ).settled;
+  assert.equal(corrected.result, undefined);
+  const restarted = createDurableBacktests({
+    ...f.options,
+    storage: { ...f.store },
+  });
+  await assert.rejects(restarted(req, "Max"), /EVIDENCE_REVOKED/);
+  const spy = {
+    ...req,
+    portfolios: [{ id: "spy", holdings: [{ symbol: "SPY", weight: "100" }] }],
+  };
+  assert.equal((await (await restarted(spy, "Max")).settled).status, "ready");
+  await assert.rejects(restarted(req, "Max", true), /EVIDENCE_REVOKED/);
+  // Keep the synthetic revocation marker as evidence, too.
 });

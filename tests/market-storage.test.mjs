@@ -76,7 +76,7 @@ test("server errors never expose credential canaries and retain failed reservati
       ),
     );
     assert.equal(ledger.calls, 1);
-    assert.equal(ledger.io, 10_000_000);
+    assert.equal(ledger.io, 32768);
   }));
 
 test("SDK budget review refusal reaches the caller as a safe distinct error", async () =>
@@ -123,7 +123,54 @@ test("storage capacity refusal remains distinct from I/O budget exhaustion", asy
         logLines: [],
       });
     await assert.rejects(
-      store.write("catalog:refresh", "synthetic", []),
+      store.write("catalog:refresh", "synthetic", [
+        {
+          key: "catalog:0",
+          payload: "{}",
+          revision: "a".repeat(64),
+          dependencies: [],
+        },
+      ]),
       (error) => error.code === "STORAGE_CAPACITY",
+    );
+  }));
+
+test("personal correction cannot escape revocation through a monthly window change", async () =>
+  fixture(async () => {
+    const { PERSONAL_SOURCE_POLICY } =
+      await import("../src/lib/market-policy.ts");
+    const make = (scope) =>
+      convexStorage(
+        "https://offline-test.convex.cloud",
+        "synthetic-private-canary",
+        scope,
+        PERSONAL_SOURCE_POLICY,
+      );
+    const november = make("b".repeat(64));
+    await november.revoke("AAA");
+    const december = make("c".repeat(64));
+    globalThis.fetch = () => {
+      throw Error("No provider or storage requests permitted");
+    };
+    await assert.rejects(
+      december.assertReadable(["AAA", "SPY"]),
+      /EVIDENCE_REVOKED/,
+    );
+    await assert.rejects(december.beginRefresh("AAA"), /EVIDENCE_REVOKED/);
+    await assert.rejects(december.recoverySymbols(["AAA"]), /EVIDENCE_REVOKED/);
+    await assert.rejects(
+      december.confirmRefresh("AAA", "d".repeat(64)),
+      /EVIDENCE_REVOKED/,
+    );
+    await december.assertReadable(["SPY"]);
+    const freshProcessStore = make("e".repeat(64));
+    await assert.rejects(
+      freshProcessStore.assertReadable(["AAA"]),
+      /EVIDENCE_REVOKED/,
+    );
+    await november.revoke();
+    await assert.rejects(
+      freshProcessStore.assertReadable(["SPY"]),
+      /EVIDENCE_REVOKED/,
     );
   }));

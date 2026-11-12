@@ -64,14 +64,24 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     open,
   } = useDemoPortfolios();
   const [draft, updateDraft] = useState(initial);
+  const initialNameConflict = portfolios.some(
+    (other) =>
+      other.id !== initial.id &&
+      other.name.trim().toLowerCase() === initial.name.trim().toLowerCase() &&
+      !!initial.name.trim(),
+  );
+  const [nameValidationAttempted, setNameValidationAttempted] = useState(false);
   function setDraft(p: Portfolio) {
     updateDraft(p);
     persistDraft(p);
   }
   const [editorOpen, setEditorOpen] = useState(
-    !!portfolioNameError(initial, portfolios),
+    !initial.name.trim() || initialNameConflict,
   );
-  const nameError = portfolioNameError(draft, portfolios);
+  const nameError = nameValidationAttempted
+    ? portfolioNameError(draft, portfolios)
+    : "";
+  const saveNameError = portfolioNameError(draft, portfolios);
   const suggestedName =
     nameError && draft.name.trim()
       ? suggestedPortfolioName(draft.name, portfolios)
@@ -88,7 +98,15 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     draft &&
     allocation(draft.holdings).valid &&
     validAmount(draft.amount) &&
-    !nameError;
+    !saveNameError;
+  function finishEditing() {
+    if (portfolioNameError(draft, portfolios)) {
+      setNameValidationAttempted(true);
+      return;
+    }
+    setNameValidationAttempted(false);
+    setEditorOpen(false);
+  }
   function changeDraft(p: Portfolio) {
     setDraft(p);
     if (!p.holdings.length) {
@@ -128,7 +146,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
               Portfolio editor
             </p>
             <h1 className="mt-2 text-3xl break-words">
-              {draft.name || "Untitled portfolio"}
+              {draft.name.trim() || "New portfolio"}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
               {draft.holdings.length}{" "}
@@ -219,10 +237,13 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             <DialogContent>
               <PortfolioEditor
                 portfolio={draft}
+                isNew={
+                  !portfolios.some((portfolio) => portfolio.id === draft.id)
+                }
                 nameError={nameError}
                 suggestedName={suggestedName}
                 onChange={changeDraft}
-                onClose={() => setEditorOpen(false)}
+                onClose={finishEditing}
               />
             </DialogContent>
           </Dialog>
@@ -271,7 +292,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                   alignStart
                   value={draft.range}
                   onChange={(range) => {
-                    changeDraft({ ...draft, range });
+                    changeDraft({ ...draft, range, rangeChoice: "explicit" });
                     setResult((previous) =>
                       previous ? { ...previous, range } : null,
                     );

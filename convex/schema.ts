@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { PERSONAL_SOURCE_POLICY } from "../src/lib/market-policy";
 
 export default defineSchema({
   marketEntries: defineTable({
@@ -20,6 +21,7 @@ export default defineSchema({
     completed: v.optional(v.boolean()),
     completedFrom: v.optional(v.string()),
     scopeAttempts: v.optional(v.number()),
+    reviewedPolicy: v.optional(v.literal(PERSONAL_SOURCE_POLICY)),
   }).index("by_key", ["key"]),
   marketBudget: defineTable({
     key: v.string(),

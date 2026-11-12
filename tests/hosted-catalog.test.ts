@@ -3,6 +3,7 @@ import { test, expect, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const state = vi.hoisted(() => ({
   reads: 0,
+  keys: [] as string[][],
   rows: [] as {
     key: string;
     payload: string;
@@ -16,9 +17,10 @@ const state = vi.hoisted(() => ({
 vi.mock("../src/lib/market-storage.ts", () => ({
   revision: () => "a".repeat(64),
   convexStorage: () => ({
-    read: async () => {
+    read: async (keys: string[]) => {
       state.reads++;
-      return state.rows;
+      state.keys.push(keys);
+      return state.rows.filter((row) => keys.includes(row.key));
     },
     acquire: async () => (state.busy ? null : ((state.busy = true), "token")),
     write: async (_key: string, _token: string, rows: typeof state.rows) => {
@@ -219,6 +221,92 @@ test("two failed imports remain retryable and overlapping callers import once", 
     expect(results[0]).toEqual(results[1]);
     expect(transport).toHaveBeenCalledTimes(3);
     expect(state.writes).toBe(1);
+  } finally {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  }
+});
+
+test("history membership reads only selected fresh catalog shards and rejects mixed or corrupt evidence", async () => {
+  vi.resetModules();
+  const { readCatalog } = await import("../src/lib/catalog-server");
+  const { catalogShard, packCatalogShard } =
+    await import("../src/lib/asset-catalog");
+  vi.stubEnv("TIKR_PERSONAL_DATA_ENABLED", "explicit");
+  vi.stubEnv("TIKR_CONVEX_URL", "https://selected.synthetic.convex.cloud");
+  vi.stubEnv("TIKR_CONVEX_ADMIN_KEY", "synthetic");
+  let now = Date.now();
+  vi.spyOn(Date, "now").mockImplementation(() => now);
+  const assets = ["SPY", "AAA", "X1"].map((ticker) => ({
+    ticker,
+    name: ticker,
+    exchange: "NASDAQ",
+  }));
+  const fresh = () =>
+    Array.from({ length: 32 }, (_, i) => ({
+      key: `catalog:${i}`,
+      payload: JSON.stringify(
+        packCatalogShard(assets.filter((a) => catalogShard(a.ticker) === i)),
+      ),
+      revision: "a".repeat(64),
+      checkedAt: now,
+    }));
+  try {
+    state.rows = fresh();
+    const before = state.reads;
+    const results = await Promise.all([
+      readCatalog(["AAA"]),
+      readCatalog(["AAA"]),
+    ]);
+    expect(results[0].map((a) => a.ticker).sort()).toEqual(["AAA", "SPY"]);
+    expect(results[1]).toEqual(results[0]);
+    expect(state.reads - before).toBe(1);
+    expect(state.keys.at(-1)?.sort()).toEqual(
+      [...new Set([catalogShard("AAA"), catalogShard("SPY")])]
+        .map((i) => `catalog:${i}`)
+        .sort(),
+    );
+    expect(state.keys.at(-1)!.length).toBeLessThan(32);
+    const target = `catalog:${catalogShard("AAA")}`;
+    for (const bad of [
+      "missing",
+      "mixed",
+      "stale",
+      "future",
+      "corrupt",
+      "wrong shard",
+    ]) {
+      now += 61000;
+      state.rows = fresh();
+      if (bad === "missing")
+        state.rows = state.rows.filter((r) => r.key !== target);
+      else
+        state.rows = state.rows.map((r) =>
+          r.key !== target
+            ? r
+            : {
+                ...r,
+                ...(bad === "mixed" ? { revision: "b".repeat(64) } : {}),
+                ...(bad === "stale"
+                  ? { checkedAt: now - 7 * 86400000 - 1 }
+                  : {}),
+                ...(bad === "future" ? { checkedAt: now + 6000 } : {}),
+                ...(bad === "corrupt" ? { payload: "{}" } : {}),
+                ...(bad === "wrong shard"
+                  ? {
+                      payload: JSON.stringify(
+                        packCatalogShard([
+                          { ticker: "SPY", name: "wrong", exchange: "NASDAQ" },
+                        ]),
+                      ),
+                    }
+                  : {}),
+              },
+        );
+      await expect(readCatalog(["AAA"])).rejects.toThrow();
+    }
+    vi.stubEnv("TIKR_PERSONAL_DATA_ENABLED", "disabled");
+    await expect(readCatalog(["AAA"])).rejects.toThrow();
   } finally {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();

@@ -11,6 +11,7 @@ import {
 import { join, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
 import { MARKET_BUDGET } from "./market-budget.ts";
+import { developmentIoAllowance } from "./market-dev-allowance.ts";
 type Ledger = {
   version: 1;
   month: string;
@@ -25,6 +26,49 @@ export function createAdmission(
   if (!isAbsolute(directory)) throw new Error("ADMISSION_CONFIG");
   const file = join(directory, "ledger.json"),
     lock = join(directory, "ledger.lock");
+  async function assertAssetsActive(scope: string, symbols: string[]) {
+    for (const symbol of symbols) {
+      if (!/^[A-Z0-9.-]{1,16}$/.test(symbol)) throw Error("ADMISSION_CONFIG");
+      try {
+        await lstat(join(directory, `revoked-${scope}-${symbol}.flag`));
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "ENOENT"
+        )
+          continue;
+        throw error;
+      }
+      throw Error("EVIDENCE_REVOKED");
+    }
+  }
+  async function observationActive(name: string) {
+    const activePath = join(directory, `${name}.active`);
+    try {
+      const info = await lstat(activePath);
+      if (!info.isFile() || info.isSymbolicLink() || info.size > 1024)
+        throw Error("ADMISSION_CONFIG");
+      const owner = JSON.parse(await readFile(activePath, "utf8")) as {
+        pid?: number;
+      };
+      if (!Number.isSafeInteger(owner.pid) || !owner.pid || owner.pid < 1)
+        throw Error("ADMISSION_CONFIG");
+      try {
+        process.kill(owner.pid, 0);
+        return true;
+      } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "ESRCH")
+          return false;
+        // Permission failure or a reused process ID is not proof of abandonment.
+        return true;
+      }
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT")
+        return false;
+      throw error;
+    }
+  }
   async function transact<T>(
     fn: (ledger: Ledger) => T,
     preserveLockOnFailure = false,
@@ -126,27 +170,134 @@ export function createAdmission(
       }
       throw new Error("EVIDENCE_REVOKED");
     },
-    async assertReadable(scope: string, symbols: string[]) {
+    async assertNotRevoked(scope: string, symbols: string[]) {
       await this.assertActive(scope);
+      await assertAssetsActive(scope, symbols);
+    },
+    async guardedSymbols(scope: string, symbols: string[]) {
+      await this.assertActive(scope);
+      await assertAssetsActive(scope, symbols);
+      const guarded = new Set<string>();
       const directoryHandle = await opendir(directory);
       let count = 0;
       for await (const entry of directoryHandle) {
         if (++count > 2048) throw new Error("ADMISSION_DIRECTORY_LIMIT");
-        if (
-          symbols.some((s) => entry.name.startsWith(`refresh-${scope}-${s}-`))
-        )
-          throw new Error("REFRESH_GUARDED");
+        for (const symbol of symbols)
+          if (
+            entry.name.startsWith(`refresh-${scope}-${symbol}-`) &&
+            entry.name.endsWith(".flag")
+          )
+            guarded.add(symbol);
       }
       await this.assertActive(scope);
+      await assertAssetsActive(scope, symbols);
+      return [...guarded];
+    },
+    async assertReadable(
+      scope: string,
+      symbols: string[],
+      revisions: Record<string, string> = {},
+    ) {
+      await this.assertActive(scope);
+      await assertAssetsActive(scope, symbols);
+      const guarded = await this.guardedSymbols(scope, symbols);
+      if (!guarded.length) return;
+      const entries = await opendir(directory);
+      for await (const entry of entries) {
+        for (const symbol of guarded) {
+          if (
+            !entry.name.startsWith(`refresh-${scope}-${symbol}-`) ||
+            !entry.name.endsWith(".flag")
+          )
+            continue;
+          try {
+            // An exact-revision receipt can never acknowledge an observation
+            // that is still in flight in this or another process.
+            if (await observationActive(entry.name))
+              throw Error("ACTIVE_OBSERVATION");
+            const receipt = join(directory, `${entry.name}.resolved.json`);
+            const stat = await lstat(receipt);
+            if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 2048)
+              throw Error();
+            const resolved = JSON.parse(
+              await readFile(receipt, "utf8"),
+            ) as Record<string, unknown>;
+            if (
+              !/^[a-f0-9]{64}$/.test(revisions[symbol] ?? "") ||
+              resolved.version !== 1 ||
+              resolved.guard !== entry.name ||
+              resolved.scope !== scope ||
+              resolved.symbol !== symbol ||
+              resolved.headRevision !== revisions[symbol]
+            )
+              throw Error();
+          } catch {
+            throw new Error("REFRESH_GUARDED");
+          }
+        }
+      }
+      await this.assertActive(scope);
+      await assertAssetsActive(scope, symbols);
+    },
+    // Called only after a freshly validated head has committed and been read back.
+    // Preserve every guard; receipts acknowledge exact committed revisions.
+    async confirmRefresh(scope: string, symbol: string, headRevision: string) {
+      await this.assertActive(scope);
+      await assertAssetsActive(scope, [symbol]);
+      if (
+        !/^[A-Z0-9.-]{1,16}$/.test(symbol) ||
+        !/^[a-f0-9]{64}$/.test(headRevision)
+      )
+        throw new Error("ADMISSION_CONFIG");
+      const entries = await opendir(directory);
+      for await (const entry of entries) {
+        if (
+          !entry.name.startsWith(`refresh-${scope}-${symbol}-`) ||
+          !entry.name.endsWith(".flag")
+        )
+          continue;
+        if (await observationActive(entry.name)) continue;
+        const file = join(directory, `${entry.name}.resolved.json`);
+        const temporary = join(directory, `resolution-${randomUUID()}.tmp`);
+        const output = await open(temporary, "wx", 0o600);
+        try {
+          await output.writeFile(
+            JSON.stringify({
+              version: 1,
+              scope,
+              symbol,
+              guard: entry.name,
+              headRevision,
+              confirmedAt: clock().toISOString(),
+            }),
+          );
+          await output.sync();
+        } finally {
+          await output.close();
+        }
+        await rename(temporary, file);
+      }
+      await this.assertActive(scope);
+      await assertAssetsActive(scope, [symbol]);
     },
     async beginRefresh(scope: string, symbol: string) {
       if (!/^[a-f0-9]{64}$/.test(scope) || !/^[A-Z0-9.-]{1,16}$/.test(symbol))
         throw new Error("ADMISSION_CONFIG");
       await this.assertActive(scope);
+      await assertAssetsActive(scope, [symbol]);
       const path = join(
         directory,
         `refresh-${scope}-${symbol}-${randomUUID()}.flag`,
       );
+      // Publish liveness before the guard; never expire/steal another process's observation.
+      const activePath = `${path}.active`;
+      const active = await open(activePath, "wx", 0o600);
+      try {
+        await active.writeFile(JSON.stringify({ pid: process.pid }));
+        await active.sync();
+      } finally {
+        await active.close();
+      }
       const handle = await open(path, "wx", 0o600);
       try {
         await handle.sync();
@@ -154,14 +305,36 @@ export function createAdmission(
         await handle.close();
       }
       // Leave the guard behind on any uncertain/known-correction outcome.
-      return async () => {
-        await unlink(path);
+      let ended = false;
+      const endObservation = async () => {
+        if (!ended) {
+          await unlink(activePath);
+          ended = true;
+        }
       };
+      const finish = async () => {
+        await unlink(path);
+        await unlink(`${path}.resolved.json`).catch((error) => {
+          if (!(
+            error instanceof Error &&
+            "code" in error &&
+            error.code === "ENOENT"
+          ))
+            throw error;
+        });
+        await endObservation();
+      };
+      return Object.assign(finish, { endObservation });
     },
-    async revoke(scope: string) {
+    async revoke(scope: string, symbol?: string) {
       if (!/^[a-f0-9]{64}$/.test(scope)) throw new Error("ADMISSION_CONFIG");
+      if (symbol !== undefined && !/^[A-Z0-9.-]{1,16}$/.test(symbol))
+        throw Error("ADMISSION_CONFIG");
       // Independent write-ahead marker: ledger lock contention cannot suppress revocation.
-      const flag = join(directory, `revoked-${scope}.flag`);
+      const flag = join(
+        directory,
+        `revoked-${scope}${symbol ? `-${symbol}` : ""}.flag`,
+      );
       try {
         const marker = await open(flag, "wx", 0o600);
         try {
@@ -183,13 +356,11 @@ export function createAdmission(
         throw new Error("ADMISSION_CONFIG");
       if (scope) await this.assertActive(scope);
       const month = clock().toISOString().slice(0, 7);
+      const ioLimit = developmentIoAllowance(process.env, month);
       await transact((l) => {
         if (scope && l.revoked?.includes(scope))
           throw new Error("EVIDENCE_REVOKED");
-        if (
-          l.calls + 1 > MARKET_BUDGET.monthlyCalls ||
-          l.io + bytes > MARKET_BUDGET.monthlyIoBytes
-        )
+        if (l.calls + 1 > MARKET_BUDGET.monthlyCalls || l.io + bytes > ioLimit)
           throw new Error("CACHE_BUDGET");
         l.calls++;
         l.io += bytes;

@@ -77,32 +77,29 @@ export function marketFailure(error: unknown): MarketFailure | undefined {
 }
 export function marketErrorMessage(code?: string) {
   switch (code) {
-    case "BROWSING_RATE_LIMIT":
-      return "Browsing is temporarily rate limited. Please wait before opening more results.";
-    case "REFRESH_BUSY":
-      return "Other data requests are still running. Please retry when they finish.";
-    case "REFRESH_COOLDOWN":
-      return "Market history refresh is cooling down. Please wait before retrying.";
+    case "REFRESH_GUARDED":
+    case "EVIDENCE_REVOKED":
     case "SHARED_BUDGET_EXHAUSTED":
     case "CACHE_BUDGET":
-      return "The shared market-data budget is exhausted. More browsing or retries cannot refresh it.";
     case "TEAM_BUDGET_UNVERIFIED":
-      return "Market data is paused until the shared budget review is renewed.";
     case "STORAGE_CAPACITY":
-      return "Market-data storage capacity is exhausted. Operator review is needed.";
+    case "STORAGE_UNAVAILABLE":
+    case "DATA_UNAVAILABLE":
+    case "UNVERIFIED_DATA":
+      return "We couldn't load market history right now. Please try again later.";
+    case "BROWSING_RATE_LIMIT":
+    case "REFRESH_BUSY":
+    case "REFRESH_COOLDOWN":
+    case "DAILY_LIMIT":
+      return "Market history is temporarily unavailable. Please try again shortly.";
     case "SHORT_HISTORY":
       return "Confirmed history does not cover the requested period. Choose a shorter period.";
     case "UNSUPPORTED_ACTION":
       return "A corporate action in this period cannot be modeled safely. Choose a period after the event.";
     case "SOURCE_LIMIT":
-      return "The source response exceeded a bounded processing limit. Try a shorter period; no partial result is shown.";
-    case "DAILY_LIMIT":
-      return "The history refresh attempt limit for this cycle has been reached. Retry after the next eligible cycle.";
     case "SOURCE_FAILURE":
     case "REFRESH_FAILED":
-      return "The history source could not complete this request. The underlying cause is unknown; retry later.";
-    case "UNVERIFIED_DATA":
-      return "Required history or action coverage could not be established. The underlying cause is unknown.";
+      return "We couldn't load market history right now. Please try again later.";
     case "INSUFFICIENT_COVERAGE":
       return "At least two shared completed sessions with complete coverage are required.";
     case "MISSING_PRICE":

@@ -1,6 +1,7 @@
 import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { ConvexError, getDocumentSize, v } from "convex/values";
+import { PERSONAL_SOURCE_POLICY } from "../src/lib/market-policy";
 import {
   MARKET_BUDGET as B,
   FREE_ALLOWANCE as F,
@@ -132,6 +133,7 @@ export const acquire = internalMutation({
     cycle: v.string(),
     retry: v.boolean(),
     from: v.optional(v.string()),
+    reviewedPolicy: v.optional(v.literal(PERSONAL_SOURCE_POLICY)),
   },
   handler: async (ctx, args) => {
     validKey(args.key);
@@ -150,10 +152,16 @@ export const acquire = internalMutation({
     if (row && row.expires > now)
       return { status: "busy" as const, chargedIo: 32768 };
     const attempts = row?.cycle === args.cycle ? row.attempts : 0;
+    const policyReview =
+      args.key.startsWith("asset:") &&
+      args.reviewedPolicy === PERSONAL_SOURCE_POLICY &&
+      row !== null &&
+      row.reviewedPolicy !== PERSONAL_SOURCE_POLICY;
     // Expanding a successfully committed window is new work, under the same
     // symbol lease. Failed attempts, retries and arbitrary scope strings cannot
     // bypass cooldowns. Budgets and active lease ownership still apply.
     const expansion =
+      !policyReview &&
       args.key.startsWith("asset:") &&
       args.from !== undefined &&
       row?.completed === true &&
@@ -161,9 +169,12 @@ export const acquire = internalMutation({
       row.completedFrom > args.from;
     const scopeAttempts =
       row?.cycle === args.cycle ? (row.scopeAttempts ?? row.attempts) : 0;
+    // One revalidation for this exact reviewed normalization upgrade. Retain all
+    // counters; arbitrary revision strings cannot authorize additional attempts.
     if (
       args.key !== "catalog:refresh" &&
       !expansion &&
+      !policyReview &&
       scopeAttempts >= (args.retry ? 2 : 1)
     )
       return {
@@ -191,6 +202,9 @@ export const acquire = internalMutation({
       scopeAttempts: expansion ? 1 : scopeAttempts + 1,
       attemptedAt: now,
       expires: now + 60000,
+      ...(args.reviewedPolicy || row?.reviewedPolicy
+        ? { reviewedPolicy: args.reviewedPolicy ?? row?.reviewedPolicy }
+        : {}),
     };
     if (row) await ctx.db.replace(row._id, value);
     else {
@@ -297,7 +311,8 @@ export const write = internalMutation({
     // the small lease later avoids an extra unbudgeted full source-head read.
     await ctx.db.patch(lease._id, {
       expires: 0,
-      completed: true,
+      completed:
+        !args.leaseKey.startsWith("asset:") || completedFrom !== undefined,
       ...(completedFrom ? { completedFrom } : {}),
     });
     return { status: "ok" as const, chargedIo: io + 8192 };
