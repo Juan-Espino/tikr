@@ -1,3 +1,4 @@
+import { personalHistoryStart } from "./market-policy.ts";
 import { diagnose, providerCredentials } from "./market-diagnostics.ts";
 import "server-only";
 import { hosted, reserveHostedProvider } from "./market-hosted.ts";
@@ -64,11 +65,7 @@ async function personalSource(symbols: string[]) {
   const now = new Date(),
     cycle = freshnessCycle(now);
   // Month-aligned five-year window keeps cache scopes stable within a month.
-  const monthStart = `${Number(cycle.slice(0, 4)) - 5}${cycle.slice(4, 7)}-01`;
-  // Include a boundary buffer when the latest completed session is in the prior month.
-  const start = new Date(Date.parse(monthStart) - 7 * 86400000)
-    .toISOString()
-    .slice(0, 10);
+  const start = personalHistoryStart(cycle);
   // A catalog outage must not discard intact historical caches. Any source load
   // still requires a fresh validated catalog below, including on the local path.
   const catalog = await availableCatalog([

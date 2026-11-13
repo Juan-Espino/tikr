@@ -321,7 +321,8 @@ test("reviewed v5 transition preserves only exact superseded global flags", asyn
   const dir = await mkdtemp(join(tmpdir(), "tikr-admission-"));
   try {
     const gate = createAdmission(dir),
-      current = "2".repeat(64),
+      current =
+        "695f9ce4566c9a60d17cee85ef9359c8831943e3ec378d3bf005c9a97cdd16f7",
       old = "5678a7ec4e584fb841e6e25049b7efb790e49a63167aa80cf8eaa4c561e928e7",
       policy = "personal-provisional-sip-v5-acquiree-only-mergers";
     const oldObservation = await gate.beginRefresh(old, "MSFT");
@@ -333,6 +334,10 @@ test("reviewed v5 transition preserves only exact superseded global flags", asyn
     );
     await assert.rejects(
       gate.assertLegacyReadable(current, ["SPY"], {}, "unreviewed"),
+      /EVIDENCE_REVOKED/,
+    );
+    await assert.rejects(
+      gate.assertLegacyReadable("f".repeat(64), ["SPY"], {}, policy),
       /EVIDENCE_REVOKED/,
     );
     await gate.assertLegacyReadable(current, ["SPY"], {}, policy);
@@ -397,6 +402,10 @@ test("reviewed lineage hashes bind exact historical policy and coverage", async 
     [
       "personal-provisional-sip-v3-requested-period",
       "5678a7ec4e584fb841e6e25049b7efb790e49a63167aa80cf8eaa4c561e928e7",
+    ],
+    [
+      "personal-provisional-sip-v5-acquiree-only-mergers",
+      "695f9ce4566c9a60d17cee85ef9359c8831943e3ec378d3bf005c9a97cdd16f7",
     ],
     [
       "personal-provisional-sip-v4-stock-merger-acquirer",

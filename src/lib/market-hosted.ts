@@ -1,8 +1,13 @@
+import { freshnessCycle } from "./market-cache.ts";
 import type { MarketFailureCode } from "./market-errors.ts";
 import { MarketFailure, marketFailureCodes } from "./market-errors.ts";
 import { diagnose } from "./market-diagnostics.ts";
 import "server-only";
-import { randomUUID } from "node:crypto";
+import {
+  PERSONAL_SOURCE_POLICY,
+  personalHistoryStart,
+} from "./market-policy.ts";
+import { createHash, randomUUID } from "node:crypto";
 export const hosted = () => process.env.TIKR_MARKET_HOSTED_ORIGIN !== undefined;
 export async function gateway<T>(
   name: string,
@@ -60,6 +65,20 @@ export async function gateway<T>(
   return (JSON.parse(Buffer.concat(parts).toString("utf8")) as { result: T })
     .result;
 }
+export function policyIdentity(scope: string) {
+  if (process.env.TIKR_MARKET_MODE !== "personal-provisional") return {};
+  const cycle = freshnessCycle(new Date());
+  const start = personalHistoryStart(cycle);
+  return {
+    policy: PERSONAL_SOURCE_POLICY,
+    policyScope:
+      scope === "0".repeat(64)
+        ? createHash("sha256")
+            .update(JSON.stringify({ policy: PERSONAL_SOURCE_POLICY, start }))
+            .digest("hex")
+        : scope,
+  };
+}
 export const control = (
   op: string,
   scope: string,
@@ -70,6 +89,7 @@ export const control = (
   gateway<null>("control", {
     op,
     scope,
+    ...policyIdentity(scope),
     symbols,
     token,
     ...(visitor ? { visitor } : {}),
