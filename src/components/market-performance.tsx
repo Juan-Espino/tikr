@@ -12,6 +12,8 @@ import type { MarketRequest, MarketResponse } from "~/lib/market-contract";
 import type { Portfolio, Range } from "~/lib/demo";
 import { HoldingReturns } from "./holding-returns";
 import { HistoryChart } from "./history-chart";
+import { readBrowserHistory, saveBrowserHistory } from "~/lib/browser-history";
+import { fetchMarket } from "~/lib/market-client-batch";
 // Only the explicitly marked synthetic review may bypass the server. Real-data
 // requests must pass the server's correction and revocation checks every time.
 const reviewCache = new Map<string, { value: MarketResponse; until: number }>();
@@ -105,17 +107,22 @@ export function useMarketResults(
         let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
         try {
           const body = JSON.parse(key) as MarketRequest;
+          const history = await readBrowserHistory([
+            ...new Set([
+              "SPY",
+              ...body.portfolios.flatMap((p) =>
+                p.holdings.map((h) => h.symbol),
+              ),
+            ]),
+          ]);
           const retry =
             retryIntent.current?.key === key &&
             retryIntent.current.nonce === attempt;
           retryIntent.current = null;
-          const response = await fetch("/api/market", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...body, retry }),
-            signal: AbortSignal.any([abort.signal, AbortSignal.timeout(55000)]),
-            cache: "no-store",
-          });
+          const response = await fetchMarket(
+            { ...body, retry, ...(history.length ? { history } : {}) },
+            AbortSignal.any([abort.signal, AbortSignal.timeout(55000)]),
+          );
           if (!response.ok || !response.body) {
             if (!abort.signal.aborted) {
               const failure = (await response.json().catch(() => undefined)) as
@@ -144,7 +151,7 @@ export function useMarketResults(
             const chunk = await reader.read();
             if (chunk.done) break;
             bytes += chunk.value.byteLength;
-            if (bytes > 2_500_000) throw new Error("RESPONSE_LIMIT");
+            if (bytes > 5_000_000) throw new Error("RESPONSE_LIMIT");
             pending += decoder.decode(chunk.value, { stream: true });
             let split;
             while ((split = pending.indexOf("\n")) >= 0) {
@@ -164,6 +171,9 @@ export function useMarketResults(
           if (pending.trim() || !finalValue)
             throw new Error("INCOMPLETE_RESPONSE");
           if (!abort.signal.aborted) {
+            if (finalValue.status === "ready" && finalValue.history)
+              void saveBrowserHistory(finalValue.history);
+            delete finalValue.history;
             if (
               syntheticReview &&
               finalValue.status === "ready" &&
@@ -237,6 +247,7 @@ export function DataStatus({
   if (
     compact &&
     view.dataQuality !== "personal-provisional" &&
+    view.dataQuality !== "synthetic" &&
     (view.status === "ready" || view.status === "refreshing") &&
     !view.shortenedBy?.length &&
     (!view.requested ||
@@ -250,6 +261,9 @@ export function DataStatus({
       aria-live="polite"
       className="text-muted-foreground mt-3 text-xs leading-relaxed"
     >
+      {view.dataQuality === "synthetic" && (
+        <span className="block">Synthetic QA data; not market history.</span>
+      )}
       {view.dataQuality === "personal-provisional" && view.series && (
         <span className="block">
           Personal provisional Alpaca data; subject to corrections.

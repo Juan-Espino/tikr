@@ -11,7 +11,7 @@ vi.mock("../src/lib/market-admission.ts", () => ({
 }));
 const modules = import.meta.glob("../convex/**/*.ts");
 
-test("complete hosted runtime shares calendar and results across cold hosts and refreshes at the next cycle", async () => {
+test("cold hosts revalidate browser history against shared manifests and refreshes at the next cycle", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-06T14:00:00Z"));
   const t = convexTest(schema, modules);
@@ -77,7 +77,7 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
         if (
           holdResultRead &&
           operation.name === "read" &&
-          operation.args.keys.some((k: string) => k.startsWith("result:"))
+          operation.args.keys.some((k: string) => k.startsWith("asset:"))
         ) {
           holdResultRead = false;
           notifyRead();
@@ -106,7 +106,7 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
       throw Error("Unexpected network destination");
     }),
   );
-  const request = {
+  const request: import("../src/lib/market-contract").MarketRequest = {
     portfolios: [{ id: "p", holdings: [{ symbol: "SPY", weight: "100" }] }],
     amount: "100",
     range: "1W" as const,
@@ -114,7 +114,9 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
   const openHost = async () => {
     vi.resetModules();
     const { openMarket } = await import("../src/lib/market-runtime");
-    return (await openMarket(request)).settled;
+    const value = await (await openMarket(request)).settled;
+    if (value.history?.length) request.history = value.history;
+    return value;
   };
   try {
     const first = await openHost();
@@ -122,7 +124,7 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
     expect(first.series?.[0]?.ending).toBe("101.00");
     const second = await openHost();
     expect(second.series).toEqual(first.series);
-    expect(calendarCalls).toBe(1);
+    expect(calendarCalls).toBe(2);
     expect(barCalls).toBe(1);
     // More distinct calculations than result slots: collisions only skip persistence.
     for (let i = 101; i <= 117; i++) {
@@ -133,10 +135,11 @@ test("complete hosted runtime shares calendar and results across cold hosts and 
     expect(barCalls).toBe(1);
     days = [...days, "2026-11-06"];
     vi.setSystemTime(new Date("2026-11-07T14:00:00Z"));
+    const previousCalendars = calendarCalls;
     const next = await openHost();
     expect(next.status).toBe("ready");
     expect(next.period?.end).toBe("2026-11-06");
-    expect(calendarCalls).toBe(2);
+    expect(calendarCalls).toBe(previousCalendars + 1);
     expect(barCalls).toBe(2);
     const originalHoldings = request.portfolios[0]!.holdings;
     request.portfolios[0]!.holdings = [{ symbol: "NEW", weight: "100" }];

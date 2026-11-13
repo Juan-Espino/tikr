@@ -163,3 +163,12 @@ Cache shared history where permitted instead of refetching per card. Distinguish
 ## Frontend route organization (2026-10-29)
 
 The landing, dashboard, sign-in and portfolio URLs have separate App Router page entry points and route-specific UI components. Browser-local demo portfolios and drafts are shared through a provider; interactive chart and editor state remains page-local. This reorganizes the implementation without adding production persistence or authentication.
+
+## 2026-11-12 owner simplification direction
+
+Keep Alpaca credentials/history handling server-only; reduce Convex history/cache
+work to necessary shared coordination. Browser-local portfolio definitions remain.
+The implementation uses untrusted IndexedDB monthly hints plus bounded process
+history, with server root validation, and deduplicates holdings and
+SPY across portfolios, preserve authoritative legacy guards and corrections.
+No auth/profiles/cloud portfolios scaffolding is in scope. Implementation details and verification are in [market-redesign-checkpoint.md](market-redesign-checkpoint.md).

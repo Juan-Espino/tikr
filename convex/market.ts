@@ -92,7 +92,8 @@ export const read = internalMutation({
           .unique(),
       ),
     );
-    // Charge actual returned documents; failed admission returns no payload.
+    // Conservative weighted admission units, not observed database billing.
+    // Failed admission returns no payload.
     const bytes = rows.reduce(
       (s, row) => s + (row ? getDocumentSize(row) * 2 : 1024),
       0,
@@ -101,7 +102,7 @@ export const read = internalMutation({
       return { status: "budget" as const, rows: [] };
     return {
       status: "ok" as const,
-      chargedIo: bytes + keys.length * 1024 + 16384,
+      admissionUnits: bytes + keys.length * 1024 + 16384,
       rows: rows
         .filter((r) => r !== null)
         .map(({ key, payload, revision, dependencies, checkedAt }) => ({
@@ -124,7 +125,7 @@ export const acquire = internalMutation({
       v.literal("limit"),
       v.literal("acquired"),
     ),
-    chargedIo: v.optional(v.number()),
+    admissionUnits: v.optional(v.number()),
     retryAt: v.optional(v.number()),
   }),
   args: {
@@ -150,7 +151,7 @@ export const acquire = internalMutation({
       .withIndex("by_key", (q) => q.eq("key", args.key))
       .unique();
     if (row && row.expires > now)
-      return { status: "busy" as const, chargedIo: 32768 };
+      return { status: "busy" as const, admissionUnits: 32768 };
     const attempts = row?.cycle === args.cycle ? row.attempts : 0;
     const policyReview =
       args.key.startsWith("asset:") &&
@@ -180,7 +181,7 @@ export const acquire = internalMutation({
       return {
         status: "daily" as const,
         retryAt: nextCycle(args.cycle),
-        chargedIo: 32768,
+        admissionUnits: 32768,
       };
     if (
       args.key !== "catalog:refresh" &&
@@ -191,7 +192,7 @@ export const acquire = internalMutation({
       return {
         status: "cooldown" as const,
         retryAt: row!.attemptedAt + 60000,
-        chargedIo: 32768,
+        admissionUnits: 32768,
       };
     const value = {
       key: args.key,
@@ -210,16 +211,16 @@ export const acquire = internalMutation({
     else {
       const rows = await ctx.db.query("marketLeases").take(67);
       if (rows.length >= 66)
-        return { status: "limit" as const, chargedIo: 32768 };
+        return { status: "limit" as const, admissionUnits: 32768 };
       await ctx.db.insert("marketLeases", value);
     }
-    return { status: "acquired" as const, chargedIo: 32768 };
+    return { status: "acquired" as const, admissionUnits: 32768 };
   },
 });
 export const write = internalMutation({
   returns: v.object({
     status: v.union(v.literal("budget"), v.literal("storage"), v.literal("ok")),
-    chargedIo: v.optional(v.number()),
+    admissionUnits: v.optional(v.number()),
   }),
   args: { leaseKey: v.string(), token: v.string(), entries: v.array(entry) },
   handler: async (ctx, args) => {
@@ -278,7 +279,7 @@ export const write = internalMutation({
       b.entries + added > B.maxEntries ||
       b.storage + delta + b.otherStorage > F.storageBytes * 0.75
     )
-      return { status: "storage" as const, chargedIo: io + 8192 };
+      return { status: "storage" as const, admissionUnits: io + 8192 };
     for (const { old, data } of writes) {
       if (old) await ctx.db.replace(old._id, data);
       else await ctx.db.insert("marketEntries", data);
@@ -315,7 +316,7 @@ export const write = internalMutation({
         !args.leaseKey.startsWith("asset:") || completedFrom !== undefined,
       ...(completedFrom ? { completedFrom } : {}),
     });
-    return { status: "ok" as const, chargedIo: io + 8192 };
+    return { status: "ok" as const, admissionUnits: io + 8192 };
   },
 });
 export const release = internalMutation({

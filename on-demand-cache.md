@@ -1,54 +1,38 @@
-History-period follow-up (2026-11-10): source bars/actions load from the selected requested start, within the existing five-year ceiling; the shared calendar still establishes preset/session boundaries. Personal provisional coverage no longer asserts known inception. Missing leading bars fail MISSING_PRICE, never confirmed short history. Attested short history blocks the entire requested period. Source/provider failures, missing prices, unsupported actions and budget/cooldown have separate safe ticker-level feedback. BA/RTX were traced only with synthetic inputs: older out-of-period actions can no longer block a complete short window; the actual reported underlying causes remain unknown.
-
-Durable manifests retain their actual from/through and evidence revision. Reuse requires full requested coverage (or the existing explicit pending-tail contract), matching revisions, readable guards and valid evidence. Result policy identity is revised so old shortened results cannot be reused. A successful committed narrow window may expand under the same per-symbol atomic lease; this is new scope work, not a retry of failed work. The optional completed lease marker is set by the write transaction; acquisition clears it, preventing failed expansions from bypassing attempts/cooldown. Existing counters, shared budgets, active-request slots, guards, revocations and lease tokens remain enforced. No ledger or marker cleanup, live requests, credentials or deployment was performed. Older full-supported-window loader descriptions below are superseded by this selected-window contract.
-
-Catalog follow-up (2026-11-10): the six-demo-symbol eligibility restriction is superseded by the validated durable asset catalog described in hosted-operation.md. Catalog metadata supplies eligibility, not inception/history/action evidence. New assets with missing leading history still fail rather than inventing an inception date. Portfolio requests retain six holdings each; up to three portfolios plus SPY can require nineteen distinct symbols in hosted control checks. The standalone coordinator accepts up to 30,000 catalog symbols, while its byte/result cache limits remain unchanged. Earlier six-asset and fifty-catalog descriptions below are historical scope, not current eligibility or capacity claims.
-
 # On-demand market-data cache
 
-Admission follow-up (2026-11-10): hosted opens use short-term browsing protection instead of daily open caps. All real cached reads still cross the durable budget/revision/guard boundary. Source cooldown/daily-attempt refusals retain safe codes and known retry deadlines; result-slot persistence contention does not throttle a calculation using fresh sources. The single-process factory remains insufficient to enforce cross-host budgets by itself. See hosted-operation.md for synthetic operation evidence, configuration and limits.
+Current implementation and trust protocol are documented in
+[market-redesign-checkpoint.md](market-redesign-checkpoint.md). This document
+supersedes the earlier proposal that durable monthly history and portfolio-result
+slots should remain the principal runtime cache.
 
-Hosted preparation update (2026-11-06): anonymous Vercel operation is implemented behind explicit activation configuration; see [hosted-operation.md](hosted-operation.md) for exact variables, limits, disable/rollback and unresolved public-data rights. Local-only/production-disabled descriptions below describe the original local path, which remains compatible. Public activation has not been authorized or performed.
+The browser owns IndexedDB monthly hints (8 MB / seven days), not authoritative
+history. Every operation visits the server. The server compares the complete
+normalized asset with the fresh durable manifest root before publishing browser
+content to process memory or calculating results. Revocation/guard rejection,
+evidence expiry, malformed history and known corrections always override hints.
 
-## Approved behavior and implemented scope
+The process history cache is 8 MB / 24 hours; derived results are 4 MiB / 24 hours.
+These are encoded-payload bounds, not complete runtime memory guarantees. Calendar
+coalescing and provider batching are process-local. Shared per-asset refresh
+leases, attempts, authoritative roots, hosted admission and revocations remain in
+Convex; no process map is described as global coordination.
 
-Opening a portfolio invokes a shared server coordinator. Fresh verified data returns immediately. Stale data returns the last verified calculation with its market `asOf` date and `dataCheckedAt` timestamp while refreshing. Cold assets or a new calculation without a verified snapshot return a loading state. A failed refresh retains an existing dated result; otherwise the result is blocked. A known corrected dependency invalidates old calculations rather than serving them as an acceptable fallback.
+Wider history covers shorter ranges. Expansion fetches missing older coverage and
+rechecks the latest five sessions; each daily cycle repeats the correction window.
+Actions in refreshed windows replace old actions. Portfolio edits recalculate
+from unrounded normalized values using the original decimal/payment-date engine.
+Missing coverage/actions block rather than silently shorten or omit a holding.
 
-`src/lib/market-cache.ts` implements this behavior with `createOnDemandBacktests`. It is server-only and has no default network transport, credentials, file storage or scheduled jobs. A shared instance deduplicates asset loads, including SPY, across simultaneous portfolio requests. Asset data revisions and results are retained **in memory in that one process**. Restarts lose cache entries and refresh counters. This is a personal single-process core, not a deployed or durable cache; separate Vercel instances do not share it. The demo UI is not wired to this module.
+IndexedDB denial, eviction, expiry or corruption is a cache miss. Multitab writes
+are transactional; stale hints still require server validation. Restart loses
+process caches; valid browser hints can rehydrate authoritative roots. If both
+copies are lost, fail closed and retain the existing retry/cooldown/attempt gates.
+There is no automatic allowance reset, namespace rotation or cross-instance
+payload cache. Offline use does not accept a server-rejected financial result.
 
-## Interface
-
-The server supplies a supported symbol allowlist including SPY, an explicit supported-history start, a verified calendar, an injected clock when testing, and a trusted `load` function. A request contains portfolios, starting amount, start date and an end date or `latest`. `open` returns `initial` plus a `settled` promise with the final view. Status is `ready`, `refreshing`, `stale` or `blocked`. Result snapshots include asset revision hashes. Errors expose sanitized codes and affected holdings where known, never provider exception text.
-
-The loader receives symbol, requested `from`/eligible `through`, `recheckFrom`, previous cached data and an abort signal. It must return normalized raw SIP data with established price/action coverage, access and provenance, plus known inception or explicit requested-window coverage. Cache flags are caller attestations, not independently authenticated evidence. Raw adapter candidates have unknown action completeness and cannot satisfy this boundary. If only the newest eligible session is pending, the loader may explicitly set `pendingSession` to that session and return fully verified data through the immediately preceding session. Unknown actions, access failures and interior gaps do not qualify. A cold or mixed-asset load then calculates through the shared earlier verified endpoint, labeled `stale`/`SESSION_PENDING` when the requested endpoint is later. A bounded explicit retry may advance it. An earlier historical request already covered by those records can be ready. Missing prices without that explicit pending-tail contract still fail. The coordinator also checks literal verification flags, prices, coverage and gaps; the existing backtest engine validates inputs again before any result is saved. It does not manufacture verification from timing, pagination or matching examples.
-
-`recheckFrom` identifies the most recent five eligible sessions. It is a price-recheck hint, not permission to restrict corporate-action reconciliation to five days. Each returned asset must cover the selected requested history through its declared endpoint, with only the explicit newest-session pending exception described above. Establishing how Alpaca supplies complete processing-date/correction coverage remains an integration prerequisite.
-
-## Freshness, concurrency and revisions
-
-Use America/New_York, including DST. A session becomes eligible no earlier than 09:00 on the following calendar day. Calendar/finality evidence is still required. The daily freshness cycle runs from one New York 09:00 cutoff to the next, avoiding an 08:59 visit consuming the 09:00 refresh. On-demand checks occur only when the coordinator is opened; no weekly market-wide scan or background schedule is installed.
-
-Allow one automatic refresh attempt per supported asset per cycle. Requests arriving during that attempt share its promise. An explicit retry is permitted once more in the same cycle, after a configurable cooldown (default 60 seconds). This is a protective implementation bound, not an approved account-wide API budget. One refresh may involve multiple provider pages: it is not a promise of one HTTP request. Uncooperative loaders time out (default 15 seconds) and receive an abort signal.
-
-An unchanged refresh advances the data-check timestamp without recalculating. A changed normalized asset revision invalidates cached results using that symbol. Calculations also depend on the verified calendar over their effective period and effective end date; corrected interior sessions invalidate every affected saved result as soon as the correction is observed, including results next accessed during a calendar outage. Calendar extensions beyond an old result do not invalidate that correctly dated older period. Recalculation applies the existing dividend/split method and shared dates. Request identity includes holdings, weights, amount and requested dates; differing portfolios can share source data without sharing the wrong result. Original requested dates and actual calculation dates remain distinct. The verified calendar is retained through the eligible endpoint so an earlier requested end can reuse wider verified data safely.
-
-The coordinator bounds the supported catalog to 50 assets, each normalized asset and calculation to 2 MiB, asset storage and result storage to 16 MiB each, and saved result count to 16. The engine's own numerical/input limits remain in force. These are local resource limits, not measured cloud-storage costs. Server routes must bound request bodies before calling this trusted server interface.
-
-## Verification and remaining integration
-
-Twenty-two synthetic tests in `tests/market-cache.test.mjs` exercise exact engine outcomes, concurrent coalescing, fresh hits, stale failures, price/action revision invalidation, narrow date ranges, date metadata, corrected calendars, cold/mixed pending-tail coverage, readiness/DST/weekends/half-days, five-session boundaries, unknown actions/gaps/feed rejection, retries, calendar outage and uncooperative-load timeout. Run:
-
-```powershell
-node --conditions=react-server --experimental-strip-types --test tests/market-cache.test.mjs
-```
-
-The TypeScript no-emit configuration permits explicit `.ts` imports so the same server source runs in native Node tests without rewritten imports. No dependency was added. Broader checks and review results are recorded in `plan.md`.
-
-Before connecting the UI: resolve the provider evidence gates in `alpaca-real-data-review.md`; supply an evidence-validating loader; choose durable storage and atomic cross-instance leases for deployed use; enforce account-wide quotas; then connect the UI's dated stale/loading states. Do not expose this in-memory factory as a public credential-bearing endpoint or claim that it enforces global refresh limits. Existing demo data and authentication remain labeled as demo. Public/shared data rights remain separate.
-
-
-Completion verification: all 86 offline tests, five engine mutation probes, lint/typecheck, focused formatting/whitespace and a credential-cleared production build passed. Independent review accepted the revised single-process scope after 22/22 cache tests and its own cross-request calendar-outage probe, with frozen hashes matching at start/end. This verification note is a documentation-only update after source review. Deployed, durable and real-provider acceptance remain outside that result.
-
-## Durable integration follow-up (2026-11-04)
-
-`src/lib/durable-market.ts`, the internal Convex store and local admission ledger extend this factory for a local personal server. `src/lib/market-cache.ts` remains the single-process calculation coordinator; its factory alone does not enforce durable quotas. See `market-data-integration.md` for evidence expiry/revocation, revisioned monthly source chunks, compressed result slots, account/team budget prerequisites and production-disabled UI integration. The new backend remains unactivated pending evidence and deployment review.
+Legacy monthly history remains readable during migration, but new runtime writes
+contain only authoritative heads. Legacy result/calendar rows remain untouched
+and unused. The original durable coordinator remains the compatibility adapter
+for leases, revision dependencies and recovery, with disposable storage wrappers.
+See `market-source-inventory.md`, `market-accounting.md` and the approval-gated
+`market-deployed-cleanup.md` before operating a deployment.

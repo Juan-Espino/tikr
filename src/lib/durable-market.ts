@@ -186,6 +186,7 @@ async function loadAsset(store: MarketStorage, head: Stored): Promise<Asset> {
     }) !== head.revision
   )
     throw new Error("REVISION_CHANGED");
+  await store.confirmRead?.(data.meta.symbol, head.revision);
   if (store.namespace)
     rememberAsset(store.namespace, data.meta.symbol, head.revision, asset);
   return asset;

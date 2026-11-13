@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       const part = await reader.read();
       if (part.done) break;
       bytes += part.value.byteLength;
-      if (bytes > 12_000) {
+      if (bytes > 2_012_000) {
         await reader.cancel();
         return blocked("INPUT_LIMIT", 413);
       }
@@ -67,9 +67,18 @@ export async function POST(request: Request) {
   try {
     parsed = marketRequestSchema.safeParse(JSON.parse(text));
   } catch {
-    return blocked("INVALID_INPUT", 400);
+    return blocked(
+      bytes > 12_000 ? "INPUT_LIMIT" : "INVALID_INPUT",
+      bytes > 12_000 ? 413 : 400,
+    );
   }
-  if (!parsed.success) return blocked("INVALID_INPUT", 400);
+  if (!parsed.success)
+    return blocked(
+      bytes > 12_000 ? "INPUT_LIMIT" : "INVALID_INPUT",
+      bytes > 12_000 ? 413 : 400,
+    );
+  if (!parsed.data.history && bytes > 12_000)
+    return blocked("INPUT_LIMIT", 413);
   let leave: (() => Promise<unknown>) | undefined;
   try {
     if (hosted()) {

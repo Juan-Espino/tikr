@@ -1,6 +1,7 @@
 import { MARKET_BUDGET } from "./market-budget.ts";
 
-// Owner-approved bounded local test headroom; never changes hosted/production budgets.
+// Owner-approved November live-test ceiling (2026-11-12); preserves prior charges.
+// Never changes hosted/production budgets.
 export function developmentIoAllowance(
   env: Record<string, string | undefined>,
   month: string,
@@ -24,7 +25,7 @@ export function developmentIoAllowance(
   if (
     !Number.isSafeInteger(bytes) ||
     bytes < MARKET_BUDGET.monthlyIoBytes ||
-    bytes > 750_000_000
+    bytes > 770_000_000
   )
     throw Error("ADMISSION_CONFIG");
   return reviewedMonth === "2026-11" && reviewedMonth === month

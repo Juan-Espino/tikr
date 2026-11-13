@@ -1,17 +1,15 @@
 import { diagnose, providerCredentials } from "./market-diagnostics.ts";
 import "server-only";
-import { hosted, control } from "./market-hosted.ts";
+import { hosted, reserveHostedProvider } from "./market-hosted.ts";
 import { open } from "node:fs/promises";
 import { constants } from "node:fs";
 import { isAbsolute } from "node:path";
 import { createHash } from "node:crypto";
 import { createDurableBacktests } from "./durable-market.ts";
-import {
-  revision,
-  convexStorage,
-  chunks,
-  readValue,
-} from "./market-storage.ts";
+import { withProcessResults } from "./market-result-memory.ts";
+import { withDisposableHistory } from "./market-history-storage.ts";
+import { createBatchedPersonalLoader } from "./alpaca/batched-loader.ts";
+import { revision, convexStorage } from "./market-storage.ts";
 import { createVerifiedLoader } from "./alpaca/verified-loader.ts";
 import type { ReviewedAsset } from "./alpaca/verified-loader.ts";
 import type { Calendar } from "./backtest.ts";
@@ -23,13 +21,15 @@ import { availableCatalog } from "./catalog-server.ts";
 import { localAdmission } from "./market-admission.ts";
 import {
   createAdmittedTransport,
-  createPersonalLoader,
   fetchPersonalCalendar,
   PROVISIONAL_POLICY,
 } from "./alpaca/personal-loader.ts";
 import { freshnessCycle } from "./market-cache.ts";
 import type { Config } from "./alpaca/adapter.ts";
 let personalCalendar: { key: string; value: Promise<Calendar> } | undefined;
+let personalLoader:
+  | { key: string; load: ReturnType<typeof createBatchedPersonalLoader> }
+  | undefined;
 async function personalSource(symbols: string[]) {
   const { keyId, secret } = (() => {
     try {
@@ -39,13 +39,17 @@ async function personalSource(symbols: string[]) {
       throw error;
     }
   })();
-  // Retain reservations for all provider outcomes, pages and retries.
+  // Reserve before network work; settle completed streams to measured received
+  // bytes. Interrupted/unknown outcomes retain their conservative reservation.
   const transport = createAdmittedTransport(async () => {
     if (hosted()) {
-      await control("provider", "0".repeat(64));
-      return;
+      return reserveHostedProvider();
     }
-    await (await localAdmission()).reserve(2 * 1024 * 1024);
+    return (await localAdmission()).reserve(
+      2 * 1024 * 1024,
+      undefined,
+      "provider",
+    );
   });
   const config: Config = {
     keyId,
@@ -77,44 +81,7 @@ async function personalSource(symbols: string[]) {
   const key = `${start}:${cycle}`;
   if (personalCalendar?.key !== key) {
     const value = (async () => {
-      if (!hosted()) return fetchPersonalCalendar(config, start, cycle, now);
-      const storage = convexStorage(
-        "https://hosted.convex.cloud",
-        "gateway",
-        "0".repeat(64),
-      );
-      const cacheKey = "calendar:shared";
-      const read = async () => {
-        const head = (await storage.read([cacheKey]))[0];
-        if (!head) return undefined;
-        const saved = await readValue<{ key: string; calendar: Calendar }>(
-          storage,
-          head,
-        );
-        return saved.key === key ? saved.calendar : undefined;
-      };
-      const saved = await read();
-      if (saved) return saved;
-      const token = await storage.acquire(cacheKey, cycle, false);
-      if (!token) {
-        for (let i = 0; i < 10; i++) {
-          await new Promise((r) => setTimeout(r, 400));
-          const found = await read();
-          if (found) return found;
-        }
-        throw Error("CALENDAR_BUSY");
-      }
-      try {
-        const calendar = await fetchPersonalCalendar(config, start, cycle, now);
-        await storage.write(
-          cacheKey,
-          token,
-          chunks(cacheKey, { key, calendar }),
-        );
-        return calendar;
-      } finally {
-        await storage.release(cacheKey, token);
-      }
+      return fetchPersonalCalendar(config, start, cycle, now);
     })();
     personalCalendar = { key, value };
     void value.catch(() => {
@@ -125,17 +92,23 @@ async function personalSource(symbols: string[]) {
     diagnose("calendar", error);
     throw error;
   });
+  if (personalLoader?.key !== key)
+    personalLoader = {
+      key,
+      load: createBatchedPersonalLoader(config, calendar),
+    };
+  const loader = personalLoader.load;
   return {
     calendar,
     catalog,
     historyStart: start,
     load: async (
-      request: Parameters<ReturnType<typeof createPersonalLoader>>[0],
+      request: Parameters<ReturnType<typeof createBatchedPersonalLoader>>[0],
     ) => {
       const eligible = await availableCatalog([request.symbol, "SPY"]);
       if (!eligible.some((a) => a.ticker === request.symbol))
         throw Error("INVALID_INPUT");
-      return createPersonalLoader(config, calendar)(request);
+      return loader(request);
     },
     revision: revision({ policy: PROVISIONAL_POLICY, start }),
     expires: now.valueOf() + 24 * 60 * 60 * 1000,
@@ -243,7 +216,9 @@ export function publicView(view: CacheView, amount: string): MarketResponse {
       : undefined,
   };
 }
-export async function openMarket(request: MarketRequest) {
+export async function openMarket(
+  request: MarketRequest,
+): Promise<{ initial: MarketResponse; settled: Promise<MarketResponse> }> {
   try {
     return await openConfiguredMarket(request);
   } catch (error) {
@@ -251,7 +226,9 @@ export async function openMarket(request: MarketRequest) {
     throw error;
   }
 }
-async function openConfiguredMarket(request: MarketRequest) {
+async function openConfiguredMarket(
+  request: MarketRequest,
+): Promise<{ initial: MarketResponse; settled: Promise<MarketResponse> }> {
   // Hosted activation is explicit and separate from the compatible local path.
   if (
     hosted()
@@ -284,12 +261,19 @@ async function openConfiguredMarket(request: MarketRequest) {
         request.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol)),
       );
   const { load } = source;
-  const run = createDurableBacktests({
-    storage: convexStorage(
+  const history = withDisposableHistory(
+    convexStorage(
       url,
       key,
       source.revision,
       provisional ? PROVISIONAL_POLICY : undefined,
+    ),
+    request.history,
+  );
+  const run = createDurableBacktests({
+    storage: withProcessResults(
+      history.storage,
+      revision({ url, hosted: hosted(), revision: source.revision }),
     ),
     calendar: () => source.calendar,
     historyStart: source.historyStart,
@@ -315,6 +299,7 @@ async function openConfiguredMarket(request: MarketRequest) {
     },
     settled: job.settled.then((v) => ({
       ...publicView(v, request.amount),
+      history: v.result ? history.exported() : undefined,
       dataQuality: provisional ? "personal-provisional" : "reviewed",
       evidenceExpiresAt: new Date(source.expires).toISOString(),
     })),

@@ -1,90 +1,26 @@
-# Welcome to your Convex functions directory!
+# Convex market coordination
 
-Write your Convex functions here.
-See https://docs.convex.dev/functions for more.
+This app uses Convex for shared market coordination, not browser portfolios or a
+primary historical-price store. Server credentials never enter the browser.
 
-A query function that takes two arguments looks like:
+- `market.ts`: operator allowance review and internal read/acquire/write/release
+  transactions; asset roots, catalog and limitations; atomic lease completion.
+- `hosted.ts`: shared concurrency, provider reservation settlement, persistent
+  guards/revocations and legacy visitor-expiry compatibility.
+- `http.ts`: secret-protected, allowlisted server gateway. Its market reads are
+  mutations that update admission counters, not read-only inspection tools.
+- `schema.ts`: existing market tables/indexes retained. The unused template tasks
+  table remains until an explicitly approved migration; its function
+  implementations were removed. Generated bindings are not edited manually.
+- `convex.config.ts` / `market_limits.ts`: retain the rate-limiter component only
+  for already-scheduled legacy expiry callbacks; do not reset its records.
 
-```ts
-// convex/myFunctions.ts
-import { query } from "./_generated/server";
-import { v } from "convex/values";
+New monthly history, derived portfolio results and calendar caches are disposable
+browser/process data. Durable asset roots, attempts, fences, receipts, admission
+and revocations remain authoritative. Existing legacy manifests remain readable.
 
-export const myQueryFunction = query({
-  // Validators for arguments.
-  args: {
-    first: v.number(),
-    second: v.string(),
-  },
-
-  // Function implementation.
-  handler: async (ctx, args) => {
-    // Read the database as many times as you need here.
-    // See https://docs.convex.dev/database/reading-data.
-    const documents = await ctx.db.query("tablename").collect();
-
-    // Arguments passed from the client are properties of the args object.
-    console.log(args.first, args.second);
-
-    // Write arbitrary JavaScript here: filter, aggregate, build derived data,
-    // remove non-public properties, or create new objects.
-    return documents;
-  },
-});
-```
-
-Using this query function in a React component looks like:
-
-```ts
-const data = useQuery(api.myFunctions.myQueryFunction, {
-  first: 10,
-  second: "hello",
-});
-```
-
-A mutation function looks like:
-
-```ts
-// convex/myFunctions.ts
-import { mutation } from "./_generated/server";
-import { v } from "convex/values";
-
-export const myMutationFunction = mutation({
-  // Validators for arguments.
-  args: {
-    first: v.string(),
-    second: v.string(),
-  },
-
-  // Function implementation.
-  handler: async (ctx, args) => {
-    // Insert or modify documents in the database here.
-    // Mutations can also read from the database like queries.
-    // See https://docs.convex.dev/database/writing-data.
-    const message = { body: args.first, author: args.second };
-    const id = await ctx.db.insert("messages", message);
-
-    // Optionally, return a value from your mutation.
-    return await ctx.db.get("messages", id);
-  },
-});
-```
-
-Using this mutation function in a React component looks like:
-
-```ts
-const mutation = useMutation(api.myFunctions.myMutationFunction);
-function handleButtonPress() {
-  // fire and forget, the most common way to use mutations
-  mutation({ first: "Hello!", second: "me" });
-  // OR
-  // use the result once the mutation has completed
-  mutation({ first: "Hello!", second: "me" }).then((result) =>
-    console.log(result),
-  );
-}
-```
-
-Use the Convex CLI to push your functions to a deployment. See everything
-the Convex CLI can do by running `npx convex -h` in your project root
-directory. To learn more, launch the docs with `npx convex docs`.
+Read `../market-redesign-checkpoint.md`, `../market-source-inventory.md`,
+`../market-accounting.md` and `../market-deployed-cleanup.md` for current behavior,
+measured synthetic scope and approval gates. Source edits are not a deployed
+migration. No deployment, destructive cleanup or live provider call is authorized
+by passing local tests. Before Convex edits, read `_generated/ai/guidelines.md`.

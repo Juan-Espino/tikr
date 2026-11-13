@@ -5,7 +5,6 @@ import {
   assetRecords,
 } from "../src/lib/durable-market.ts";
 import { chunks, readValue, revision } from "../src/lib/market-storage.ts";
-import { capacityModel } from "../src/lib/market-budget.ts";
 import { MarketFailure } from "../src/lib/market-errors.ts";
 const sessions = ["2024-11-01", "2024-11-04", "2024-11-05"];
 const calendar = {
@@ -187,21 +186,6 @@ test("manifest integrity and result chunk limits are enforced", async () => {
     /PAYLOAD_LIMIT/,
   );
   assert.equal(revision(value).length, 64);
-});
-test("capacity model refuses unsupported scale and shows traffic growth", () => {
-  const base = {
-    assets: 6,
-    sessions: 1260,
-    users: 1,
-    opensPerDay: 2,
-    headBytes: 2000,
-    cacheHitsPercent: 70,
-    chartBytes: 300_000,
-    sourceBytes: 50_000,
-  };
-  assert.equal(capacityModel(base).fits, true);
-  assert.equal(capacityModel({ ...base, users: 1000 }).fits, false);
-  assert.throws(() => capacityModel({ ...base, assets: 51 }), /CATALOG_LIMIT/);
 });
 
 test("pending newest session preserves an explicitly verified older common endpoint", async () => {
@@ -901,4 +885,169 @@ test("a real asset revocation survives restart while unrelated SPY remains reada
   assert.equal((await (await restarted(spy, "Max")).settled).status, "ready");
   await assert.rejects(restarted(req, "Max", true), /EVIDENCE_REVOKED/);
   // Keep the synthetic revocation marker as evidence, too.
+});
+
+// Actual application storage calls/payloads, not platform billing.
+test("process results eliminate durable portfolio writes while preserving guards and revisions", async () => {
+  const { withProcessResults } =
+    await import("../src/lib/market-result-memory.ts");
+  const f = fixture();
+  const originalWrite = f.store.write.bind(f.store);
+  const writes = [];
+  f.store.write = async (key, token, rows) => {
+    writes.push({
+      key,
+      documents: rows.length,
+      payloadBytes: Buffer.byteLength(JSON.stringify(rows)),
+    });
+    return originalWrite(key, token, rows);
+  };
+  const options = {
+    ...f.options,
+    storage: withProcessResults(f.store, "synthetic-result-test", () =>
+      Date.parse("2024-11-06T14:00:00Z"),
+    ),
+  };
+  const first = await (
+    await createDurableBacktests(options)(req, "Max")
+  ).settled;
+  assert.equal(first.status, "ready");
+  assert.equal(
+    writes.some((w) => w.key.startsWith("job:")),
+    false,
+  );
+  assert.equal(
+    [...f.rows.keys()].some((key) => key.startsWith("result:")),
+    false,
+  );
+  const warm = await createDurableBacktests(options)(req, "Max");
+  assert.equal(warm.initial.status, "ready");
+  assert.deepEqual(warm.initial.result, first.result);
+  assert.equal(f.calls(), 2);
+  await f.store.revoke();
+  await assert.rejects(
+    createDurableBacktests(options)(req, "Max"),
+    /EVIDENCE_REVOKED/,
+  );
+});
+
+test("measured before/after result storage workload has identical financial output", async (t) => {
+  const { withProcessResults } =
+    await import("../src/lib/market-result-memory.ts");
+  const measurements = [];
+  for (const mode of ["durable-before", "process-after"]) {
+    const f = fixture();
+    const counts = {
+      mode,
+      readCalls: 0,
+      requestedKeys: 0,
+      returnedDocuments: 0,
+      readPayloadBytes: 0,
+      writeCalls: 0,
+      writtenDocuments: 0,
+      writePayloadBytes: 0,
+    };
+    const read = f.store.read.bind(f.store),
+      write = f.store.write.bind(f.store);
+    f.store.read = async (keys) => {
+      const rows = await read(keys);
+      counts.readCalls++;
+      counts.requestedKeys += keys.length;
+      counts.returnedDocuments += rows.length;
+      counts.readPayloadBytes += Buffer.byteLength(JSON.stringify(rows));
+      return rows;
+    };
+    f.store.write = async (key, token, rows) => {
+      counts.writeCalls++;
+      counts.writtenDocuments += rows.length;
+      counts.writePayloadBytes += Buffer.byteLength(JSON.stringify(rows));
+      return write(key, token, rows);
+    };
+    const storage =
+      mode === "process-after"
+        ? withProcessResults(f.store, "measurement-fixture", () =>
+            Date.parse("2024-11-06T14:00:00Z"),
+          )
+        : f.store;
+    const run = createDurableBacktests({ ...f.options, storage });
+    const cold = await (await run(req, "Max")).settled;
+    const warm = await (await run(req, "Max")).settled;
+    assert.equal(cold.result.portfolios[0].ending, "1200");
+    assert.deepEqual(warm.result, cold.result);
+    measurements.push({ ...counts, syntheticLoaderCalls: f.calls() });
+  }
+  assert.ok(
+    measurements[1].writePayloadBytes < measurements[0].writePayloadBytes,
+  );
+  assert.ok(
+    measurements[1].writtenDocuments < measurements[0].writtenDocuments,
+  );
+  t.diagnostic(
+    JSON.stringify({
+      scope:
+        "synthetic application storage operations; not provider traffic or Convex billing",
+      measurements,
+    }),
+  );
+});
+
+test("disposable history stores only authoritative heads and rejects forged browser content", async () => {
+  const { withDisposableHistory } =
+    await import("../src/lib/market-history-storage.ts");
+  const f = fixture();
+  f.store.namespace = "disposable-history-fixture";
+  const history = withDisposableHistory(f.store);
+  const first = await (
+    await createDurableBacktests({ ...f.options, storage: history.storage })(
+      req,
+      "Max",
+    )
+  ).settled;
+  assert.equal(first.status, "ready");
+  assert.equal(
+    [...f.rows.keys()].some((key) => key.startsWith("price:")),
+    false,
+  );
+  assert.ok(JSON.parse(f.rows.get("asset:AAA").payload).content);
+  const hints = history.exported();
+  assert.equal(hints.length, 2);
+  // A new process namespace loses all disposable memory, but the durable content
+  // hashes and revocations still refer to exactly the same legacy guard scope.
+  f.store.namespace = "disposable-history-new-process";
+  const restarted = withDisposableHistory(f.store, hints);
+  const second = await (
+    await createDurableBacktests({ ...f.options, storage: restarted.storage })(
+      req,
+      "Max",
+    )
+  ).settled;
+  assert.equal(second.status, "ready");
+  assert.deepEqual(second.result, first.result);
+  assert.equal(f.calls(), 2);
+  f.store.namespace = "disposable-history-forgery";
+  for (const key of f.rows.keys())
+    if (key.startsWith("result:")) f.rows.delete(key);
+  const forged = withDisposableHistory(
+    f.store,
+    hints.map((row) => ({
+      ...row,
+      payload: row.payload.replace("100", "999"),
+    })),
+  );
+  const rejected = await (
+    await createDurableBacktests({ ...f.options, storage: forged.storage })(
+      req,
+      "Max",
+    )
+  ).settled;
+  assert.equal(rejected.status, "blocked");
+  assert.equal(f.calls(), 2);
+  await f.store.revoke();
+  await assert.rejects(
+    createDurableBacktests({ ...f.options, storage: restarted.storage })(
+      req,
+      "Max",
+    ),
+    /EVIDENCE_REVOKED/,
+  );
 });

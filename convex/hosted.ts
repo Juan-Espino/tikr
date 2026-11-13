@@ -14,6 +14,7 @@ type State = {
   visitors?: Record<string, number>;
   revoked: string[];
   guards: Record<string, string>;
+  providerReservations?: Record<string, { month: string; units: number }>;
 };
 export const control = internalMutation({
   args: {
@@ -21,6 +22,7 @@ export const control = internalMutation({
       v.literal("enter"),
       v.literal("leave"),
       v.literal("provider"),
+      v.literal("providerFinish"),
       v.literal("check"),
       v.literal("begin"),
       v.literal("finish"),
@@ -31,6 +33,7 @@ export const control = internalMutation({
     symbols: v.array(v.string()),
     bucket: v.optional(v.number()), // Legacy argument accepted during rollout; never used for identity.
     visitor: v.optional(v.string()),
+    receivedBytes: v.optional(v.number()),
   },
   returns: v.union(
     v.null(),
@@ -56,7 +59,7 @@ export const control = internalMutation({
       : { day, opens: 0, buckets: {}, active: {}, revoked: [], guards: {} };
     // Release and revocation must remain possible after quota exhaustion.
     if (
-      !["revoke", "finish", "leave"].includes(a.op) &&
+      !["revoke", "finish", "leave", "providerFinish"].includes(a.op) &&
       !(await budget(
         ctx,
         a.op === "provider"
@@ -66,6 +69,41 @@ export const control = internalMutation({
       ))
     )
       return { code: "SHARED_BUDGET_EXHAUSTED" };
+    if (a.op === "providerFinish") {
+      if (!Number.isSafeInteger(a.receivedBytes) || a.receivedBytes! < 0)
+        throw Error("INVALID_CONTROL");
+      const reservation = s.providerReservations?.[a.token];
+      if (!reservation) throw Error("INVALID_CONTROL");
+      const ledger = await ctx.db
+        .query("marketBudget")
+        .withIndex("by_key", (q) => q.eq("key", "global"))
+        .unique();
+      // Refund only this newly recorded reservation. Historical conservative
+      // charges, failed streams, attempts and guards are never reset/reclassified.
+      if (
+        ledger &&
+        ledger.month === reservation.month &&
+        a.receivedBytes! <= reservation.units
+      )
+        await ctx.db.patch(ledger._id, {
+          io: Math.max(0, ledger.io - (reservation.units - a.receivedBytes!)),
+        });
+      delete s.providerReservations![a.token];
+      await save(ctx, row?._id, s);
+      return null;
+    }
+    if (a.op === "provider") {
+      s.providerReservations ??= {};
+      const month = new Date(now).toISOString().slice(0, 7);
+      for (const [token, reservation] of Object.entries(s.providerReservations))
+        if (reservation.month !== month) delete s.providerReservations[token];
+      if (
+        Object.keys(s.providerReservations).length >= 96 ||
+        s.providerReservations[a.token]
+      )
+        throw Error("CONTROL_LIMIT");
+      s.providerReservations[a.token] = { month, units: 2 * 1024 * 1024 };
+    }
     if (a.op === "begin") {
       for (const symbol of a.symbols) {
         const catalog = await ctx.db
@@ -99,7 +137,13 @@ export const control = internalMutation({
         if (s.guards[k] === a.token) delete s.guards[k];
       }
     } else {
-      if (s.revoked.includes(a.scope)) return { code: "EVIDENCE_REVOKED" };
+      // Historical rejected scopes must not disappear when a source window or
+      // policy changes. Conservatively block until an approved reconciliation.
+      if (
+        s.revoked.includes(a.scope) ||
+        (s.revoked.length && ["check", "begin"].includes(a.op))
+      )
+        return { code: "EVIDENCE_REVOKED" };
       if (a.op === "enter") {
         // Keep the shared in-flight resource bound; browsing has no request quota.
         for (const [t, expires] of Object.entries(s.active))
@@ -113,7 +157,9 @@ export const control = internalMutation({
       }
       if (
         a.op === "check" &&
-        a.symbols.some((symbol) => s.guards[`${a.scope}:${symbol}`])
+        a.symbols.some((symbol) =>
+          Object.keys(s.guards).some((key) => key.endsWith(`:${symbol}`)),
+        )
       )
         return { code: "REFRESH_GUARDED" };
       if (a.op === "begin")

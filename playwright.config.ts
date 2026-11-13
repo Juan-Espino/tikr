@@ -6,5 +6,9 @@ export default defineConfig({
   timeout: 45000,
   reporter: "list",
   outputDir: process.env.TIKR_BROWSER_OUTPUT ?? "test-results",
-  use: { baseURL: "http://127.0.0.1:43127", headless: true, channel: "msedge" },
+  use: {
+    baseURL: process.env.TIKR_BROWSER_BASE_URL ?? "http://127.0.0.1:43127",
+    headless: true,
+    channel: "msedge",
+  },
 });

@@ -27,6 +27,8 @@ export interface MarketStorage {
   ): Promise<(() => Promise<void>) & { endObservation?: () => Promise<void> }>;
   recoverySymbols?(symbols: string[]): Promise<string[]>;
   confirmRefresh?(symbol: string, headRevision: string): Promise<void>;
+  /** Publish disposable content only after its complete normalized asset root matches. */
+  confirmRead?(symbol: string, headRevision: string): Promise<void>;
   read(keys: string[]): Promise<Stored[]>;
   acquire(
     key: string,
@@ -197,7 +199,11 @@ export function convexStorage(
     if (hosted()) return gateway<T>(name, args);
     const admission = await localAdmission();
     const reserved = storageReservation(name, args);
-    const settle = await admission.reserve(reserved, evidenceRevision);
+    const settle = await admission.reserve(
+      reserved,
+      evidenceRevision,
+      "database",
+    );
     try {
       const result = await client.mutation(
         makeFunctionReference<"mutation", Record<string, unknown>, T>(
@@ -205,12 +211,15 @@ export function convexStorage(
         ),
         args,
       );
+      // Conservative control units, never observed billing. Decode old deployed functions too.
       const charged =
-        result &&
-        typeof result === "object" &&
-        "chargedIo" in result &&
-        typeof result.chargedIo === "number"
-          ? result.chargedIo
+        result && typeof result === "object"
+          ? "admissionUnits" in result &&
+            typeof result.admissionUnits === "number"
+            ? result.admissionUnits
+            : "chargedIo" in result && typeof result.chargedIo === "number"
+              ? result.chargedIo
+              : reserved
           : reserved;
       await settle(charged);
       return result;
@@ -251,6 +260,12 @@ export function convexStorage(
       const admission = await localAdmission();
       await assertPolicyActive(symbols);
       try {
+        await admission.assertLegacyReadable(
+          evidenceRevision,
+          symbols,
+          {},
+          reviewedPolicy,
+        );
         await admission.assertReadable(evidenceRevision, symbols);
       } catch (error) {
         if (!(error instanceof Error) || error.message !== "REFRESH_GUARDED")
@@ -264,6 +279,14 @@ export function convexStorage(
           Object.fromEntries(
             rows.map((row) => [row.key.slice(6), row.revision]),
           ),
+        );
+        await admission.assertLegacyReadable(
+          evidenceRevision,
+          symbols,
+          Object.fromEntries(
+            rows.map((row) => [row.key.slice(6), row.revision]),
+          ),
+          reviewedPolicy,
         );
       }
       await assertPolicyActive(symbols);

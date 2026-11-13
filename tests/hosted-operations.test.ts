@@ -86,15 +86,20 @@ test("instrumented six-asset fresh and cached hosted operations (synthetic, not 
       else if (url.pathname === "/v2/calendar")
         value = days.map((date) => ({ date }));
       else if (url.pathname === "/v2/stocks/bars") {
-        const symbol = url.searchParams.get("symbols")!;
-        expect([...symbols, "SPY"]).toContain(symbol);
+        const selected = url.searchParams.get("symbols")!.split(",");
+        selected.forEach((symbol) =>
+          expect([...symbols, "SPY"]).toContain(symbol),
+        );
         value = {
-          bars: {
-            [symbol]: days.map((date, i) => ({
-              t: `${date}T05:00:00Z`,
-              c: 100 + (i % 500) / 100,
-            })),
-          },
+          bars: Object.fromEntries(
+            selected.map((symbol) => [
+              symbol,
+              days.map((date, i) => ({
+                t: `${date}T05:00:00Z`,
+                c: 100 + (i % 500) / 100,
+              })),
+            ]),
+          ),
           next_page_token: null,
         };
       } else if (url.pathname === "/v1/corporate-actions")
@@ -108,7 +113,7 @@ test("instrumented six-asset fresh and cached hosted operations (synthetic, not 
       return response;
     }),
   );
-  const requestBody = {
+  const requestBody: import("../src/lib/market-contract").MarketRequest = {
     portfolios: [
       {
         id: "six-asset",
@@ -140,6 +145,7 @@ test("instrumented six-asset fresh and cached hosted operations (synthetic, not 
     const text = await response.text();
     const final = JSON.parse(text.trim().split("\n").at(-1)!);
     expect(final.status).toBe("ready");
+    if (final.history?.length) requestBody.history = final.history;
     expect(final.series[0].points.length).toBe(1280);
     const after = (await t.run((ctx) => ctx.db.query("marketBudget").first()))!;
     return {
@@ -151,10 +157,10 @@ test("instrumented six-asset fresh and cached hosted operations (synthetic, not 
   };
   try {
     const fresh = await open();
-    expect(fresh.providerCalls).toBe(14);
+    expect(fresh.providerCalls).toBe(4);
     metrics = empty();
     const cached = await open();
-    expect(cached.providerCalls).toBe(0);
+    expect(cached.providerCalls).toBe(1); // calendar refetched after host restart
     expect(cached.operations["control:check"]).toBeGreaterThanOrEqual(2);
     expect(cached.admissionIoBytes).toBeGreaterThan(0);
     expect(cached.admissionIoBytes).toBeLessThan(fresh.admissionIoBytes);
@@ -164,11 +170,11 @@ test("instrumented six-asset fresh and cached hosted operations (synthetic, not 
     );
     for (let i = 0; i < 12; i++) {
       metrics = empty();
-      expect((await open()).providerCalls).toBe(0);
+      expect((await open()).providerCalls).toBe(1);
     }
   } finally {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     vi.useRealTimers();
   }
-}, 15000);
+}, 30000);

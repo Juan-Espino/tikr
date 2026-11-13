@@ -202,3 +202,14 @@ Keep the last complete dated snapshot unchanged while a new selection loads; swa
 
 
 Personal provisional disclosure (2026-11-05): retain existing typography and status layout; show "Personal provisional Alpaca data; subject to corrections" and the action-completeness limitation on both workspace and compact dashboard results. This copy implements the owner's provisional-data decision without changing approved visual rules.
+
+## 2026-11-12 implementation checkpoint
+
+Preserve professional unavailable/retry messages, explicit
+period choices, 1W migration, submit-time names and provisional disclosure through
+the cache redesign. Synthetic QA responses have an explicit non-market-data disclosure. Browser acceptance status is recorded in
+[market-redesign-checkpoint.md](market-redesign-checkpoint.md).
+
+The QA follow-up retains fractional percent-axis labels and enough axis room to
+avoid clipping, including compact cards. Palette, typography and layout rules
+remain unchanged. Final evidence is in `market-browser-acceptance.md`.
