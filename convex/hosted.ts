@@ -1,3 +1,8 @@
+import {
+  supersededMarketScope,
+  PERSONAL_SOURCE_POLICY,
+  REVIEWED_V5_SCOPE,
+} from "../src/lib/market-policy";
 import { catalogShard, validateShard } from "../src/lib/asset-catalog";
 import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
@@ -5,8 +10,8 @@ import { limiter, hostedConcurrency } from "./market_limits";
 import { v } from "convex/values";
 import { budget } from "./market";
 
-// One bounded control document serializes all hosts. Guards and revocations never expire.
-type State = {
+// One bounded control document serializes all hosts. Revocations never expire.
+export type State = {
   day: string;
   opens: number;
   buckets: Record<string, number>;
@@ -14,6 +19,10 @@ type State = {
   visitors?: Record<string, number>;
   revoked: string[];
   guards: Record<string, string>;
+  observations?: Record<
+    string,
+    { token: string; leaseToken: string; expires: number }
+  >;
   providerReservations?: Record<string, { month: string; units: number }>;
 };
 export const control = internalMutation({
@@ -25,18 +34,23 @@ export const control = internalMutation({
       v.literal("providerFinish"),
       v.literal("check"),
       v.literal("begin"),
+      v.literal("recover"),
       v.literal("finish"),
       v.literal("revoke"),
     ),
     scope: v.string(),
+    policy: v.optional(v.literal(PERSONAL_SOURCE_POLICY)),
+    policyScope: v.optional(v.string()),
     token: v.string(),
     symbols: v.array(v.string()),
     bucket: v.optional(v.number()), // Legacy argument accepted during rollout; never used for identity.
     visitor: v.optional(v.string()),
+    leaseToken: v.optional(v.string()),
     receivedBytes: v.optional(v.number()),
   },
   returns: v.union(
     v.null(),
+    v.array(v.string()),
     v.object({ code: v.string(), retryAt: v.optional(v.number()) }),
   ),
   handler: async (ctx, a) => {
@@ -48,6 +62,21 @@ export const control = internalMutation({
       a.symbols.some((s) => !/^[A-Z][A-Z0-9.-]{0,15}$/.test(s))
     )
       throw Error("INVALID_CONTROL");
+    // Only the authenticated server gateway can call this internal mutation.
+    // Zero scopes belong to admission/provider accounting, never asset checks.
+    const current = a.policyScope ?? a.scope;
+    if (
+      a.policyScope !== undefined &&
+      (!/^[a-f0-9]{64}$/.test(a.policyScope) ||
+        (a.scope !== current &&
+          !(
+            a.scope === "0".repeat(64) &&
+            ["enter", "leave", "provider", "providerFinish"].includes(a.op)
+          )))
+    )
+      throw Error("INVALID_CONTROL");
+    const superseded = (scope: string) =>
+      supersededMarketScope(scope, current, a.policy);
     const now = Date.now();
     const row = await ctx.db
       .query("marketHosted")
@@ -125,6 +154,19 @@ export const control = internalMutation({
       }
     }
 
+    if (a.op === "recover") {
+      if (s.revoked.some((scope) => !superseded(scope)))
+        return { code: "EVIDENCE_REVOKED" };
+      return a.symbols.filter((symbol) => {
+        const key = `${a.scope}:${symbol}`;
+        const observation = s.observations?.[key];
+        return (
+          observation &&
+          observation.token === s.guards[key] &&
+          observation.expires <= now
+        );
+      });
+    }
     if (a.op === "revoke") {
       if (!s.revoked.includes(a.scope)) {
         if (s.revoked.length >= 16) throw Error("REVOCATION_LIMIT");
@@ -134,14 +176,22 @@ export const control = internalMutation({
     else if (a.op === "finish") {
       for (const symbol of a.symbols) {
         const k = `${a.scope}:${symbol}`;
-        if (s.guards[k] === a.token) delete s.guards[k];
+        // Legacy finish cannot settle a guard. Successful publication settles it atomically.
+        const observation = s.observations?.[k];
+        if (
+          observation?.token === a.token &&
+          observation.leaseToken === a.leaseToken
+        ) {
+          // Failure/end-of-observation retains the blocker for validated replacement.
+          observation.expires = Math.min(observation.expires, now);
+        }
       }
     } else {
       // Historical rejected scopes must not disappear when a source window or
       // policy changes. Conservatively block until an approved reconciliation.
       if (
         s.revoked.includes(a.scope) ||
-        (s.revoked.length && ["check", "begin"].includes(a.op))
+        s.revoked.some((scope) => !superseded(scope))
       )
         return { code: "EVIDENCE_REVOKED" };
       if (a.op === "enter") {
@@ -158,16 +208,51 @@ export const control = internalMutation({
       if (
         a.op === "check" &&
         a.symbols.some((symbol) =>
-          Object.keys(s.guards).some((key) => key.endsWith(`:${symbol}`)),
+          Object.keys(s.guards).some(
+            (key) =>
+              key.endsWith(`:${symbol}`) && !superseded(key.split(":")[0]!),
+          ),
         )
       )
         return { code: "REFRESH_GUARDED" };
       if (a.op === "begin")
         for (const symbol of a.symbols) {
           const k = `${a.scope}:${symbol}`;
-          if (s.guards[k]) return { code: "REFRESH_GUARDED" };
-          if (Object.keys(s.guards).length >= 96) throw Error("GUARD_LIMIT");
+          const lease = await ctx.db
+            .query("marketLeases")
+            .withIndex("by_key", (q) => q.eq("key", `asset:${symbol}`))
+            .unique();
+          if (
+            a.leaseToken !== undefined &&
+            (!lease || lease.token !== a.leaseToken || lease.expires <= now)
+          )
+            throw Error("LEASE_LOST");
+          const observation = s.observations?.[k];
+          if (
+            Object.keys(s.guards).some(
+              (key) =>
+                key.endsWith(`:${symbol}`) &&
+                !superseded(key.split(":")[0]!) &&
+                !(
+                  key === k &&
+                  a.leaseToken !== undefined &&
+                  observation !== undefined &&
+                  observation.token === s.guards[k] &&
+                  observation.expires <= now
+                ),
+            )
+          )
+            return { code: "REFRESH_GUARDED" };
+          if (!s.guards[k] && Object.keys(s.guards).length >= 96)
+            throw Error("GUARD_LIMIT");
           s.guards[k] = a.token;
+          if (!a.leaseToken || !lease) continue;
+          s.observations ??= {};
+          s.observations[k] = {
+            token: a.token,
+            leaseToken: a.leaseToken,
+            expires: lease.expires,
+          };
         }
     }
     await save(ctx, row?._id, s);
@@ -207,6 +292,60 @@ export const expireVisitors = internalMutation({
       await expire(ctx, state, Date.now());
       await save(ctx, row._id, state);
     }
+    return null;
+  },
+});
+
+// Operator-only CAS conversion: never exposed by the HTTP gateway. Approval must
+// establish old hosts are drained. A token alone is not proof of abandonment.
+export const reconcileLegacy = internalMutation({
+  args: {
+    scope: v.string(),
+    symbol: v.string(),
+    token: v.string(),
+    expectedHead: v.union(v.string(), v.null()),
+    expectedLeaseToken: v.union(v.string(), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, a) => {
+    const now = Date.now();
+    if (
+      a.scope !== REVIEWED_V5_SCOPE ||
+      !/^[A-Z][A-Z0-9.-]{0,15}$/.test(a.symbol)
+    )
+      throw Error("INVALID_CONTROL");
+    if (!(await budget(ctx, 262144, now)))
+      throw Error("SHARED_BUDGET_EXHAUSTED");
+    const row = await ctx.db
+      .query("marketHosted")
+      .withIndex("by_key", (q) => q.eq("key", "global"))
+      .unique();
+    if (!row) throw Error("INVALID_CONTROL");
+    const state = JSON.parse(row.payload) as State;
+    const key = `${a.scope}:${a.symbol}`;
+    const lease = await ctx.db
+      .query("marketLeases")
+      .withIndex("by_key", (q) => q.eq("key", `asset:${a.symbol}`))
+      .unique();
+    const head = await ctx.db
+      .query("marketEntries")
+      .withIndex("by_key", (q) => q.eq("key", `asset:${a.symbol}`))
+      .unique();
+    if (
+      state.guards[key] !== a.token ||
+      state.observations?.[key] ||
+      (lease && lease.expires > now) ||
+      (lease?.token ?? null) !== a.expectedLeaseToken ||
+      (head?.revision ?? null) !== a.expectedHead
+    )
+      throw Error("RECONCILIATION_CHANGED");
+    state.observations ??= {};
+    state.observations[key] = {
+      token: a.token,
+      leaseToken: lease?.token ?? a.token,
+      expires: now,
+    };
+    await save(ctx, row._id, state);
     return null;
   },
 });

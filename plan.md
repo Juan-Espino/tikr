@@ -1,3 +1,37 @@
+## Hosted retained-policy fix - source verification (2026-11-12)
+
+Implementation remains uncommitted in the dedicated `t3/fix-hosted-history-revoked-lineage`
+checkout at base `4f02383`. No main edits, live calls, credentials, production reads,
+production mutations, deploy, push or PR are part of this task. Prior publication
+and live-development approvals below are historical and do not authorize this fix.
+
+Shared exact v3/v4 -> v5 policy/scope classification now covers hosted control and
+local flags. Authenticated server policy identity handles zero-scope enter/provider
+without bypassing unknown/current revocations. Old BA guard is retained; current
+AMZN and unknown guards block. Normal accounting and active ownership remain.
+
+Evidence: complete supplied production global payload seeded into the actual hosted
+runtime test, synthetic gateway/Convex/provider only; SPY/BA/RTX/LMT fresh validation,
+AMZN blocked, retained markers/counters, mismatched policy/scope, current/unknown
+revocations, overlapping begin ownership, nonowner finish, normal ledger charges,
+gateway authentication and HTTP-200 blocked NDJSON are covered. Guard-wait timeout
+was traced to AMZN's existing 30 x 400ms polling with Date-only fakes; explicit timer
+advancement fixes the fixture without changing runtime timeouts or increasing the
+test timeout. See `market-data-integration.md` for recovery evidence and rollout.
+
+Checks: full Vitest suite 14 files / 47 tests passed; Node evidence/durable/admission
+command 44 tests passed; `pnpm check` passed (lint and both TypeScript projects);
+`node scripts/build-cleared.mjs` passed in system temp without private configuration.
+Final additional focused assertions passed (three files / six tests); formatting
+and final local admission regressions (15 tests) also passed.
+
+Current source status: interrupted-refresh recovery is now implemented (see the
+2026-11-12 recovery entry below), including operator-only legacy CAS conversion.
+Production remains unverified. Next is source review, then separately approved
+read-only inventory, backup, deployment/drain and exact AMZN conversion. No old-token
+manual finish, cleanup or live budget bypass is authorized. Historical test counts
+above describe the compatibility checkpoint; current verification is recorded below.
+
 ## PR publication authorized (2026-11-12)
 
 Owner approved committing/pushing this feature branch and opening its PR against main after source explanation, synthetic/Terra acceptance and the bounded real development cold/cache test. No automatic merge, production deployment or deployed cleanup is authorized. Private configuration remains ignored. Earlier no-publication statements below describe their historical checkpoints.
@@ -843,3 +877,39 @@ from PR16. No automatic publication or merge. Next external task, only if the
 owner separately authorizes it: named-target read-only deployment preflight,
 backup/rehearsal and compatible rollout proposal. Public rights, actual billed
 capacity and a bounded live allowance remain unresolved operational gates.
+
+## 2026-11-12 hosted interrupted-refresh recovery
+
+Implemented in the existing uncommitted compatibility worktree: lease-bound hosted
+observations, expired-observation Retry discovery, dual-token publication fencing,
+and atomic validated head publication/exact guard settlement. Legacy token-only
+records remain unreadable until the operator-only current-v5 CAS conversion and a
+successful normal refresh. No policy bump or broader lineage exception. All old
+revocations, guards, admission/attempt counters and unrelated records are retained.
+
+Synthetic retained-state hosted runtime now proves AMZN blocks before conversion
+and becomes ready after approved-fixture conversion plus a restarted-host Retry.
+Transaction tests exercise expiry, concurrent reclaim, stale finish/write, invalid
+head rollback and crash-after-commit settlement; existing action/correction suites
+remain in scope. Next task is owner-approved rollout/preflight and exact retained
+record reconciliation per `market-deployed-cleanup.md`, subject to unchanged exhausted
+live allowance and independent provider authorization. No production access,
+credential access, deploy, commit, push or PR was performed. `market-policy.md` is
+absent in this checkout; policy source is `src/lib/market-policy.ts`.
+
+Final source verification (synthetic, no live requests): Vitest 15 files / 49 tests
+passed; Node demo/backtest/evidence/durable/admission/cache suites 93/93 passed;
+all five financial mutation probes killed. `pnpm check` passed lint and both TS
+projects. Final changed-file formatting and `git diff --check` passed. A system-temp
+source mirror with an allowlisted child environment, no env files, and a synthetic
+public Convex URL is used for final lint/both TS projects/production build. Live
+rollout, legacy-record conversion and real-provider readback remain separately gated.
+Final credential-cleared mirror verification completed successfully: lint, app
+TypeScript, Convex TypeScript and optimized Next production build all passed.
+Source is ready for owner review/PR preparation; no PR was created. Final status
+contains only the preserved compatibility patch and the focused recovery changes.
+
+Owner authorized commit, push and PR creation for the verified recovery source in
+this sidebar chat on 2026-11-12. This supersedes earlier no-publication statements
+for this source change only; merge, deployment, production inspection/mutations,
+legacy conversion and real provider requests remain unauthorized.

@@ -1,7 +1,10 @@
 import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { ConvexError, getDocumentSize, v } from "convex/values";
-import { PERSONAL_SOURCE_POLICY } from "../src/lib/market-policy";
+import {
+  supersededMarketScope,
+  PERSONAL_SOURCE_POLICY,
+} from "../src/lib/market-policy";
 import {
   MARKET_BUDGET as B,
   FREE_ALLOWANCE as F,
@@ -222,7 +225,12 @@ export const write = internalMutation({
     status: v.union(v.literal("budget"), v.literal("storage"), v.literal("ok")),
     admissionUnits: v.optional(v.number()),
   }),
-  args: { leaseKey: v.string(), token: v.string(), entries: v.array(entry) },
+  args: {
+    leaseKey: v.string(),
+    token: v.string(),
+    entries: v.array(entry),
+    guard: v.optional(v.object({ scope: v.string(), token: v.string() })),
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
     if (
@@ -237,6 +245,46 @@ export const write = internalMutation({
       .unique();
     if (!lease || lease.token !== args.token || lease.expires <= now)
       throw new Error("LEASE_LOST");
+    const hostedRow = args.leaseKey.startsWith("asset:")
+      ? await ctx.db
+          .query("marketHosted")
+          .withIndex("by_key", (q) => q.eq("key", "global"))
+          .unique()
+      : null;
+    const hostedState = hostedRow
+      ? (JSON.parse(hostedRow.payload) as import("./hosted").State)
+      : null;
+    const guardKey = args.guard
+      ? `${args.guard.scope}:${args.leaseKey.slice(6)}`
+      : "";
+    if (
+      hostedState &&
+      Object.keys(hostedState.guards).some((k) =>
+        k.endsWith(`:${args.leaseKey.slice(6)}`),
+      )
+    ) {
+      const observation = hostedState.observations?.[guardKey];
+      if (
+        !args.guard ||
+        hostedState.guards[guardKey] !== args.guard.token ||
+        observation?.token !== args.guard.token ||
+        observation.leaseToken !== args.token ||
+        observation.expires <= now
+      )
+        throw Error("LEASE_LOST");
+    }
+    if (
+      args.guard &&
+      hostedState?.revoked.some(
+        (scope) =>
+          !supersededMarketScope(
+            scope,
+            args.guard!.scope,
+            PERSONAL_SOURCE_POLICY,
+          ),
+      )
+    )
+      throw Error("EVIDENCE_REVOKED");
     let delta = 0,
       added = 0,
       io = 0;
@@ -307,6 +355,31 @@ export const write = internalMutation({
           /* Invalid metadata cannot authorize a future expansion. */
         }
       }
+    }
+    if (args.guard && hostedRow && hostedState && completedFrom) {
+      const head = args.entries.find((e) => e.key === args.leaseKey)!;
+      const manifest = JSON.parse(head.payload);
+      if (
+        manifest.evidenceRevision !== args.guard.scope ||
+        manifest.meta?.symbol !== args.leaseKey.slice(6)
+      )
+        throw Error("UNVERIFIED_DATA");
+      // Read our transaction's published head before acknowledging the fence.
+      const published = await ctx.db
+        .query("marketEntries")
+        .withIndex("by_key", (q) => q.eq("key", args.leaseKey))
+        .unique();
+      if (
+        !published ||
+        published.revision !== head.revision ||
+        published.payload !== head.payload
+      )
+        throw Error("REVISION_CHANGED");
+      delete hostedState.guards[guardKey];
+      delete hostedState.observations?.[guardKey];
+      await ctx.db.patch(hostedRow._id, {
+        payload: JSON.stringify(hostedState),
+      });
     }
     // Record scope in the same transaction as the successful head write. Reading
     // the small lease later avoids an extra unbudgeted full source-head read.

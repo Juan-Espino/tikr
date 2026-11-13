@@ -11,7 +11,7 @@ import {
 import { join, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
 import { MARKET_BUDGET } from "./market-budget.ts";
-import { PERSONAL_SOURCE_POLICY } from "./market-policy.ts";
+import { supersededMarketScope } from "./market-policy.ts";
 import { developmentIoAllowance } from "./market-dev-allowance.ts";
 type Ledger = {
   version: 1;
@@ -183,13 +183,6 @@ export function createAdmission(
       // Exact PR16-reviewed v3/v4 -> v5 transition, not a general old-policy exemption.
       // These exact global scopes were superseded; asset flags, ledger
       // revocations and unknown/current-policy refresh guards remain authoritative.
-      const supersededGlobals =
-        reviewedPolicy === PERSONAL_SOURCE_POLICY
-          ? new Set([
-              "5678a7ec4e584fb841e6e25049b7efb790e49a63167aa80cf8eaa4c561e928e7",
-              "dcb3fad8de5e1ec032403090533da422eaa911b249dfd8511affd38539b87d8d",
-            ])
-          : new Set<string>();
       const scopes = new Set<string>();
       const handle = await opendir(directory);
       let count = 0;
@@ -200,14 +193,15 @@ export function createAdmission(
         if (
           revoked &&
           (!revoked[2] || symbols.includes(revoked[2])) &&
-          (revoked[2] || !supersededGlobals.has(revoked[1]!))
+          (revoked[2] ||
+            !supersededMarketScope(revoked[1]!, scope, reviewedPolicy))
         )
           throw Error("EVIDENCE_REVOKED");
         const guard = /^refresh-([a-f0-9]{64})-/.exec(entry.name);
         if (
           guard &&
           guard[1] !== scope &&
-          !supersededGlobals.has(guard[1]!) &&
+          !supersededMarketScope(guard[1]!, scope, reviewedPolicy) &&
           entry.name.endsWith(".flag") &&
           symbols.some((symbol) =>
             entry.name.startsWith(`refresh-${guard[1]}-${symbol}-`),

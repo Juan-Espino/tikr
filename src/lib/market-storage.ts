@@ -1,6 +1,6 @@
 import { MarketFailure } from "./market-errors.ts";
 import "server-only";
-import { hosted, gateway, control } from "./market-hosted.ts";
+import { hosted, gateway, control, policyIdentity } from "./market-hosted.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { ConvexHttpClient } from "convex/browser";
@@ -236,6 +236,8 @@ export function convexStorage(
       throw new Error("STORAGE_UNAVAILABLE");
     }
   }
+  const hostedLeases = new Map<string, string>();
+  const hostedGuards = new Map<string, string>();
   return {
     namespace: revision({
       url,
@@ -291,6 +293,18 @@ export function convexStorage(
       }
       await assertPolicyActive(symbols);
     },
+    ...(hosted()
+      ? {
+          recoverySymbols: (symbols: string[]) =>
+            gateway<string[]>("control", {
+              ...policyIdentity(evidenceRevision),
+              op: "recover",
+              scope: evidenceRevision,
+              symbols,
+              token: randomUUID(),
+            }),
+        }
+      : {}),
     ...(!hosted()
       ? {
           async recoverySymbols(symbols: string[]) {
@@ -331,9 +345,23 @@ export function convexStorage(
     async beginRefresh(symbol) {
       if (hosted()) {
         const token = randomUUID();
-        await control("begin", evidenceRevision, [symbol], token);
+        await gateway("control", {
+          ...policyIdentity(evidenceRevision),
+          op: "begin",
+          scope: evidenceRevision,
+          symbols: [symbol],
+          token,
+          leaseToken: hostedLeases.get(`asset:${symbol}`),
+        });
+        hostedGuards.set(`asset:${symbol}`, token);
         return async () => {
-          await control("finish", evidenceRevision, [symbol], token);
+          await gateway("control", {
+            op: "finish",
+            scope: evidenceRevision,
+            symbols: [symbol],
+            token,
+            leaseToken: hostedLeases.get(`asset:${symbol}`),
+          });
         };
       }
       await assertPolicyActive([symbol]);
@@ -378,6 +406,8 @@ export function convexStorage(
         throw new MarketFailure("REFRESH_COOLDOWN", r.retryAt);
       if (r.status === "daily")
         throw new MarketFailure("REFRESH_COOLDOWN", r.retryAt);
+      if (hosted() && key.startsWith("asset:") && r.status === "acquired")
+        hostedLeases.set(key, token);
       return r.status === "acquired" ? token : null;
     },
     async write(leaseKey, token, entries) {
@@ -385,12 +415,27 @@ export function convexStorage(
         leaseKey,
         token,
         entries,
+        ...(hosted() && hostedGuards.has(leaseKey)
+          ? {
+              guard: {
+                scope: evidenceRevision,
+                token: hostedGuards.get(leaseKey)!,
+              },
+            }
+          : {}),
       });
       if (r.status === "storage") throw new MarketFailure("STORAGE_CAPACITY");
       if (r.status !== "ok") throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
     },
     async release(key, token) {
-      await call("release", { key, token });
+      try {
+        await call("release", { key, token });
+      } finally {
+        if (hostedLeases.get(key) === token) {
+          hostedLeases.delete(key);
+          hostedGuards.delete(key);
+        }
+      }
     },
   };
 }

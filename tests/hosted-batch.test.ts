@@ -56,3 +56,24 @@ test("batch publishes completed portfolios independently and validates all input
   expect(single).not.toHaveBeenCalled();
   vi.unstubAllEnvs();
 });
+
+test("HTTP 200 NDJSON can contain a blocked history result", async () => {
+  vi.stubEnv("TIKR_MARKET_HOSTED_ORIGIN", undefined);
+  try {
+    vi.mocked(single).mockResolvedValue(
+      new Response(
+        JSON.stringify({ status: "blocked", code: "EVIDENCE_REVOKED" }) + "\n",
+      ),
+    );
+    const response = await POST(request({ requests: [input], history: [] }));
+    expect(response.status).toBe(200);
+    const record = JSON.parse((await response.text()).trim());
+    expect(record.status).toBe(200);
+    expect(JSON.parse(record.body)).toMatchObject({
+      status: "blocked",
+      code: "EVIDENCE_REVOKED",
+    });
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

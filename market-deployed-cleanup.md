@@ -104,3 +104,38 @@ retain correction/recovery evidence. Do not restore stale price roots over newer
 corrections or revocations. Verify two-session/common-date results, all negative
 guard cases and accounting continuity before reopening. If authoritative data is
 unavailable, show professional unavailable/retry copy and preserve records.
+
+## Interrupted hosted guard: approval-gated reconciliation
+
+This procedure is source-ready, not executed. Obtain fresh target-specific approval
+for each live inspection, backup, deployment and conversion; no exhausted ledger
+or provider cap may be reset or bypassed. Public data rights remain separately gated.
+
+1. Read-only preflight and encrypted backup as above. Record the exact current
+   AMZN guard `695f9ce4566c9a60d17cee85ef9359c8831943e3ec378d3bf005c9a97cdd16f7:AMZN`,
+   retained token `846ec5fd-a2b6-46e9-835b-78713b5dbf8a`, head revision or absence,
+   and asset lease token/expiry or absence. The supplied payload alone does not
+   establish current state or abandonment.
+2. Approve and roll out compatible backend and server source. Drain all old server
+   owners and in-flight provider observations; wait beyond the lease lifetime and
+   verify no live owner remains. A token alone is insufficient evidence. Keep
+   admission/provider budgets unchanged. If drain cannot be established, stop.
+3. Present the exact target and CAS arguments for owner approval before invoking
+   internal `hosted:reconcileLegacy`: scope as above, symbol `AMZN`, retained token,
+   `expectedHead` and `expectedLeaseToken` from the approved manifest (null only for
+   verified absence). No wildcard operation. A CAS failure requires a new bounded
+   inspection and approval; never substitute freshly observed values automatically.
+4. Conversion adds metadata only; it retains the original blocker. Once provider
+   allowance and use are independently authorized, one explicit Retry on a new host
+   must obtain the normal lease and fully validate replacement data. Publication
+   and exact guard settlement occur in one transaction. Verify the committed head,
+   dependencies and guard outcome under separately approved access. Verify BA's
+   historical guard/revocation, unrelated tickers and all accounting remain intact.
+5. Failed validation, correction, revocation, budget exhaustion or lease loss leaves
+   the blocker or durable revocation authoritative. Restore no earlier ledger to
+   force success. Rollback must preserve new observation metadata and use backend
+   fencing; old backend code is unsafe while new owners exist. Drain traffic and
+   obtain an approved forward repair rather than removing guards.
+
+Live deployment, retained-record CAS, provider refresh and live readback remain
+unverified and unauthorized here. Synthetic success is not a claim AMZN is fixed live.
