@@ -74,6 +74,27 @@ export const control = (
     token,
     ...(visitor ? { visitor } : {}),
   });
+export async function reserveHostedProvider(count = 1) {
+  const tokens: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const token = randomUUID();
+    await control("provider", "0".repeat(64), [], token);
+    tokens.push(token);
+  }
+  return async (bytes: number) => {
+    for (const token of tokens) {
+      const receivedBytes = Math.min(bytes, 2 * 1024 * 1024);
+      await gateway("control", {
+        op: "providerFinish",
+        scope: "0".repeat(64),
+        symbols: [],
+        token,
+        receivedBytes,
+      });
+      bytes -= receivedBytes;
+    }
+  };
+}
 export async function enterHosted(_request: Request) {
   const token = randomUUID(),
     scope = "0".repeat(64);

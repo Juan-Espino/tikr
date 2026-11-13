@@ -108,6 +108,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     setEditorOpen(false);
   }
   function changeDraft(p: Portfolio) {
+    if (p.name !== draft.name) setNameValidationAttempted(false);
     setDraft(p);
     if (!p.holdings.length) {
       setResult(null);

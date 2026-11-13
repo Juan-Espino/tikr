@@ -11,6 +11,7 @@ import {
 import { join, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
 import { MARKET_BUDGET } from "./market-budget.ts";
+import { PERSONAL_SOURCE_POLICY } from "./market-policy.ts";
 import { developmentIoAllowance } from "./market-dev-allowance.ts";
 type Ledger = {
   version: 1;
@@ -18,6 +19,12 @@ type Ledger = {
   calls: number;
   io: number;
   revoked?: string[];
+  scoped?: Partial<
+    Record<
+      "provider" | "database",
+      { attempts: number; retainedUnits: number; measuredReceivedBytes: number }
+    >
+  >;
 };
 export function createAdmission(
   directory: string,
@@ -113,6 +120,18 @@ export function createAdmission(
           ledger.month > month
         )
           throw new Error("ADMISSION_CORRUPT");
+        if (
+          ledger.scoped &&
+          Object.entries(ledger.scoped).some(
+            ([key, value]) =>
+              !["provider", "database"].includes(key) ||
+              !value ||
+              Object.values(value).some(
+                (n) => !Number.isSafeInteger(n) || n < 0,
+              ),
+          )
+        )
+          throw Error("ADMISSION_CORRUPT");
       } catch (error) {
         if (
           error instanceof Error &&
@@ -155,6 +174,66 @@ export function createAdmission(
     }
   }
   return {
+    async assertLegacyReadable(
+      scope: string,
+      symbols: string[],
+      revisions: Record<string, string> = {},
+      reviewedPolicy?: string,
+    ) {
+      // Exact PR16-reviewed v3/v4 -> v5 transition, not a general old-policy exemption.
+      // These exact global scopes were superseded; asset flags, ledger
+      // revocations and unknown/current-policy refresh guards remain authoritative.
+      const supersededGlobals =
+        reviewedPolicy === PERSONAL_SOURCE_POLICY
+          ? new Set([
+              "5678a7ec4e584fb841e6e25049b7efb790e49a63167aa80cf8eaa4c561e928e7",
+              "dcb3fad8de5e1ec032403090533da422eaa911b249dfd8511affd38539b87d8d",
+            ])
+          : new Set<string>();
+      const scopes = new Set<string>();
+      const handle = await opendir(directory);
+      let count = 0;
+      for await (const entry of handle) {
+        if (++count > 2048) throw Error("ADMISSION_DIRECTORY_LIMIT");
+        const revoked =
+          /^revoked-([a-f0-9]{64})(?:-([A-Z0-9.-]+))?\.flag$/.exec(entry.name);
+        if (
+          revoked &&
+          (!revoked[2] || symbols.includes(revoked[2])) &&
+          (revoked[2] || !supersededGlobals.has(revoked[1]!))
+        )
+          throw Error("EVIDENCE_REVOKED");
+        const guard = /^refresh-([a-f0-9]{64})-/.exec(entry.name);
+        if (
+          guard &&
+          guard[1] !== scope &&
+          !supersededGlobals.has(guard[1]!) &&
+          entry.name.endsWith(".flag") &&
+          symbols.some((symbol) =>
+            entry.name.startsWith(`refresh-${guard[1]}-${symbol}-`),
+          )
+        )
+          scopes.add(guard[1]!);
+      }
+      try {
+        const info = await lstat(file);
+        if (!info.isFile() || info.isSymbolicLink() || info.size > 2048)
+          throw Error("ADMISSION_CORRUPT");
+        const ledger = JSON.parse(await readFile(file, "utf8")) as Ledger;
+        if (ledger.revoked !== undefined && !Array.isArray(ledger.revoked))
+          throw Error("ADMISSION_CORRUPT");
+        if (ledger.revoked?.length) throw Error("EVIDENCE_REVOKED");
+      } catch (error) {
+        if (!(
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ))
+          throw error;
+      }
+      for (const legacy of scopes)
+        await this.assertReadable(legacy, symbols, revisions);
+    },
     async assertActive(scope: string) {
       if (!/^[a-f0-9]{64}$/.test(scope)) throw new Error("ADMISSION_CONFIG");
       try {
@@ -351,7 +430,11 @@ export function createAdmission(
           throw error;
       }
     },
-    async reserve(bytes: number, scope?: string) {
+    async reserve(
+      bytes: number,
+      scope?: string,
+      kind?: "provider" | "database",
+    ) {
       if (!Number.isSafeInteger(bytes) || bytes < 0)
         throw new Error("ADMISSION_CONFIG");
       if (scope) await this.assertActive(scope);
@@ -364,6 +447,16 @@ export function createAdmission(
           throw new Error("CACHE_BUDGET");
         l.calls++;
         l.io += bytes;
+        if (kind) {
+          l.scoped ??= {};
+          const tally = (l.scoped[kind] ??= {
+            attempts: 0,
+            retainedUnits: 0,
+            measuredReceivedBytes: 0,
+          });
+          tally.attempts++;
+          tally.retainedUnits += bytes;
+        }
       });
       if (scope) await this.assertActive(scope);
       let settled = false;
@@ -377,7 +470,14 @@ export function createAdmission(
         )
           return;
         await transact((l) => {
-          if (l.month === month) l.io -= bytes - actualBytes;
+          if (l.month === month) {
+            l.io -= bytes - actualBytes;
+            if (kind && l.scoped?.[kind]) {
+              l.scoped[kind].retainedUnits -= bytes - actualBytes;
+              if (kind === "provider")
+                l.scoped[kind].measuredReceivedBytes += actualBytes;
+            }
+          }
         });
       };
     },

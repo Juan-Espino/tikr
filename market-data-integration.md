@@ -1,102 +1,59 @@
-History-period follow-up (2026-11-10): source bars/actions load from the selected requested start, within the existing five-year ceiling; the shared calendar still establishes preset/session boundaries. Personal provisional coverage no longer asserts known inception. Missing leading bars fail MISSING_PRICE, never confirmed short history. Attested short history blocks the entire requested period. Source/provider failures, missing prices, unsupported actions and budget/cooldown have separate safe ticker-level feedback. BA/RTX were traced only with synthetic inputs: older out-of-period actions can no longer block a complete short window; the actual reported underlying causes remain unknown.
-
-Durable manifests retain their actual from/through and evidence revision. Reuse requires full requested coverage (or the existing explicit pending-tail contract), matching revisions, readable guards and valid evidence. Result policy identity is revised so old shortened results cannot be reused. A successful committed narrow window may expand under the same per-symbol atomic lease; this is new scope work, not a retry of failed work. The optional completed lease marker is set by the write transaction; acquisition clears it, preventing failed expansions from bypassing attempts/cooldown. Existing counters, shared budgets, active-request slots, guards, revocations and lease tokens remain enforced. No ledger or marker cleanup, live requests, credentials or deployment was performed. Older full-supported-window loader descriptions below are superseded by this selected-window contract.
-
-Owner decision (2026-11-10, owner testing): request rate throttles and ephemeral visitor admission limits are removed for now, superseding earlier browsing token-bucket/visitor requirements below. Catalog import failures permit the next explicit retry without daily attempt or cooldown lockout. The editor pauses search after failure until Retry search; overlapping imports retain the same atomic catalog lease. Shared storage/I/O/provider budgets, four active hosted request slots, source refresh policy, correction/revocation/abandoned guards and lease ownership remain enforced. Historical ledger/attempt records are retained. Hosted access remains public and unauthenticated. Restore appropriate server-side request limiting as the final task before broader release; this change does not authorize deployment, live activation or credentials.
-
-Development catalog trial (2026-11-10): one admitted real Alpaca import stored 13,181 eligible assets; actual local Palantir/PLTR search, selection and save passed from that durable catalog. Only development catalog storage is configured in the ignored worktree environment; Alpaca credentials are withheld from the running server. No price/history/actions or production verification is claimed. See hosted-operation.md and plan.md for measured write sizing and limits.
-
-Catalog import repair (2026-11-10): lossless bounded atomic catalog storage, explicit eligibility and sanitized failure stages are implemented locally; full live catalog fit and production root cause remain unverified. See [hosted-operation.md](hosted-operation.md) for limits, reservation cost and the gated live-verification procedure. History/action, evidence, correction and revocation requirements are unchanged.
-
-Catalog follow-up (2026-11-10): the six-demo-symbol eligibility restriction is superseded by the validated durable asset catalog described in hosted-operation.md. Catalog metadata supplies eligibility, not inception/history/action evidence. New assets with missing leading history still fail rather than inventing an inception date. Portfolio requests retain six holdings each; up to three portfolios plus SPY can require nineteen distinct symbols in hosted control checks. The standalone coordinator accepts up to 30,000 catalog symbols, while its byte/result cache limits remain unchanged. Earlier six-asset and fifty-catalog descriptions below are historical scope, not current eligibility or capacity claims.
-
 # Personal market-data integration
 
-Market admission follow-up (2026-11-10): the hosted daily-open quotas are superseded by configurable short-term token buckets and bounded expiring full visitor HMACs. Shared budgets, durable source leases, attempts, correction guards and revocations remain enforced; no counters/markers were reset. Manual cooldown and shared-budget errors now reach the UI with safe codes and known retry times. See hosted-operation.md for the reproducible six-asset route instrumentation and its substantial limits: application reservation counters/JSON bytes are not measured platform billing, and the earlier storage-only model does not certify hosted monthly capacity. No credentials, live requests or deployment were authorized for this change.
-
-Hosted preparation update (2026-11-06): anonymous Vercel operation is implemented behind explicit activation configuration; see [hosted-operation.md](hosted-operation.md) for exact variables, limits, disable/rollback and unresolved public-data rights. Local-only/production-disabled descriptions below describe the original local path, which remains compatible. Public activation has not been authorized or performed.
-
-Owner decision (2026-11-05): personal local Alpaca results may use provisional live data without manual evidence approval. Label results clearly as subject to corrections; this does not establish provider finality or exhaustive action completeness. Raw SIP closes, the next-day 09:00 New York cutoff, payment-date reinvestment, decimal arithmetic, shared periods and missing/unsupported-action failures remain required. Public/shared licensing, credentials/configuration, live requests and deployment require separate authorization. Earlier manual-review requirements below remain applicable to reviewed replay and historical evidence acceptance; they no longer gate this personal provisional mode.
-
+Current architecture: [market-redesign-checkpoint.md](market-redesign-checkpoint.md).
+This replaces the earlier durable-history/result-cache integration description.
 
 ## Scope and activation gates
 
-The implementation connects an evidence-gated loader, a durable Convex store and the existing portfolio UI. It is local personal-use code, not accepted live-provider integration or a public deployment. Production market requests are deliberately disabled. Better Auth, cloud portfolio ownership and public/shared Alpaca rights remain separate work. Guest portfolio definitions remain browser-local; credentials and private evidence never go into browser storage or public variables.
+Alpaca credentials and normalization remain server-only. Portfolio definitions and
+drafts remain browser-local; there is no auth/profile/cloud-portfolio scaffolding.
+Hosted access is unauthenticated, but live public display and caching rights are
+not established. No synthetic test or successful build authorizes activation,
+credentials, deployment, paid use or live provider calls.
 
-Existing private captures replay offline with integrity preserved. All six still withhold engine acceptance: independent close semantics, finality/reconciliation and exhaustive corporate actions need assessed evidence. No new authenticated calls or credentials were used for this integration. Never create a verified review merely to bypass these gates.
-
-## Evidence loader
-
-`src/lib/alpaca/verified-loader.ts` accepts a trusted reviewed artifact, binding the exact candidate revision, one symbol, raw SIP daily-close definition, period, calendar and expiring analyst review. Reconciliation must explicitly cover late corrections, cancellations and unsupported events. These are analyst attestations, not authenticated provider guarantees. The 09:00 New York cutoff is operational eligibility only. An explicit newest pending session may retain the immediately preceding verified common endpoint; an interior gap cannot.
-
-The loader defaults to replaying reviewed candidates. Its optional injected live configuration re-fetches the same bounded scope and rejects a changed revision. The Next runtime uses replay only; it does not silently load Alpaca credentials or automate new review approvals. A changed reviewed artifact forces revalidation. Expired reviews cannot produce ready or stale results, including after restart; the browser removes a displayed result at its evidence expiry.
-
-A private bundle has `version: 1`, `historyStart`, `calendar`, and `reviews` keyed by symbol using the exported `ReviewedAsset` type. Each candidate is normalized adapter output. The file is pinned by its SHA256, limited to 8 MB and read only on the server. Do not commit it or put it in synced storage. The existing private capture snapshots are NOT automatically valid bundles.
+Personal provisional mode remains explicitly enabled through the existing server
+configuration. It accepts provisional coverage under the owner policy and labels
+results subject to corrections. Reviewed replay remains an expiring, hash-bound
+private evidence-file alternative. Neither mode fabricates inception, prices,
+missing actions or earlier common history. Read `backtest-methodology.md` before
+engine changes and `alpaca-validation.md` for evidence/oracle procedures.
 
 ## Durable storage and refreshes
 
-`convex/market.ts` exposes internal functions only. Source data is shared per symbol, with monthly price/action chunks, compact key-only manifests and bounded metadata and revisioned manifests. Only changed chunks are rewritten. Sixteen compressed calculation slots have content hashes and asset dependencies. A slot collision evicts cache reuse rather than returning another request's result; user portfolio definitions are never evicted by this cache.
+The server keeps only asset roots/metadata, shared admission/fencing/attempts,
+revocations and validated catalog state in Convex. Monthly normalized history is
+browser/process disposable content. New calendar and derived-result writes are
+removed. Legacy monthly manifests remain readable; shared guards and historical
+revocations are never bypassed by a new cache identity. Recovery still binds the
+atomic committed head revision to readback receipts. Files/process memory are not
+shared or durable on Vercel.
 
-Atomic leases last 60 seconds. One automatic refresh per New York 09:00 cycle is allowed; an explicit second attempt requires a 60-second cooldown. Late writers fail the lease-token comparison. Concurrent views can reuse a newly committed asset without duplicating the provider load. Calendar corrections, policy/evidence revisions and effective periods participate in result validity. An unchanged dated result may survive a failed refresh; known corrections revoke it.
+See `on-demand-cache.md` for restart, cache-loss and multitab behavior;
+`market-accounting.md` for control units versus measurements; and
+`market-deployed-cleanup.md` before any deployment or record cleanup. Source schema
+is unchanged and deployed records have not been deleted or reset.
 
-A refresh writes and syncs a symbol-specific guard before the loader can observe data. Opens arriving during an active guard receive a loading state and wait up to 12 seconds on local guard checks before reusing committed shared data; uncertain or abandoned guards settle blocked rather than exposing old results. A known corrected evidence revision is then revoked with an independent durable marker BEFORE attempting a Convex tombstone. This makes revocation independent of database availability. The current request blocks and subsequent clients cannot call Convex for that revision. Revocations survive month changes and process restarts. A newly assessed artifact hash is required to resume. If writing the revocation marker fails, the pre-existing guard remains and blocks subsequent readers, including after restart. Uncertain returned data/persistence also retains the guard; a failure before receiving data may release it. Do not automatically steal/delete an abandoned admission lock, refresh guard or revocation marker.
+## Server configuration inventory
 
-The backend server uses the installed SDK's runtime `setAdminAuth` method to invoke internal mutations. This is an explicitly version-bound internal SDK interface; it needs compatibility verification on Convex upgrades. The admin key is powerful and belongs only in the trusted local server environment; it is never a function argument, response or browser variable.
+`ALPACA_API_KEY_ID` / `ALPACA_API_SECRET_KEY` (existing `APCA_API_KEY` /
+`APCA_API_SECRET` aliases), activation flags, Convex server/gateway configuration,
+reviewed evidence path/hash and development allowance settings are server-side.
+The unused browser Convex provider and its public-URL consumer are removed.
+Never copy/read private env or owner browser data for synthetic verification.
+Names and consumer decisions are in `market-source-inventory.md`; no secret
+values belong in documentation, browser storage or logs.
 
-## Free-tier budget
+## Local verification
 
-Official sources checked November 4, 2026: https://docs.convex.dev/production/state/limits and https://www.convex.dev/pricing/faq . Free limits are 0.5 GB database storage including indexes, 1 GB monthly database I/O, 1 million monthly function calls and 20 GB-hours monthly action compute. Allowances are per team, shared with other projects. Free has resource caps; Starter can incur metered charges. Do not switch to paid access automatically.
+Use pnpm.cmd on Windows. Run `pnpm.cmd check`, the Node suites with
+`--conditions=react-server --experimental-strip-types`, `pnpm.cmd exec vitest run`
+and `node tests/backtest-mutations.mjs`. Run the deterministic cost matrix through
+`scripts/measure-market-redesign.mjs`; the old measurement command is a compatible
+alias and no longer extrapolates a fixed traffic capacity model.
 
-Tikr's proposed admission budgets are 100 MB storage, 500 MB monthly I/O, 250,000 monthly calls and 5 GB-hours action compute. Source entries reserve additional index/document overhead, with 6 MB held back for control/lease overhead. Documents are capped at 60 KB; the supported history is capped at 1,300 sessions and the initial catalog remains the existing six assets. There are no Convex actions in this pipeline, so its Convex action compute is zero. Engine calculations execute in Next.js; their Vercel compute/bandwidth costs are separate and are NOT certified here.
-
-`node --conditions=react-server --experimental-strip-types scripts/measure-market-budget.mjs` reproduces actual Convex-value serialized sizing and a conservative workload model. Its stress sample uses six assets, 1,300 sessions, unusually long price decimals and bounded distributions, plus four chart lines. Current modeled personal use (one user, ten opens/day, 31 days) is approximately 13–18 MB storage including overhead and 322–358 MB monthly database I/O, including 30% calculation-cache misses and manifest reads. The initial 250 MB I/O proposal was increased to 500 MB after measuring real engine-result payloads and accounting for cold/recalculated results. This reserves at most half of the free I/O allowance for Tikr, with team headroom separately required. The modeled personal workload fits this budget, but is a forecast, not deployed billing evidence. Five or twenty users exceed that traffic budget in the same model. The 50-asset hard resource ceiling is not a promise that fifty assets refreshed daily fit this workload budget.
-
-Internal counters are admission estimates, not team telemetry or a guarantee that denied/failed functions consume nothing. The server also reserves every SDK call BEFORE network access in `%LOCALAPPDATA%/Tikr/market-admission/ledger.json`, serializing callers with an exclusive file lock. Failure/unknown outcomes retain the full conservative reservation. Successful bounded responses refund unused estimated I/O; calls are never refunded. Repeated denied requests do not reach Convex. The ledger survives restart; do not delete/reset it to bypass a budget. This is a single-owner-machine guard, not a multihost distributed edge quota. Production is disabled.
-
-Before enabling storage, the operator must inspect the Convex TEAM dashboard, account for other projects/deployments, and call the internal `market:configure` with reviewed other usage and an expiry. Its static allowance is not live telemetry. Configure actual account alerts and verify measured usage after a bounded trial before claiming free-tier acceptance. No deployment, provisioning, account inspection or paid-plan change was performed here.
-
-## Local configuration after evidence review
-
-Required private process configuration: `TIKR_PERSONAL_DATA_ENABLED=explicit`, `TIKR_MARKET_EVIDENCE_FILE` (absolute private bundle path), `TIKR_MARKET_EVIDENCE_SHA256`, `TIKR_CONVEX_URL` (HTTPS convex.cloud URL), and `TIKR_CONVEX_ADMIN_KEY`. No values are loaded automatically from the main checkout. Deploy the schema/functions and review team headroom as a separately authorized activation step; this source change does not deploy them.
-
-The API accepts only bounded same-origin loopback POSTs and blocks production. No user identities are accepted to claim account ownership. Results stream an initial state and a settled state. UI states distinguish cold loading, ready, refreshing, dated stale and blocked. Rapid edits abort superseded requests; comparisons use one request with the active amount and period. Metrics/tooltips are formatted from decimal results, with Number conversion used for chart geometry. The asset-return view uses the same engine and actual shared dates. Authentication remains clearly a preview.
-
-## Verification commands
-
-- `node --conditions=react-server --experimental-strip-types --test tests/demo.test.mjs tests/backtest.test.mjs tests/alpaca.test.mjs tests/alpaca-validation-oracle.test.mjs tests/alpaca-validation.test.mjs tests/market-cache.test.mjs tests/durable-market.test.mjs tests/verified-loader.test.mjs tests/market-admission.test.mjs tests/market-storage.test.mjs`
-- `pnpm exec vitest run` (official convex-test local edge runtime; no deployment).
-- `pnpm check`, `node tests/backtest-mutations.mjs`, focused Prettier and `git diff --check`.
-- Start a credential-cleared Next dev server on loopback port 43127; `pnpm exec playwright test` uses installed Edge. Its synthetic API fixtures are testing inputs, never a claim about Alpaca. Put browser output under system temp using `TIKR_BROWSER_OUTPUT`.
-- Build under an allowlisted environment with `SKIP_ENV_VALIDATION=1`; only `.env.example` should be present by filename. Do not read secrets to run checks.
-
-Independent review and final measured results belong in `plan.md`. Live-provider evidence, actual team allowance, deployed behavior, public rights, authentication and billing headroom remain activation gates, even if all offline checks pass.
-
-
-## Final local verification
-
-117 Node tests,7 local Convex tests and14 browser tests passed; five mutation probes, lint/typecheck, focused formatting/whitespace and a credential-cleared production build passed. Independent review granted bounded acceptance of the backend and synthetic UI integration; final production-source hashes matched across its last review. The coordinator additionally verified the SDK fixed endpoint/auth header, failed-call reservation/sanitization and streamed response cap offline with synthetic canaries. All six existing real-data captures replayed offline but remained unresolved for engine acceptance. Main checkout is unchanged. New integration work is uncommitted in the feature worktree; no PR, push, merge, provisioning or deployment was made.
-
-
-## PR preparation (2026-11-04)
-
-Final UI revision passed 24 browser tests, including final-only stream updates, comparison exits, scoped synthetic cache reuse and mandatory server revalidation for unmarked results. Pre-commit verification reran 117 Node tests, 7 local Convex tests, lint/typecheck and the five engine mutation checks. Production build evidence predates the final UI refinements; no new production build is claimed. The temporary synthetic review proxy is outside the repository and is not shipped by this PR. Provider evidence, live storage activation, authentication and public data rights remain gated.
-
-## Personal provisional live mode (2026-11-05)
-
-The runtime now supports `TIKR_MARKET_MODE=personal-provisional` alongside the existing reviewed replay mode. It requires the existing `TIKR_PERSONAL_DATA_ENABLED=explicit`, private Convex URL/admin key and team admission configuration, plus server-only `ALPACA_API_KEY_ID` and `ALPACA_API_SECRET_KEY`. No evidence bundle or digest is required in this mode. These names document future configuration only; no credentials were accessed or configured. Production and non-loopback API requests remain disabled.
-
-The data-only paper endpoint `/v2/calendar` supplies sessions; `/v2/stocks/bars` supplies raw SIP daily bars and `/v1/corporate-actions` supplies all action types with `data_quality=all`. Calendar requests are coalesced per daily cycle in one process. History begins seven calendar days before the first of the current month five years earlier and is capped at 1,300 sessions. The existing six-asset catalog predates that window. Leading missing bars fail rather than being inferred to represent inception; expanding the catalog to younger assets needs explicit first-availability handling. Max means the supported window, not lifetime history.
-
-Refreshes fetch the full bounded price/action window, exceeding the five-session recheck requirement. Complete pagination is a provisional operational acceptance rule, not evidence of complete corporate actions: Alpaca selects actions by process date, and late announcements, corrections and cancellations may remain absent. Ordinary USD dividends use reported ex/payment dates; ambiguous same-day split/dividend units, special/foreign terms, missing fields and unsupported events fail. The legacy engine acceptance booleans represent acceptance under this explicitly labeled personal policy; provenance does not claim independent verification. The independently reviewed converter is unchanged.
-
-Every provider request reserves 2 MiB and one call in the existing durable local admission ledger before transport; reservations are retained on success and failure, conservatively sharing the local storage traffic budget. Adapter requests have zero automatic retries, eight pages, 8 MiB total, 1,300 bars and 1,000 actions per asset. Calendar responses cap at 256 KB/1,300 rows. Existing durable leases, refresh guards, resource admission and revision invalidation remain active. Calendar/price/action changes affect cache dependencies. If received missing/unsupported data contradicts an old asset, the scope is durably revoked through the existing correction path; do not clear markers to resume. Recovery needs a separately reviewed policy/scope revision, not a ledger reset.
-
-Ready, refreshing and stale results include `dataQuality=personal-provisional`. Workspace and compact dashboard disclosures state that data is subject to corrections and corporate-action completeness is not independently verified. The 24-hour response validity is an operational revalidation horizon, not analyst evidence expiry. Reviewed replay keeps its pinned artifact and original expiry behavior.
-
-No live API compatibility, account entitlement, team budget, licensing or data finality is established by synthetic tests. Official endpoint references: [Alpaca corporate actions](https://docs.alpaca.markets/us/reference/corporateactions-1) and [US market calendar](https://docs.alpaca.markets/us/reference/legacycalendar). The supplied private keys must authorize the paper calendar endpoint as well as SIP data; no paper/live-key fallback is attempted. A separately authorized operator must configure private credentials and storage, validate team headroom, and run a bounded live trial before claiming live acceptance. Public sharing remains separately gated.
-
-
-Capacity limitation for provisional mode: the earlier storage-only monthly fit estimate excludes retained provider reservations. Six cold/refreshed symbols require at least twelve data calls plus the calendar call, reserving 26 MiB before storage traffic per daily cycle. A daily six-symbol workload can exhaust the existing 500 MB monthly admission budget before month end. Smaller portfolios and cached opens consume less; the flow blocks at the budget. No increased allowance, automatic reset or paid fallback is authorized by this implementation. A measured bounded trial should assess conservative reservation refunds before claiming sustained monthly fit.
-
-
-Provisional implementation verification: 125 deterministic Node tests, 7 local Convex tests, 25 Edge browser tests, five engine mutation checks, lint/typecheck, focused Prettier, Git whitespace and the final credential-cleared production build passed. The initial concurrent browser/build attempt failed due to shared build output; sequential reruns passed. No live provider data, account entitlement, configured deployment or team usage was exercised. No independent implementation review is claimed for this revision.
+`scripts/build-cleared.mjs` copies explicit source paths into system temp, excludes
+env files and builds with a credential-cleared environment. The isolated browser
+fixture script similarly copies source, injects deterministic server data and
+listens on a unique loopback port. Its `--unconfigured` mode exercises the real
+disabled integration. Use a fresh browser context and keep artifacts in temp.
+Terra actual-browser verification is separate from optional Playwright regression.

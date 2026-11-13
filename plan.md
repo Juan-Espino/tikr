@@ -1,3 +1,53 @@
+## PR publication authorized (2026-11-12)
+
+Owner approved committing/pushing this feature branch and opening its PR against main after source explanation, synthetic/Terra acceptance and the bounded real development cold/cache test. No automatic merge, production deployment or deployed cleanup is authorized. Private configuration remains ignored. Earlier no-publication statements below describe their historical checkpoints.
+
+## Owner manual development testing configuration (2026-11-12)
+
+Owner reported catalog admission refusal while testing. Read-only preflight confirmed this worktree omitted the development allowance variables: the running server therefore used the 500M default although retained November usage is 751,860,648 units. Saved the previously approved November-only 770M ceiling to this worktree ignored .env.local for owner manual testing; 18,139,352 retained admission units remained at inspection. No ledger/guard/reset, production setting, main configuration or additional live API request was changed/made. Restart the owner dev server to load the private settings. This is not a new allowance increase or provider billing measurement.
+
+## Final bounded real-development acceptance ? passed (2026-11-12 local)
+
+Owner explicitly increased cumulative Alpaca request cap4?6; all other original caps unchanged. Ran normal openMarket server runtime with existing development Convex SDK and actual Alpaca transports, no injected data/normalization, policy change, guard cleanup or retry. UTC timestamps fall November13 while local acceptance date is November12. Journal preserves all earlier attempts/preflight nested, cumulative request counters persisted before every transport and byte counts during consumption. Final result passed; no further calls needed.
+
+| Operation | Provider requests | Provider received bytes | Convex API requests | Convex received bytes | Admission-unit increase | Elapsed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cold process open | 3 | 164,364 | 33 | 200,767 | 1,323,566 | 6,232ms |
+| Cached reopen | 0 | 0 | 1 | 4,269 | 26,342 | 153ms |
+| Cumulative entire trial including failures/preflight | 5/6 | 491,768/8,388,608 | 37/50 | 283,570 | 1,889,108 | ? |
+
+Cold history source: existing matching-v5 legacy normalized monthly manifests/payloads; fresh SPY reused, stale MSFT refreshed by actual bars/actions following actual calendar fetch. No SPY bars/actions fetched. Cold process used no browser storage; response carried123 history chunks. Same-process cached reopen passed those returned history hints through normal request validation and returned identical results with zero provider work; one normal Convex authority read remained. This validates server-runtime warm reuse, not a real browser IndexedDB restart/multi-instance acceptance. Existing independent Terra synthetic browser acceptance covers those browser behaviors.
+
+SPY/MSFT50/50, amount10,000, explicit1W: both ready, no issues, shared period2026-11-04?2026-11-11, six common completed sessions (Nov4,5,6,9,10,11), unchanged shared starting amounts, finite values, SPY benchmark present, endpoint/period/ending arithmetic passed. Portfolio ending9,642.42 /-3.58%; SPY9,908.71 /-0.91%. Offline final report check confirmed cold/warm output equality, rounded return arithmetic and caps. Data checked2026-11-13T02:48:23.202Z; no forecast/execution/fabricated price or shortened range.
+
+Final ledger751,860,648 units /4,516 calls; original trial baseline749,971,540 /4,474. These are retained control units, not billing. Remaining approved caps: one provider request,7,896,840 provider bytes,13 Convex requests; unused allowance is not permission for broader browsing. Final report/runner under system temp tikr-live-smoke-20261112-report.json/.mjs; previous failed reports remain nested. Final15 admission/29 recovery tests, lint/both typechecks, cleared build and prior Terra16-case acceptance remain applicable; no new application source change in this final trial. Ready for owner source review BEFORE PR; no commit/push/PR or further deployment. Licensing, public hosting, actual billed capacity, deployed cleanup and live multi-instance behavior remain separate gates. Earlier pending/blocker entries below are chronological evidence superseded by this success.
+
+## Final real-data cap preflight ? cannot fit remaining allowance (2026-11-12)
+
+Inspected the native freshness/reuse path and existing development manifests before any further provider attempt. One admitted Convex metadata read, no Alpaca calls: source scope695f9ce4566c9a60d17cee85ef9359c8831943e3ec378d3bf005c9a97cdd16f7 matches reviewed v5. Both are legacy monthly-v2 manifests without disposable-content markers, so retained normalized monthly documents remain eligible for ordinary validated reads. SPY: checked2026-11-12T20:14:39.415Z, coverage2021-11-10 through2026-11-11,61 chunks, current cycle. MSFT: checked2026-11-11T19:52:46.988Z, coverage2021-10-25 through2026-11-10,62 chunks, stale cycle. This corrects the assumption that MSFT was already freshly validated through November11. Metadata inspection is not full payload validation or acceptance.
+
+Native runtime must fetch calendar once in a cold process. Stale MSFT requires at least one bars and one corporate-actions request (adapter.ts separately traverses both endpoints); retained wider history reduces coverage fetched, not these freshness obligations. Thus the minimum is THREE additional provider requests before pagination, versus TWO remaining. No provider attempt was started, no stale result served as fresh, and no provider response replayed. Initial-ready and cached reopen remain unverified live for this redesign. This is a hard cumulative-cap blocker, not a need for generic permission to resume.
+
+Cumulative trial: Alpaca2/4 requests,327,404/8,388,608 received bytes; Convex3/50 requests,78,534 received bytes. Remaining: Alpaca2 requests,8,061,204 provider bytes,Convex47 requests. Ledger750,510,740 units /4,479 calls (preflight added26,312 retained units/one call). The temp runner journals cumulative counters before transport and received bytes during consumption, nests every previous report, and stopped at TRIAL_HISTORY_PREFLIGHT_BLOCKED. Existing guard records, charges, backend and main remain unchanged except normal admitted read accounting. No new source behavior changed in this preflight; prior final15 admission/29 recovery checks, lint/types and cleared build apply. No PR/commit/push/deployment performed. Reviewable source is ready; real-data acceptance is explicitly incomplete until sufficient bounded provider allowance is separately approved (at least one more request beyond the remaining two, with pagination uncertainty).
+
+## Bounded continuation stopped; live acceptance remains pending (2026-11-12)
+
+Implemented an exact server-side lineage compatibility rule for the two canonical v3/v4 scopes already superseded by PR16's reviewed v5 transition. Under literal current v5 only, these global file markers and their old-policy refresh guards do not reject a fresh v5 validation. They remain on disk unchanged. Asset-specific flags, unknown scope guards/globals, current v5 markers and every ledger revocation remain blocking; no new policy, namespace, receipt, reset or cleanup is used. Marker contents do not establish the original triggering reasons. Focused admission tests pass15/15, including canonical historical hash proof and negative current/unknown/global/asset/ledger cases. The earlier combined admission/durable suite passed42/42 before the final guard-lineage adjustment; unchanged receipt/recovery machinery is retained. Final lint and both TypeScript projects pass. Final durable recovery suite29/29 and credential-cleared production build pass after the final source change.
+
+The first compatibility patch exempted global marker scanning but still re-entered the same old global gate through historical refresh guards. One continuation trial therefore failed EVIDENCE_REVOKED; it is not live-price acceptance. The follow-up handles that exact reviewed lineage consistently and has not been retried live, honoring stop-on-failure. Cumulative trial totals: 2/4 Alpaca HTTP requests, 327,404/8,388,608 received provider bytes, 2/50 Convex requests. Ledger now 750,484,428 units /4,478 calls. Remaining original caps are two Alpaca requests, 8,061,204 provider bytes and48 Convex requests; no allowance reset is implied. Runner retains the original failed report nested in the accumulated report and rejects unexpected prior counters before any transport. No further deployment or record cleanup occurred. This stop was subsequently superseded by standing owner direction to continue when feasible within the original caps; the precise cap preflight below now owns the remaining blocker.
+
+## Approved bounded live smoke test (2026-11-12)
+
+Owner approved a November development-only ceiling of 770,000,000 admission units, preserving all previous charges and production defaults, and a SPY/MSFT 50/50 1W smoke with at most four Alpaca requests, 8 MiB received provider bodies and 50 Convex API requests. Updated the local allowance validator and upper-bound regression; both focused tests passed. Applied allowance variables only to the test process, not persistent shared environment files. The real server runtime test stopped on EVIDENCE_REVOKED before any portfolio result: one Alpaca HTTP 200 (163,702 received bytes), one Convex HTTP 200 (37,141 received bytes), 256,444 retained-unit increase / two ledger calls. Ledger advanced from 749,971,540 to 750,227,984 units; no reset/refund of historical charges. No warm reopen or automatic retry occurred. Read-only guard metadata found two global revocation flag files and no ledger-revoked scopes (confirmed with Node; the earlier PowerShell count was a null-array artifact); no SPY/MSFT-specific revocation flags. No marker or guard was cleared. This is not live-price acceptance or a provider-capacity claim. Sanitized report is in system temp tikr-live-smoke-20261112-report.json. Next: investigate and propose explicit reconciliation for the existing global revocations before another separately bounded trial.
+
+## Authorized development backend rollout (2026-11-12)
+
+Owner explicitly approved updating development stoic-corgi-586 only. Ran pnpm.cmd exec convex dev --once --typecheck enable --tail-logs disable successfully; functions ready on the same verified existing development hostname. CLI refreshed ignored local public connection fields and generated bindings. A copied deployment-binding comment was normalized with Node parseEnv before deployment. No provider request, configure/reset mutation, deployed-data cleanup or production deployment was performed. Local allowance remains blocking; next step is a concrete bounded live-test allowance review/preflight, not an automatic increase.
+
+## Development configuration preflight (2026-11-12)
+
+Owner authorized secure local setup for real-data acceptance. Confirmed main settings bind explicitly to development stoic-corgi-586: direct URL/public URL/site URL agree, and the admin key binding matches. Consolidated existing Alpaca fallback settings into main ignored .env.local and copied only required direct-development settings into this feature worktree ignored .env.local; values never printed. No credentials/deployment keys added to tracked files. No live request, deployment, configure mutation or ledger write occurred. Existing November ledger retained 749,971,540 admission units and 4,474 calls. No explicit development allowance variables were present; default is 500,000,000 units, and only 28,460 would remain under the historical approved 750,000,000 ceiling. These are control units, not billed bytes. Live acceptance remains blocked pending a concrete bounded allowance review and separately authorized compatible development backend rollout. No counter/reset/policy bypass.
+
 ## PR update and completed automation (2026-11-12)
 
 Owner authorized committing/pushing the completed acceptance follow-up, reconciling latest main and updating existing PR #16. The completed next-cycle automation was deleted. Main's approved branding/setup changes and this branch's approved history/name behavior are both retained. Functional next-cycle acceptance passed; subsequent ordinary browsing exhausted the local 750 MB accounting gate. Owner's Convex dashboard reported only 118.88 MB actual database I/O, so local ledger usage is not provider billing and prior ledger-based capacity extrapolations are not a production capacity finding. Budget accounting and sustainable browsing remain unresolved. The proposed Alpaca batching/lightweight browser/server cache redesign is separate follow-up work; no redesign is included here. No production deployment or merge is authorized.
@@ -739,3 +789,57 @@ Implementation worktree: `C:\Users\JuanE\.t3\worktrees\tikr\t3-ae95b9ed`, fast-f
 Evidence: canonical-only credential lookup rejected legacy APCA configuration before calendar/provider fetch. Canonical-first per-field fallback now supports the legacy names; empty canonical values still fail closed. Missing trusted visitor header and malformed gateway config independently reproduce zero-fetch failures. No demonstrated header defect justified replacing the trusted Vercel header or relaxing checks. Current production root cause after the reported credential correction remains unknown. Updated feature `.env.example` to blank/commented server-only configuration and documented fallback/diagnostic/deploy interpretation.
 
 Verification: frozen-lockfile dependency install; six focused synthetic Vitest tests across hosted diagnostics, route and full runtime passed; `pnpm check` passed lint and both TypeScript projects after narrowing the helper environment type. Tests use injected transport and synthetic credentials, including complete hosted calendar/cache/results, missing credentials/no fetch, missing visitor/no fetch, malformed config/no fetch and log sanitization. No live provider requests, secrets access, deployment, commit, push, PR, extra agents or worktrees. No production build or deployed header/config/entitlement verification claimed. Next: review this patch, deploy Vercel only with authorization, inspect fixed stage/code logs and verify canonical environment scopes, matching gateway activation and existing admission review without resetting counters/guards. Public rights and live activation remain separately gated.
+
+## 2026-11-12 Alpaca/Convex redesign - local implementation complete
+
+Dedicated worktree base contains merged PR #16 (`1354187`); parent main remains
+clean at that merge. No implementation checkout/model switch, commit, push, PR,
+merge, credentials/live requests, deployment, paid changes or deployed cleanup.
+
+Implemented authoritative asset-root manifests with IndexedDB/browser and bounded
+process monthly history, server validation of every operation, request/provider
+batching, independent completion streaming, wider coverage reuse and missing-prefix
+plus five-session corrections. Browser definitions/drafts remain local. Legacy
+revocations, fences, receipts, attempts, counters and durable namespaces remain
+authoritative. No production schema change or record deletion/reset occurred.
+
+Removed new durable history/result/calendar writes, unused browser Convex
+connectivity, template task/quote implementations and obsolete capacity equations.
+Accounting separates observed received provider bodies and synthetic actual
+DB API operations from conservative admission controls. Only newly recorded
+completed-body reservations settle; historical charges remain intact.
+
+Verification consolidated without replaying unchanged successful suites:
+
+- Node: 187/187; five financial fault mutations killed.
+- Vitest: 43/43 across 13 files, including actual local database-operation matrix,
+  hosted integration, exact-token settlement and independently streamed batches.
+  The six-asset harness timeout was extended from15 to30 seconds for concurrent
+  synthetic test load; no application/resource limit was raised.
+- Existing Edge regression: 40/41, then corrected input-limit case passed; final
+  selected three naming/legacy cases passed after the submit-time name fix.
+- Required Terra Medium independent actual browser: 16/16 (seven interaction,
+  nine security/cache), all six screenshots inspected, fresh isolated Edge
+  fallback after the documented preview/CUA failures. See
+  `market-browser-acceptance.md` for exact fallback evidence and simulation limits.
+- Final axis finding fixed locally; 15 labels remain inside SVG bounds at
+  390/768/1440px, no overflow; screenshots inspected.
+- Final `pnpm.cmd check`: lint and both TypeScript projects pass. Final
+  credential-cleared production build passes. All41 changed code/script files
+  pass focused Prettier. Repository-wide format check still reports existing
+  warnings in 54 untouched/generated files; these were not reformatted.
+- `git diff --check`, document references/final-newline inspection and final
+  status/base checks pass in final delivery reconciliation.
+
+Architecture: `market-redesign-checkpoint.md`; measurements/uncertainty:
+`market-accounting.md`; exhaustive source/resource inventory:
+`market-source-inventory.md`; exact approval-gated cleanup/backup/rollback:
+`market-deployed-cleanup.md`. Existing local allowance remains nearly exhausted
+and is not equated with Convex dashboard billing. No historical units refunded,
+ceiling raised, guard removed or policy changed to bypass admission.
+
+PR readiness: locally implemented and reviewable as a separate uncommitted change
+from PR16. No automatic publication or merge. Next external task, only if the
+owner separately authorizes it: named-target read-only deployment preflight,
+backup/rehearsal and compatible rollout proposal. Public rights, actual billed
+capacity and a bounded live allowance remain unresolved operational gates.

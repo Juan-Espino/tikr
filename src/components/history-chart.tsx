@@ -125,7 +125,7 @@ export function HistoryChart({
               axisLine={false}
             />
             <YAxis
-              width={compact ? 38 : 55}
+              width={compact ? 60 : 64}
               tick={{ fill: "#a8a29e", fontSize: 10 }}
               tickLine={false}
               axisLine={false}
@@ -134,7 +134,7 @@ export function HistoryChart({
                   ? Math.abs(n) < 1000
                     ? money(n)
                     : `$${(n / 1000).toFixed(1)}k`
-                  : `${n.toFixed(0)}%`
+                  : `${Math.abs(n) < 1 ? Number(n.toPrecision(2)) : Number(n.toFixed(2))}%`
               }
             />
             {!compact && (

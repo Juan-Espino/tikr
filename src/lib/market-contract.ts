@@ -1,6 +1,7 @@
 import { validTicker } from "./asset-catalog.ts";
 import { z } from "zod";
 import { allocation, validAmount } from "./demo";
+import type { HistoryChunk } from "./market-history-wire.ts";
 const holding = z
   .object({
     symbol: z.string().refine(validTicker),
@@ -27,6 +28,18 @@ export const marketRequestSchema = z
     amount: z.string().max(16).refine(validAmount),
     range: z.enum(["1W", "1M", "YTD", "1Y", "5Y", "Max"]),
     retry: z.boolean().optional(),
+    history: z
+      .array(
+        z
+          .object({
+            key: z.string().regex(/^price:[A-Z0-9.-]+:\d{4}-\d{2}$/),
+            payload: z.string().max(30000),
+            revision: z.string().regex(/^[a-f0-9]{64}$/),
+          })
+          .strict(),
+      )
+      .max(1235)
+      .optional(),
   })
   .strict()
   .superRefine((r, ctx) => {
@@ -46,12 +59,13 @@ export const marketRequestSchema = z
   });
 export type MarketRequest = z.infer<typeof marketRequestSchema>;
 export type MarketResponse = {
+  history?: HistoryChunk[];
   status: "ready" | "refreshing" | "stale" | "blocked";
   code?: string;
   retryAt?: number;
   asOf?: string;
   evidenceExpiresAt?: string;
-  dataQuality?: "personal-provisional" | "reviewed";
+  dataQuality?: "personal-provisional" | "reviewed" | "synthetic";
   assetReturns?: Record<string, string>;
   dataCheckedAt?: string;
   period?: { start: string; end: string };

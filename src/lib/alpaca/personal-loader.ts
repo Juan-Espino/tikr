@@ -6,6 +6,11 @@ import type { AssetRefresh } from "../market-cache.ts";
 import { EvidenceError } from "./verified-loader.ts";
 import { eligibleSessions } from "../market-cache.ts";
 import { marketFailure, type MarketFailure } from "../market-errors.ts";
+import {
+  providerMeasurement,
+  measuredTransport,
+  type ProviderMeasurement,
+} from "../provider-measurement.ts";
 
 // Preserve a trusted pre-network refusal through the adapter's sanitized transport
 // boundary. This is not received contradictory data and must never revoke a scope.
@@ -22,17 +27,17 @@ class AdmissionFailure extends AlpacaError {
 export function createAdmittedTransport(
   reserve: () => Promise<unknown>,
   transport: typeof fetch = fetch,
+  measurement: ProviderMeasurement = providerMeasurement,
 ): typeof fetch {
-  return async (url, init) => {
+  return measuredTransport(transport, measurement, async () => {
     try {
-      await reserve();
+      return await reserve();
     } catch (error) {
       const failure = marketFailure(error);
       if (failure) throw new AdmissionFailure(failure);
       throw error;
     }
-    return transport(url, init);
-  };
+  });
 }
 
 import { PERSONAL_SOURCE_POLICY } from "../market-policy.ts";
@@ -225,30 +230,135 @@ export async function fetchPersonalCalendar(
     reader.releaseLock();
   }
 }
-export function createPersonalLoader(config: Config, calendar: Calendar) {
+export function createPersonalLoader(
+  config: Config,
+  calendar: Calendar,
+  candidatesLoader = fetchCandidates,
+  reuseCoverage = true,
+) {
   return async (q: AssetRefresh) => {
     let observed: Candidates | undefined;
+    let activeRange: { start: string; end: string } | undefined;
+    let changedOverlap = false;
     try {
-      const candidates = await fetchCandidates(config, {
-        symbols: [q.symbol],
-        start: q.from,
-        end: q.through,
-        feed: "sip",
-        signal: q.signal,
-      });
-      observed = candidates;
+      const previous = q.previous;
+      const recheck =
+        calendar.sessions.filter((day) => day <= q.through).slice(-5)[0] ??
+        q.from;
+      const ranges: { start: string; end: string }[] = [];
+      if (
+        reuseCoverage &&
+        previous &&
+        calendar.sessions.filter((day) => day <= q.through).length > 5 &&
+        previous.from <= q.through &&
+        previous.through >= recheck
+      ) {
+        if (q.from < previous.from) {
+          const end = calendar.sessions
+            .filter((day) => day < previous.from)
+            .at(-1);
+          if (end && end >= q.from) ranges.push({ start: q.from, end });
+        }
+        ranges.push({
+          start: recheck < q.from ? q.from : recheck,
+          end: q.through,
+        });
+      } else ranges.push({ start: q.from, end: q.through });
+      let merged: Asset | undefined = previous
+        ? structuredClone(previous)
+        : undefined;
+      for (const range of ranges) {
+        activeRange = range;
+        observed = undefined;
+        const candidates = await candidatesLoader(config, {
+          symbols: [q.symbol],
+          ...range,
+          feed: "sip",
+          signal: q.signal,
+        });
+        observed = candidates;
+        const part = provisionalAsset(candidates, calendar, q.symbol);
+        if (previous) {
+          const start = previous.from > part.from ? previous.from : part.from;
+          const end =
+            previous.through < part.through ? previous.through : part.through;
+          const actions = (asset: Asset) =>
+            JSON.stringify(
+              asset.actions
+                .filter((a) => a.date >= start && a.date <= end)
+                .sort((a, b) => a.id.localeCompare(b.id))
+                .map((action) =>
+                  Object.fromEntries(
+                    Object.entries(action).sort(([a], [b]) =>
+                      a.localeCompare(b),
+                    ),
+                  ),
+                ),
+            );
+          if (
+            start <= end &&
+            (Object.entries(part.prices).some(
+              ([day, value]) =>
+                day >= start && day <= end && previous.prices[day] !== value,
+            ) ||
+              actions(previous) !== actions(part))
+          )
+            changedOverlap = true;
+        }
+        merged = merged
+          ? {
+              ...part,
+              from: merged.from < part.from ? merged.from : part.from,
+              firstAvailable:
+                merged.from < part.from
+                  ? merged.firstAvailable
+                  : part.firstAvailable,
+              through:
+                merged.through > part.through ? merged.through : part.through,
+              prices: { ...merged.prices, ...part.prices },
+              actions: [
+                ...merged.actions.filter(
+                  (action) =>
+                    action.date < part.from || action.date > part.through,
+                ),
+                ...part.actions,
+              ].sort(
+                (a, b) =>
+                  a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
+              ),
+            }
+          : part;
+      }
       return {
         feed: "sip" as const,
-        asset: provisionalAsset(candidates, calendar, q.symbol),
+        asset: {
+          ...merged!,
+          from: q.from,
+          through: q.through,
+          prices: Object.fromEntries(
+            Object.entries(merged!.prices).filter(
+              ([day]) => day >= q.from && day <= q.through,
+            ),
+          ),
+          actions: merged!.actions.filter(
+            (action) => action.date >= q.from && action.date <= q.through,
+          ),
+        },
       };
     } catch (error) {
       if (error instanceof AdmissionFailure) throw error.failure;
       // Received data that contradicts a previously cached scope cannot fall back stale.
-      let contradictsPrevious = true;
+      let contradictsPrevious =
+        changedOverlap ||
+        !activeRange ||
+        !q.previous ||
+        (activeRange.start <= q.previous.through &&
+          activeRange.end >= q.previous.from);
       if (observed && q.previous) {
-        const start = q.previous.from > q.from ? q.previous.from : q.from;
+        const start =
+          q.previous.from > observed.start ? q.previous.from : observed.start;
         const end =
-          q.previous.through < q.through ? q.previous.through : q.through;
+          q.previous.through < observed.end ? q.previous.through : observed.end;
         if (start <= end) {
           try {
             const overlap = provisionalAsset(
@@ -282,13 +392,15 @@ export function createPersonalLoader(config: Config, calendar: Calendar) {
                   ),
               );
             contradictsPrevious =
+              changedOverlap ||
               Object.entries(overlap.prices).some(
                 ([day, price]) => q.previous!.prices[day] !== price,
-              ) || actionKey(overlap.actions) !== actionKey(q.previous.actions);
+              ) ||
+              actionKey(overlap.actions) !== actionKey(q.previous.actions);
           } catch {
             /* A received contradiction within the old scope still revokes. */
           }
-        } else contradictsPrevious = false;
+        } else contradictsPrevious = changedOverlap;
       }
       if (
         q.previous &&

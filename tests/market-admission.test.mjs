@@ -258,3 +258,156 @@ test("an asset correction stays revoked without disabling unrelated SPY history"
     await cleanup(dir);
   }
 });
+
+test("legacy source scopes cannot bypass revocations or unresolved guards; exact receipts remain readable", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "tikr-admission-"));
+  try {
+    const gate = createAdmission(dir);
+    const old = "1".repeat(64),
+      current = "2".repeat(64),
+      root = "3".repeat(64);
+    const observation = await gate.beginRefresh(old, "AAA");
+    await assert.rejects(
+      gate.assertLegacyReadable(current, ["AAA"]),
+      /REFRESH_GUARDED/,
+    );
+    await observation.endObservation();
+    await gate.confirmRefresh(old, "AAA", root);
+    await gate.assertLegacyReadable(current, ["AAA"], { AAA: root });
+    assert.ok(
+      (await readdir(dir)).some(
+        (name) =>
+          name.startsWith(`refresh-${old}-AAA-`) && name.endsWith(".flag"),
+      ),
+    );
+    await gate.revoke(old, "AAA");
+    await assert.rejects(
+      gate.assertLegacyReadable(current, ["AAA"], { AAA: root }),
+      /EVIDENCE_REVOKED/,
+    );
+    await gate.assertLegacyReadable(current, ["SPY"]);
+  } finally {
+    await cleanup(dir);
+  }
+});
+test("scoped new provider observations settle measured bytes without refunding historical control units", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "tikr-admission-"));
+  try {
+    const gate = createAdmission(dir);
+    await gate.reserve(100000);
+    const provider = await gate.reserve(1000, undefined, "provider");
+    await provider(20);
+    const database = await gate.reserve(500, undefined, "database");
+    await database(200);
+    const ledger = JSON.parse(await readFile(join(dir, "ledger.json"), "utf8"));
+    assert.equal(ledger.io, 100220);
+    assert.equal(ledger.calls, 3);
+    assert.deepEqual(ledger.scoped.provider, {
+      attempts: 1,
+      retainedUnits: 20,
+      measuredReceivedBytes: 20,
+    });
+    assert.deepEqual(ledger.scoped.database, {
+      attempts: 1,
+      retainedUnits: 200,
+      measuredReceivedBytes: 0,
+    });
+  } finally {
+    await cleanup(dir);
+  }
+});
+
+test("reviewed v5 transition preserves only exact superseded global flags", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "tikr-admission-"));
+  try {
+    const gate = createAdmission(dir),
+      current = "2".repeat(64),
+      old = "5678a7ec4e584fb841e6e25049b7efb790e49a63167aa80cf8eaa4c561e928e7",
+      policy = "personal-provisional-sip-v5-acquiree-only-mergers";
+    const oldObservation = await gate.beginRefresh(old, "MSFT");
+    await oldObservation.endObservation();
+    await gate.revoke(old);
+    await assert.rejects(
+      gate.assertLegacyReadable(current, ["SPY"]),
+      /EVIDENCE_REVOKED/,
+    );
+    await assert.rejects(
+      gate.assertLegacyReadable(current, ["SPY"], {}, "unreviewed"),
+      /EVIDENCE_REVOKED/,
+    );
+    await gate.assertLegacyReadable(current, ["SPY"], {}, policy);
+    assert.ok((await readdir(dir)).includes(`revoked-${old}.flag`));
+    await gate.revoke(old, "SPY");
+    await assert.rejects(
+      gate.assertLegacyReadable(current, ["SPY"], {}, policy),
+      /EVIDENCE_REVOKED/,
+    );
+    await gate.assertLegacyReadable(current, ["MSFT"], {}, policy);
+    await gate.revoke(current);
+    await assert.rejects(
+      gate.assertLegacyReadable(current, ["MSFT"], {}, policy),
+      /EVIDENCE_REVOKED/,
+    );
+  } finally {
+    await cleanup(dir);
+  }
+});
+
+test("unknown global and historical ledger revocations remain blocking in reviewed v5", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "tikr-admission-"));
+  try {
+    const gate = createAdmission(dir),
+      scope = "a".repeat(64),
+      policy = "personal-provisional-sip-v5-acquiree-only-mergers";
+    await gate.revoke(scope);
+    await assert.rejects(
+      gate.assertLegacyReadable("b".repeat(64), ["SPY"], {}, policy),
+      /EVIDENCE_REVOKED/,
+    );
+  } finally {
+    await cleanup(dir);
+  }
+  const other = await mkdtemp(join(tmpdir(), "tikr-admission-"));
+  try {
+    await writeFile(
+      join(other, "ledger.json"),
+      JSON.stringify({
+        revoked: [
+          "5678a7ec4e584fb841e6e25049b7efb790e49a63167aa80cf8eaa4c561e928e7",
+        ],
+      }),
+    );
+    await assert.rejects(
+      createAdmission(other).assertLegacyReadable(
+        "b".repeat(64),
+        ["SPY"],
+        {},
+        "personal-provisional-sip-v5-acquiree-only-mergers",
+      ),
+      /EVIDENCE_REVOKED/,
+    );
+  } finally {
+    await cleanup(other);
+  }
+});
+
+test("reviewed lineage hashes bind exact historical policy and coverage", async () => {
+  const { createHash } = await import("node:crypto");
+  for (const [policy, hash] of [
+    [
+      "personal-provisional-sip-v3-requested-period",
+      "5678a7ec4e584fb841e6e25049b7efb790e49a63167aa80cf8eaa4c561e928e7",
+    ],
+    [
+      "personal-provisional-sip-v4-stock-merger-acquirer",
+      "dcb3fad8de5e1ec032403090533da422eaa911b249dfd8511affd38539b87d8d",
+    ],
+  ]) {
+    assert.equal(
+      createHash("sha256")
+        .update(JSON.stringify({ policy, start: "2021-10-25" }))
+        .digest("hex"),
+      hash,
+    );
+  }
+});

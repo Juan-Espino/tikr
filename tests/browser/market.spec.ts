@@ -1,4 +1,67 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
+// Preserve each existing response oracle while exercising the new dashboard
+// envelope: one transport can carry independently timed portfolio results.
+async function mockMarket(
+  page: Page,
+  handler: (route: Route) => unknown | Promise<unknown>,
+) {
+  await page.route("**/api/market", handler);
+  await page.route("**/api/market/batch", async (batch) => {
+    const input = batch.request().postDataJSON();
+    const responses = await Promise.all(
+      input.requests.map(async (request: unknown) => {
+        let response = { status: 503, body: '{"status":"blocked"}' };
+        const proxy = new Proxy(batch, {
+          get(target, key) {
+            if (key === "request")
+              return () =>
+                new Proxy(target.request(), {
+                  get(original, field) {
+                    if (field === "postDataJSON") return () => request;
+                    if (field === "postData")
+                      return () => JSON.stringify(request);
+                    const value = Reflect.get(original, field);
+                    return typeof value === "function"
+                      ? value.bind(original)
+                      : value;
+                  },
+                });
+            if (key === "fulfill")
+              return async (options: {
+                status?: number;
+                body?: string;
+                json?: unknown;
+              }) => {
+                response = {
+                  status: options.status ?? 200,
+                  body:
+                    options.json === undefined
+                      ? String(options.body ?? "")
+                      : JSON.stringify(options.json),
+                };
+              };
+            const value = Reflect.get(target, key);
+            return typeof value === "function" ? value.bind(target) : value;
+          },
+        });
+        await handler(proxy);
+        return response;
+      }),
+    );
+    await batch.fulfill({
+      contentType: "application/x-ndjson",
+      body:
+        responses
+          .map((response, index) => JSON.stringify({ ...response, index }))
+          .join("\n") + "\n",
+    });
+  });
+}
+async function unmockMarket(page: Page) {
+  await page.unroute("**/api/market");
+  await page.unroute("**/api/market/batch");
+}
+
 const portfolio = {
   id: "test-one",
   name: "Core experiment",
@@ -70,7 +133,7 @@ test("market admission errors distinguish browsing, cooldown, shared budget and 
       ["MISSING_PRICE", "Required market history is missing"],
       ["EVIDENCE_REVOKED", "We couldn't load market history right now"],
     ]) {
-      await page.route("**/api/market", (route) =>
+      await mockMarket(page, (route) =>
         route.fulfill({
           status:
             code === "BROWSING_RATE_LIMIT" || code === "REFRESH_COOLDOWN"
@@ -97,7 +160,7 @@ test("market admission errors distinguish browsing, cooldown, shared budget and 
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       ).toBe(true);
-      await page.unroute("**/api/market");
+      await unmockMarket(page);
     }
   }
 });
@@ -105,7 +168,7 @@ test("market admission errors distinguish browsing, cooldown, shared budget and 
 test("a refresh budget failure retains a dated stale result and its explanation", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({
       contentType: "application/x-ndjson",
       body:
@@ -135,7 +198,7 @@ test("a refresh budget failure retains a dated stale result and its explanation"
 test("duplicate names block saving and duplication waits for a user-chosen name", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({
       contentType: "application/x-ndjson",
       body: JSON.stringify(sample()) + "\n",
@@ -203,7 +266,7 @@ test("duplicate names block saving and duplication waits for a user-chosen name"
 test("new portfolio starts with a placeholder and reports a duplicate after Done", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({
       status: 503,
       json: { status: "blocked", code: "EVIDENCE_REVOKED" },
@@ -234,6 +297,8 @@ test("new portfolio starts with a placeholder and reports a duplicate after Done
     page.locator("button").filter({ hasText: "Save locally" }),
   ).toBeDisabled();
 
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(input).toHaveAttribute("aria-invalid", "true");
   await input.fill("Second portfolio");
   await expect(page.getByText(/already exists/)).toHaveCount(0);
   await page.getByRole("button", { name: "Done", exact: true }).click();
@@ -268,7 +333,7 @@ test("saving changed holdings replaces the failed card and keeps other portfolio
     data.draft = data.portfolios[0];
     localStorage.setItem("tikr-demo-v1", JSON.stringify(data));
   });
-  await page.route("**/api/market", async (route) => {
+  await mockMarket(page, async (route) => {
     const request = route.request().postDataJSON();
     const p = request.portfolios[0];
     const reply = p.holdings.some(
@@ -329,7 +394,7 @@ test("timeframe picker hides Max while migrating a saved Max selection", async (
     data.draft = data.portfolios[0];
     localStorage.setItem("tikr-demo-v1", JSON.stringify(data));
   });
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({
       contentType: "application/x-ndjson",
       body: JSON.stringify(sample()) + "\n",
@@ -364,7 +429,7 @@ test("unconfigured real endpoint blocks without inventing returns", async ({
 test("ready and stale states show exact metrics, common dates and accessible daily table", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({
       contentType: "application/x-ndjson",
       body: JSON.stringify(sample("stale")) + "\n",
@@ -398,7 +463,7 @@ test("ready and stale states show exact metrics, common dates and accessible dai
 test("an obsolete response cannot replace a changed timeframe", async ({
   page,
 }) => {
-  await page.route("**/api/market", async (route) => {
+  await mockMarket(page, async (route) => {
     const body = route.request().postDataJSON() as { range: string };
     if (body.range === "1Y") {
       await new Promise((r) => setTimeout(r, 900));
@@ -446,7 +511,7 @@ test("local endpoint rejects foreign origins and oversized requests", async ({
   expect(foreign.status()).toBe(403);
   const huge = await request.post("/api/market", {
     headers: {
-      Origin: "http://127.0.0.1:43127",
+      Origin: process.env.TIKR_BROWSER_BASE_URL ?? "http://127.0.0.1:43127",
       "Content-Type": "application/json",
     },
     data: "x".repeat(12001),
@@ -489,7 +554,7 @@ for (const width of [390, 768, 1440])
 test("evidence expiry removes an already displayed result", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({
       contentType: "application/x-ndjson",
       body:
@@ -511,7 +576,7 @@ test("evidence expiry removes an already displayed result", async ({
 test("loading shows no invented chart and the final ready result keeps guest draft", async ({
   page,
 }) => {
-  await page.route("**/api/market", async (route) => {
+  await mockMarket(page, async (route) => {
     await new Promise((r) => setTimeout(r, 700));
     await route.fulfill({
       contentType: "application/x-ndjson",
@@ -538,7 +603,7 @@ test("selected portfolio comparison uses the active amount and one request perio
     amount: string;
     range: string;
   }[] = [];
-  await page.route("**/api/market", (route) => {
+  await mockMarket(page, (route) => {
     const input = route.request().postDataJSON();
     requests.push(input);
     const out = sample();
@@ -578,7 +643,7 @@ test("retry applies once and a later timeframe edit is an automatic request", as
   page,
 }) => {
   const requests: { range: string; retry: boolean }[] = [];
-  await page.route("**/api/market", (r) => {
+  await mockMarket(page, (r) => {
     requests.push(r.request().postDataJSON());
     return r.fulfill({
       status: 503,
@@ -617,7 +682,7 @@ test("clicking the body of a dashboard card opens the portfolio", async ({
 test("a truncated refreshing stream cannot leave an endless loading result", async ({
   page,
 }) => {
-  await page.route("**/api/market", (r) =>
+  await mockMarket(page, (r) =>
     r.fulfill({
       contentType: "application/x-ndjson",
       body: '{"status":"refreshing"}\n',
@@ -677,7 +742,7 @@ test("timeframe and comparison changes retain the previous result while loading"
   let gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route("**/api/market", async (route) => {
+  await mockMarket(page, async (route) => {
     const input = route.request().postDataJSON() as {
       range: string;
       portfolios: { id: string }[];
@@ -743,7 +808,7 @@ test("dashboard updates all cards together and pulses only changing content", as
     release = resolve;
   });
   let secondWaiting = false;
-  await page.route("**/api/market", async (route) => {
+  await mockMarket(page, async (route) => {
     const input = route.request().postDataJSON() as {
       range: string;
       portfolios: { id: string }[];
@@ -794,7 +859,7 @@ test("dashboard updates all cards together and pulses only changing content", as
 test("comparison colors match the buttons and removed lines animate out", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) => {
+  await mockMarket(page, (route) => {
     const input = route.request().postDataJSON() as {
       portfolios: { id: string }[];
     };
@@ -830,7 +895,7 @@ test("comparison colors match the buttons and removed lines animate out", async 
 
 test("reduced motion disables the loading pulse", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/api/market", async (route) => {
+  await mockMarket(page, async (route) => {
     const input = route.request().postDataJSON() as { range: string };
     if (input.range !== "1Y")
       await new Promise((resolve) => setTimeout(resolve, 800));
@@ -861,7 +926,7 @@ test("reduced motion disables the loading pulse", async ({ page }) => {
 test("a failed dashboard card does not prevent other results from updating", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) => {
+  await mockMarket(page, (route) => {
     const input = route.request().postDataJSON() as {
       range: string;
       portfolios: { id: string }[];
@@ -905,11 +970,44 @@ test("a failed dashboard card does not prevent other results from updating", asy
 test("dashboard releases completed cards after the bounded wait", async ({
   page,
 }) => {
+  // Emulate progressive HTTP bodies; Playwright route.fulfill buffers bodies.
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      if (input !== "/api/market/batch") return original(input, init);
+      const body = JSON.parse(String(init?.body));
+      const encoder = new TextEncoder();
+      return new Response(
+        new ReadableStream({
+          async start(controller) {
+            await Promise.all(
+              body.requests.map(async (request: unknown, index: number) => {
+                const response = await original("/api/market", {
+                  ...init,
+                  body: JSON.stringify(request),
+                });
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({
+                      index,
+                      status: response.status,
+                      body: await response.text(),
+                    }) + "\n",
+                  ),
+                );
+              }),
+            );
+            controller.close();
+          },
+        }),
+      );
+    };
+  });
   let release: (() => void) | undefined;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route("**/api/market", async (route) => {
+  await mockMarket(page, async (route) => {
     const input = route.request().postDataJSON() as {
       range: string;
       portfolios: { id: string }[];
@@ -1007,7 +1105,7 @@ test("only marked synthetic results are reused for repeat comparisons", async ({
   page,
 }) => {
   let calls = 0;
-  await page.route("**/api/market", (route) => {
+  await mockMarket(page, (route) => {
     calls++;
     const input = route.request().postDataJSON() as {
       portfolios: { id: string }[];
@@ -1052,7 +1150,7 @@ test("unmarked responses always recheck the server on repeat selections", async 
   page,
 }) => {
   let calls = 0;
-  await page.route("**/api/market", (route) => {
+  await mockMarket(page, (route) => {
     calls++;
     const input = route.request().postDataJSON() as {
       portfolios: { id: string }[];
@@ -1091,7 +1189,7 @@ test("unmarked responses always recheck the server on repeat selections", async 
 test("main metrics remain stable for matching dates and change for a shorter shared period", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) => {
+  await mockMarket(page, (route) => {
     const input = route.request().postDataJSON() as {
       range: string;
       portfolios: { id: string }[];
@@ -1146,7 +1244,7 @@ test("main metrics remain stable for matching dates and change for a shorter sha
 test("provisional quality is visible in the workspace and compact dashboard", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({
       contentType: "application/x-ndjson",
       body:
@@ -1167,9 +1265,7 @@ test("provisional quality is visible in the workspace and compact dashboard", as
 test("catalog search debounces, ignores superseded responses, supports keyboard selection and equal weights", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
-    route.fulfill({ json: sample() }),
-  );
+  await mockMarket(page, (route) => route.fulfill({ json: sample() }));
   let calls = 0;
   await page.route("**/api/assets?*", async (route) => {
     calls++;
@@ -1246,10 +1342,10 @@ test("credential-free demo search is labeled and supports touch selection", asyn
       ),
     portfolio,
   );
-  await page.route("**/api/market", (route) =>
-    route.fulfill({ json: sample() }),
+  await mockMarket(page, (route) => route.fulfill({ json: sample() }));
+  await page.goto(
+    `${process.env.TIKR_BROWSER_BASE_URL ?? "http://127.0.0.1:43127"}/portfolio/test-one`,
   );
-  await page.goto("http://127.0.0.1:43127/portfolio/test-one");
   await page.getByRole("button", { name: "Edit", exact: true }).tap();
   await page.getByRole("textbox", { name: "Search assets" }).fill("Apple");
   await expect(
@@ -1278,9 +1374,7 @@ test("six-holding limit is announced; rate limit shows timing and search retry r
       JSON.stringify({ version: 1, portfolios: [p], draft: p }),
     );
   }, portfolio);
-  await page.route("**/api/market", (route) =>
-    route.fulfill({ json: sample() }),
-  );
+  await mockMarket(page, (route) => route.fulfill({ json: sample() }));
   let limited = true;
   await page.route("**/api/assets?*", (route) =>
     limited
@@ -1315,9 +1409,7 @@ for (const width of [390, 1440]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.route("**/api/market", (route) =>
-      route.fulfill({ json: sample() }),
-    );
+    await mockMarket(page, (route) => route.fulfill({ json: sample() }));
     let calls = 0;
     let code = "CATALOG_PROVIDER";
     await page.route("**/api/assets?*", (route) => {
@@ -1362,7 +1454,7 @@ for (const width of [390, 1440]) {
 test("literal PLTR sample search and malformed successful responses are not live matches", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({ status: 503, json: { code: "DATA_UNAVAILABLE" } }),
   );
   let malformed = false;
@@ -1396,7 +1488,7 @@ test("one-week dashboard default preserves saved ranges; new portfolio and compa
   page,
 }) => {
   const requests: { range: string; portfolios: { id: string }[] }[] = [];
-  await page.route("**/api/market", (route) => {
+  await mockMarket(page, (route) => {
     const input = route.request().postDataJSON();
     requests.push(input);
     return route.fulfill({
@@ -1441,7 +1533,11 @@ test("one-week dashboard default preserves saved ranges; new portfolio and compa
       json: [{ ticker: "SPY", name: "Synthetic SPY", exchange: "ARCA" }],
     }),
   );
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  if (await page.getByRole("button", { name: "Edit", exact: true }).isVisible())
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Portfolio name" })
+    .fill("One week experiment");
   await page.getByRole("textbox", { name: "Search assets" }).fill("SPY");
   await page.getByRole("button", { name: /^SPY, / }).click();
   await page.getByRole("button", { name: "Done", exact: true }).click();
@@ -1460,7 +1556,7 @@ test("each ticker limitation is readable destructive text on desktop and mobile"
 }) => {
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.route("**/api/market", (route) =>
+    await mockMarket(page, (route) =>
       route.fulfill({
         status: 503,
         contentType: "application/json",
@@ -1516,20 +1612,32 @@ test("each ticker limitation is readable destructive text on desktop and mobile"
       path: `${process.env.TIKR_BROWSER_OUTPUT}/history-limitations-${width}.png`,
       fullPage: true,
     });
-    await page.unroute("**/api/market");
+    await unmockMarket(page);
   }
 });
 
 test("legacy portfolio and draft hydrate to one week; explicit one year survives reload", async ({
   page,
 }) => {
-  await page.route("**/api/market", (route) =>
+  await mockMarket(page, (route) =>
     route.fulfill({
       status: 503,
       json: { status: "blocked", code: "EVIDENCE_REVOKED" },
     }),
   );
   await page.goto("/dashboard");
+  await expect(
+    page.getByRole("button", {
+      name: "Open Core experiment, 1 assets",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   await page.evaluate(() => {
     const saved = JSON.parse(localStorage.getItem("tikr-demo-v1")!);
     for (const p of [...saved.portfolios, saved.draft])
@@ -1576,7 +1684,7 @@ test("operational history failures show professional copy without backend recove
       "REFRESH_GUARDED",
       "STORAGE_UNAVAILABLE",
     ]) {
-      await page.route("**/api/market", (route) =>
+      await mockMarket(page, (route) =>
         route.fulfill({
           status: 503,
           contentType: "application/json",
@@ -1615,7 +1723,7 @@ test("operational history failures show professional copy without backend recove
           path: `${process.env.TIKR_BROWSER_OUTPUT}/operational-history-${width}.png`,
           fullPage: true,
         });
-      await page.unroute("**/api/market");
+      await unmockMarket(page);
     }
   }
 });

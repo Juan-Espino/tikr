@@ -13,7 +13,7 @@ import { providerCredentials } from "./market-diagnostics.ts";
 import { localAdmission } from "./market-admission.ts";
 import { createAdmittedTransport } from "./alpaca/personal-loader.ts";
 import { freshnessCycle } from "./market-cache.ts";
-import { control, hosted } from "./market-hosted.ts";
+import { reserveHostedProvider, hosted } from "./market-hosted.ts";
 import type { Config } from "./alpaca/adapter.ts";
 const scope = "0".repeat(64);
 export function catalogStorage() {
@@ -246,8 +246,13 @@ export async function availableCatalog(symbols?: string[]) {
     const { keyId, secret } = providerCredentials();
     const transport = createAdmittedTransport(async () => {
       if (hosted()) {
-        for (let i = 0; i < 8; i++) await control("provider", scope);
-      } else await (await localAdmission()).reserve(16 * 1024 * 1024);
+        return reserveHostedProvider(8);
+      } else
+        return (await localAdmission()).reserve(
+          16 * 1024 * 1024,
+          undefined,
+          "provider",
+        );
     });
     loading = refreshCatalog(
       { keyId, secret, transport },

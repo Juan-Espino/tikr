@@ -3,7 +3,6 @@ import { DemoPortfoliosProvider } from "~/providers/demo-portfolios-provider";
 
 import { type Metadata } from "next";
 import { Manrope } from "next/font/google";
-import { ConvexClientProvider } from "./convex-client-provider";
 
 export const metadata: Metadata = {
   title: "Tikr",
@@ -26,9 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${manrope.variable}`}>
       <body>
-        <ConvexClientProvider>
-          <DemoPortfoliosProvider>{children}</DemoPortfoliosProvider>
-        </ConvexClientProvider>
+        <DemoPortfoliosProvider>{children}</DemoPortfoliosProvider>
       </body>
     </html>
   );

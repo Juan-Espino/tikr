@@ -1,3 +1,12 @@
+## November 12 redesign acceptance scope
+
+The following historical live acceptance belongs to merged PR #16. It does not
+authorize new live requests or establish acceptance of the redesigned cache.
+The separate feature-worktree redesign uses deterministic injected data only;
+see `market-accounting.md`, `market-redesign-checkpoint.md` and `plan.md` for its
+measurements and browser/check status. Historical admission/guard/receipt evidence
+is retained. No allowance, ledger, attempt or revocation was reset or increased.
+
 ## November 12 acceptance completed
 
 The real next-day API and Terra Medium isolated Edge browser checks passed. Twelve total direct API requests were used: the eleven core/range/comparison checks above plus one Six 1W diagnostic, which returned ready through November 11. All four QA dashboard charts ultimately completed ready; initial Six unavailable was not reproduced in completed final responses. The exact original transient response cause was not captured, so no causal fix is claimed for that observation. War's exact detail route showed its saved 1Y chart, switched to 1W with six points, and the actual All experiments button returned to four ready dashboard charts. No page/console errors were observed. Earlier automation failures targeted a collapsed range option, assumed initial 1W despite saved 1Y, or searched for a link where the app uses a button; corrected checks passed without app changes.
@@ -73,3 +82,22 @@ The genuine next daily-cycle continuation is scheduled in this same thread for *
 ## PR assessment
 
 All currently executable acceptance categories pass. Actual next-cycle observation remains pending its eligibility cutoff; the additional approved allowance is now applied. Final credential-cleared production build after the selected-catalog efficiency change passed. A passing personal development matrix does not establish hosted release readiness, source finality, exhaustive corporate-action handling, public market-data rights or sustained platform costs. No commit, push, PR or merge has been performed.
+
+
+## Redesign development continuation, 2026-11-12 ? not live accepted
+
+The exact v3/v4 scopes documented above remain on disk. Cross-scope scanning in the redesign regressed PR16's reviewed v5 transition. Compatibility now excludes only those two known superseded global scopes (including their policy-bound refresh guards) when the server selects literal reviewed v5. Asset flags and ledger revocations never receive that exemption. Unknown/current-policy guards and revocations remain fail-closed. No reason for the original zero-length flags is inferred.
+
+A second bounded trial failed before a result because the initial patch still checked historical guards through the superseded global gate. It stopped without retry; final lineage fix is synthetic-tested, not live-accepted. Cumulative trial use is two Alpaca HTTP200 requests /327,404 received provider bytes and two Convex HTTP200 requests /74,282 received bytes. Ledger 750,484,428 units /4,478 calls. No cold or warm portfolio result is claimed. Node confirmed no ledger revocation array; earlier PowerShell null counting was erroneous. See plan.md for exact remaining caps and stop gate. Prior isolated Terra browser acceptance remains evidence for unchanged browser behavior, not this live backend result.
+
+
+Final bounded preflight used one Convex read and zero additional provider requests. Retained legacy monthly manifests match current v5 scope: SPY checked November12 through November11; MSFT checked November11 through November10. MSFT is not current-cycle fresh. Cold native runtime needs calendar plus MSFT bars and corporate actions: minimum three provider requests, exceeding the two remaining. No impossible trial was started. Cumulative totals are two Alpaca requests /327,404 provider bytes, three Convex requests /78,534 received bytes; ledger750,510,740 units /4,479 calls. Cached reopen remains unverified live. See plan.md for exact cap blocker and source/check evidence; no new generic resume permission is required.
+
+
+## Final bounded redesign real-development acceptance ? passed
+
+Owner increased total provider requests to six, preserving8MiB provider bodies/50Convex requests/770M November development control units. Native server runtime SPY/MSFT50/50 explicit1W cold open ready in6,232ms: actual calendar+MSFT bars+corporate actions,3requests/164,364 provider bytes,33Convex requests/200,767 received bytes. Fresh legacy SPY monthly history reused; stale legacy MSFT history expanded/refreshed and validated against current v5 authority. No stale data relabeled fresh or provider response replayed. Cached same-process reopen with returned hints ready in153ms: zero provider requests/bytes,1Convex request/4,269 bytes. Browser storage was not accessed.
+
+Both returned identical six-session period2026-11-04?2026-11-11,10,000 start, finite values, SPY benchmark and consistent ending/return arithmetic. Portfolio9,642.42 (-3.58%); SPY9,908.71 (-0.91%). No missing issues. Cold123history chunks; warm result reused validated process data while retaining authority read. Live browser-IDB/restart and multi-instance behavior were not tested here; separate deterministic/Terra acceptance remains applicable.
+
+Cumulative INCLUDING prior failures/preflight:5/6Alpaca requests,491,768/8,388,608 provider bytes,37/50Convex requests,283,570Convex response bytes. Final ledger751,860,648 admission units/4,516calls; cumulative increase1,889,108units/42ledger calls from original baseline. Not billing. All prior reports retained in the cumulative temp report. No further calls, cleanup, deployment or PR. Earlier failed/preflight-blocked entries are superseded only for this specific cold/warm acceptance.
