@@ -1,3 +1,16 @@
+## Landing globe connections - owner approved 2026-11-14
+
+Extend the existing wireframe globe with thin elevated city-to-city arcs in its
+approved red/green palette, using the supplied globalization animation as a visual
+reference. Draw each arc slowly (roughly 2.5-3.5 seconds, longer for longer routes),
+with gentle acceleration/deceleration, a luminous tip and restrained trail glow.
+Pulse the origin before departure and the destination on arrival in the route's
+color, hold briefly, then fade over 1.4 seconds. Stagger connections and cap them at
+two, with distinct endpoints to avoid conflicting city colors. Routes rotate with
+the globe and hide behind its opaque surface. These remain decorative, not live
+market signals. Reduced motion shows static city accents without arcs or automatic
+rotation; preserve drag/arrow controls and the static asset fallback.
+
 ## Current UI status - reconciled 2026-11-14
 
 PR 19/20 are merged. Keep approved bear branding, matte surfaces, Cabinet Grotesk

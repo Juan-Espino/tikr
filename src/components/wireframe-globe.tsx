@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   geoDistance,
   geoGraticule10,
+  geoInterpolate,
   geoOrthographic,
   geoPath,
   type GeoPermissibleObjects,
@@ -17,6 +18,31 @@ const HUBS: [number, number][] = [
   [103.82, 1.352], // Singapore
   [121.474, 31.23], // Shanghai
 ];
+
+const SIGNAL_COLORS = ["#f87171", "#4ade80"] as const;
+const DEPARTURE_MS = 300;
+const ARRIVAL_MS = 450;
+const HOLD_MS = 450;
+const FADE_MS = 1400;
+const ROUTE_SAMPLES = 96;
+
+type Route = {
+  origin: number;
+  destination: number;
+  color: (typeof SIGNAL_COLORS)[number];
+  started: number;
+  drawDuration: number;
+  points: { location: [number, number]; lift: number }[];
+};
+
+// A short acceleration/deceleration with steady travel through most of the arc.
+function travelProgress(value: number) {
+  const t = Math.max(0, Math.min(1, value));
+  const ramp = 0.18;
+  if (t < ramp) return (t * t) / (2 * ramp * (1 - ramp));
+  if (t > 1 - ramp) return 1 - ((1 - t) * (1 - t)) / (2 * ramp * (1 - ramp));
+  return (t - ramp / 2) / (1 - ramp);
+}
 
 // Adapted from the supplied v0 rotating-earth.tsx. Geography is served locally.
 export function WireframeGlobe() {
@@ -36,10 +62,10 @@ export function WireframeGlobe() {
     let dots: [number, number][] = [];
     let accents: {
       dots: [number, number][];
-      phase: number;
-      period: number;
-      seed: number;
     }[] = [];
+    let routes: Route[] = [];
+    let elapsed = 0;
+    let nextRoute = 400;
     let size = 0;
     let rotation: [number, number] = [-45, -15];
     let drag: { id: number; x: number; y: number } | null = null;
@@ -50,6 +76,52 @@ export function WireframeGlobe() {
     const projection = geoOrthographic().clipAngle(90);
     const path = geoPath(projection, context);
     const grid = geoGraticule10();
+
+    function updateRoutes() {
+      routes = routes.filter(
+        (route) =>
+          elapsed - route.started <
+          DEPARTURE_MS + route.drawDuration + ARRIVAL_MS + HOLD_MS + FADE_MS,
+      );
+      if (elapsed < nextRoute || routes.length >= 2) return;
+      const available = HUBS.map((hub, index) => ({ hub, index })).filter(
+        ({ index }) =>
+          !routes.some(
+            (route) => route.origin === index || route.destination === index,
+          ),
+      );
+      const center: [number, number] = [-rotation[0], -rotation[1]];
+      const visible = available.filter(
+        ({ hub }) => geoDistance(hub, center) < Math.PI / 2,
+      );
+      // Prefer a visible departure, while allowing routes to rotate out of view.
+      const origins = visible.length ? visible : available;
+      const origin = origins[Math.floor(Math.random() * origins.length)];
+      const destinations = available.filter(
+        ({ index }) => index !== origin?.index,
+      );
+      const destination =
+        destinations[Math.floor(Math.random() * destinations.length)];
+      if (!origin || !destination) return;
+      const distance = geoDistance(origin.hub, destination.hub);
+      const interpolate = geoInterpolate(origin.hub, destination.hub);
+      const height = 0.035 + (distance / Math.PI) * 0.085;
+      routes.push({
+        origin: origin.index,
+        destination: destination.index,
+        color: SIGNAL_COLORS[Math.random() < 0.5 ? 0 : 1],
+        started: elapsed,
+        drawDuration: 2500 + (distance / Math.PI) * 1000,
+        points: Array.from({ length: ROUTE_SAMPLES + 1 }, (_, index) => {
+          const progress = index / ROUTE_SAMPLES;
+          return {
+            location: interpolate(progress),
+            lift: Math.sin(Math.PI * progress) * height,
+          };
+        }),
+      });
+      nextRoute = elapsed + 2400 + Math.random() * 600;
+    }
 
     function render() {
       if (!context || !canvas || !size || !land) return;
@@ -89,18 +161,109 @@ export function WireframeGlobe() {
       context.fillStyle = "#a8a29e";
       context.fill();
 
-      // Decorative accents use existing land dots, not live financial data.
-      const time = performance.now();
-      for (const accent of accents) {
-        const cycle = time / accent.period + accent.phase;
-        const strength = motion.matches
-          ? 0.75
-          : Math.sin(Math.PI * (cycle % 1)) ** 2;
-        const color = motion.matches
-          ? accent.seed % 2
-          : (Math.floor(cycle) + accent.seed) % 2;
-        context.globalAlpha = 0.8 * strength;
-        context.fillStyle = color ? "#4ade80" : "#f87171";
+      // Decorative city connections, never live financial or trading signals.
+      const citySignals = new Map<
+        number,
+        { color: string; strength: number }
+      >();
+      if (!motion.matches) {
+        context.save();
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        for (const route of routes) {
+          const age = elapsed - route.started;
+          const arrival = DEPARTURE_MS + route.drawDuration;
+          const fadeStart = arrival + ARRIVAL_MS + HOLD_MS;
+          const opacity = 1 - Math.max(0, (age - fadeStart) / FADE_MS);
+          const progress = travelProgress(
+            (age - DEPARTURE_MS) / route.drawDuration,
+          );
+          citySignals.set(route.origin, {
+            color: route.color,
+            strength:
+              opacity *
+              Math.min(1, age / DEPARTURE_MS) *
+              (0.3 + 0.7 * Math.exp(-Math.max(0, age - DEPARTURE_MS) / 700)),
+          });
+          if (age >= arrival) {
+            citySignals.set(route.destination, {
+              color: route.color,
+              strength:
+                opacity *
+                (0.3 +
+                  0.7 *
+                    Math.sin(
+                      (Math.PI / 2) * Math.min(1, (age - arrival) / ARRIVAL_MS),
+                    )),
+            });
+          }
+          if (progress <= 0) continue;
+
+          const projected = route.points.map(({ location, lift }) => {
+            const point = projection(location)!;
+            const x = (point[0] - size / 2) * (1 + lift);
+            const y = (point[1] - size / 2) * (1 + lift);
+            // Elevated far-side segments can show beyond the silhouette,
+            // but must never draw through the opaque globe itself.
+            const visible =
+              Math.cos(geoDistance(location, center)) >= 0 ||
+              x * x + y * y > radius * radius;
+            return { x: x + size / 2, y: y + size / 2, visible };
+          });
+          const end = progress * ROUTE_SAMPLES;
+          const last = Math.floor(end);
+          let connected = false;
+          context.beginPath();
+          for (let index = 0; index <= last; index++) {
+            const point = projected[index]!;
+            if (!point.visible) {
+              connected = false;
+              continue;
+            }
+            if (connected) context.lineTo(point.x, point.y);
+            else context.moveTo(point.x, point.y);
+            connected = true;
+          }
+          const before = projected[last]!;
+          const after = projected[Math.min(last + 1, ROUTE_SAMPLES)]!;
+          const fraction = end - last;
+          const tip = {
+            x: before.x + (after.x - before.x) * fraction,
+            y: before.y + (after.y - before.y) * fraction,
+            visible: before.visible && after.visible,
+          };
+          if (connected && tip.visible) context.lineTo(tip.x, tip.y);
+          context.strokeStyle = route.color;
+          context.shadowColor = route.color;
+          context.shadowBlur = 6;
+          context.globalAlpha = opacity * 0.16;
+          context.lineWidth = 3;
+          context.stroke();
+          context.shadowBlur = 3;
+          context.globalAlpha = opacity * 0.65;
+          context.lineWidth = Math.max(0.8, size / 560);
+          context.stroke();
+          if (tip.visible && age < arrival) {
+            context.globalAlpha = opacity;
+            context.shadowBlur = 8;
+            context.fillStyle = route.color;
+            context.beginPath();
+            context.arc(
+              tip.x,
+              tip.y,
+              Math.max(1.4, size / 300),
+              0,
+              2 * Math.PI,
+            );
+            context.fill();
+          }
+        }
+        context.restore();
+      }
+      accents.forEach((accent, index) => {
+        const signal = citySignals.get(index);
+        context.globalAlpha = motion.matches ? 0.6 : (signal?.strength ?? 0.16);
+        context.fillStyle = signal?.color ?? SIGNAL_COLORS[index % 2]!;
         context.beginPath();
         for (const dot of accent.dots) {
           if (geoDistance(dot, center) >= Math.PI / 2) continue;
@@ -111,7 +274,25 @@ export function WireframeGlobe() {
           context.arc(point[0], point[1], dotRadius, 0, Math.PI * 2);
         }
         context.fill();
-      }
+        // Pin the pulse to the actual city, even when no land dot is nearby.
+        const hub = HUBS[index]!;
+        if (signal && geoDistance(hub, center) < Math.PI / 2) {
+          const point = projection(hub)!;
+          context.save();
+          context.shadowColor = signal.color;
+          context.shadowBlur = 8;
+          context.beginPath();
+          context.arc(
+            point[0],
+            point[1],
+            Math.max(1.5, size / 260),
+            0,
+            2 * Math.PI,
+          );
+          context.fill();
+          context.restore();
+        }
+      });
       context.globalAlpha = 1;
     }
 
@@ -126,12 +307,12 @@ export function WireframeGlobe() {
         !land
       )
         return;
-      if (now - previous >= 1000 / 30) {
-        rotation[0] =
-          (rotation[0] + Math.min(now - previous, 100) * 0.004) % 360;
-        previous = now;
-        render();
-      }
+      const delta = Math.min(now - previous, 100);
+      previous = now;
+      elapsed += delta;
+      rotation[0] = (rotation[0] + delta * 0.004) % 360;
+      updateRoutes();
+      render();
       frame = requestAnimationFrame(tick);
     }
     function schedule() {
@@ -207,12 +388,7 @@ export function WireframeGlobe() {
         if (disposed) return;
         land = map;
         dots = points;
-        accents = HUBS.map(() => ({
-          dots: [],
-          phase: Math.random(),
-          period: 5000 + Math.random() * 4000,
-          seed: Math.floor(Math.random() * 2),
-        }));
+        accents = HUBS.map(() => ({ dots: [] }));
         for (const dot of points) {
           let nearest = -1;
           let distance = (3 * Math.PI) / 180;

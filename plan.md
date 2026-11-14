@@ -32,6 +32,28 @@ This summary supersedes historical uncommitted/no-PR/DEV-only checkpoints below.
   live check 6 remains explicitly skipped; licensing and exhaustive provider
   finality/correction/action evidence remain unresolved. No fresh tests claimed here.
 
+### Landing globe connections - 2026-11-14
+
+Implemented in isolated `t3/globe-city-signal-lines` worktree from main `eb54d5d`:
+slow elevated red/green arcs connect the existing five trading hubs, with coordinated
+departure/arrival pulses, a traveling tip, brief hold and 1.4-second fade. At most
+two routes use distinct endpoints. Far-side routes are occluded by the sphere;
+rendering follows requestAnimationFrame without the old 30fps cap. Animation time
+pauses while dragging, hidden, offscreen or under reduced motion. Static reduced-
+motion city accents, keyboard/drag rotation and failed-asset fallback remain.
+
+Verification: frozen-lockfile dependency install, `pnpm check` (lint and both
+TypeScript projects) pass. Headless installed Edge observes both route colors,
+at most two routes, static reduced motion, keyboard rotation, mobile viewport fit,
+drag completion and failed-map fallback with no page errors. Desktop/tablet/mobile
+inspection screenshots and focused QA artifacts are under system temp. The generic
+design inspector flags existing page typography, numbering, body size and picture
+count; these are outside this globe change and the approved visual system remains.
+No backend/provider calls, deployment, commit or publication.
+
+Next: owner visual review of arc speed/glow before any publication. Broader project
+recommendations below remain separate from this completed implementation.
+
 ### Next project milestone - recommendation, not implementation approval
 
 Google-only Better Auth sign-in and owner-scoped cloud portfolio saving. Preserve
