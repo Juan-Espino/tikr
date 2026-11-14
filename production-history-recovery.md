@@ -1,6 +1,7 @@
 # Production history rollout and recovery proposal
 
-Status: reviewable procedure only. No production inventory, snapshot, migration,
+Status: reviewable procedure only. Apart from the explicitly authorized metadata
+inspection below, no production inventory, snapshot, migration,
 refresh, CAS, deployment or cleanup was performed for this document. Each live
 operation below needs the owner's target-specific approval. The earlier retained
 fixture is historical evidence, not the current production manifest. The original
@@ -11,6 +12,29 @@ no operator backdoor or general database overwrite. Production must not receive
 the DEV refresh-relief flag; its exact platform-URL guard also rejects production.
 The skipped next-day live acceptance test remains skipped; this runbook schedules
 no task or automation.
+
+## Confirmed AMZN production guard inspection ? 2026-11-14
+
+Owner authorized guard/lease/head metadata reads only on `warmhearted-tapir-205`.
+At 15:41:32 UTC, two read-only system queries inspected hosted state and leases;
+both result sets were complete. No provider request, mutation or deployment ran.
+The existing v5 AMZN guard still has token `846ec5fd-a2b6-46e9-835b-78713b5dbf8a`.
+There is no matching observation or failure summary. AMZN lease token is
+`981f824e-de5c-4988-83b3-6eb67feacc55`, expires `0`, completed `false`.
+SPY has no guard and has a completed, expired lease. The historical v3 revocation
+remains present. These reads confirm a current legacy AMZN blocker; they do not
+establish why the original worker stopped. No head was read: the existing
+`market:read` entry point is a mutation and was intentionally not invoked.
+
+Recovery remains approval-gated: drain relevant work, obtain a read-only exact
+AMZN head revision (or verified absence), snapshot the relevant metadata, and
+recheck the guard and lease tokens. Then separately approve the existing
+`hosted:reconcileLegacy` exact-CAS call using those fresh expected values. It
+retains the guard while creating an expired observation; the next admitted,
+validated refresh must publish/read back replacement data before exact guard
+settlement. Do not delete guards, reset counters, or remove revocations.
+The isolated hosted-runtime regression passes this recovery sequence.
+The frontend deployment alone does not migrate this retained database state.
 
 ## 1. Freeze the proposed artifacts and allocation
 
@@ -211,3 +235,69 @@ state hashes, retained blockers, safe failure references, actual costs and remai
 allocation. Reopen normal traffic only after approved readback/acceptance. Public
 display/cache rights, provider finality, older corporate-action corrections and the
 unknown original incident cause remain distinct release limitations.
+
+## Recovery hardening and exact inventory command (2026-11-14)
+
+New source rejects refresh begin without exactly one symbol and a matching live
+lease. This prevents new token-only guards; do not enable an old-host compatibility
+bypass. Drain old hosts before migration. Runtime waits at most two seconds with
+eight control rechecks for an active owner, then returns a bounded blocked state;
+it does not promise recovery during every outage or wait indefinitely. Expired
+modern observations recover automatically without explicit Retry.
+
+After deployment of the reviewed backend, authorized operator tooling may invoke
+internal query `hosted:recoveryMetadata` with `symbols: ["AMZN", "SPY"]` and
+`asOf: <fresh UTC epoch milliseconds>`. For other ticker batches use at most 19
+symbols. The explicit time prevents cached query classifications surviving expiry.
+The query returns exact head/lease/guard CAS values without financial payloads.
+Classification describes each guard, not a waiver of global revocation checks.
+The query is not available through the public gateway and is not yet deployed to
+production. Existing production read authorization does not authorize its rollout.
+
+Final checks: 69 Convex/runtime tests passed; a new regression against original
+HEAD fails because lease-less begin succeeds, then passes with hardening. Source
+review found a query-clock caching issue, corrected using explicit asOf and an
+expiry-without-write test. No live provider request was needed for this work.
+DEV CLI deployment traffic is not instrumented as exact HTTP/DB operations.
+Historical incident cost remains two production metadata HTTP reads, separately
+journaled; no counter reset/refund or production mutation.
+
+Best estimate, not an established root cause: the original AMZN worker stopped
+before completing publication/cleanup. Its expired incomplete lease and token-only
+guard are consistent with older execution being terminated, timing out, or failing
+on provider/storage work. A healthy browser connection does not exclude any of
+those server-side events. No retained failure summary identifies which happened.
+
+Final validation: DEV stoic-corgi-586 deployed successfully after the query-clock
+fix. Credential-cleared production build passed. Sol Low review/recheck passed.
+The owner HTTP review process still uses its previously built runtime; it has not
+been restarted onto this new build. No new real-browser matrix was run.
+
+## Authorized production AMZN repair completed ? 2026-11-14
+
+Owner explicitly approved the AMZN-only repair and bounded replacement request.
+Target was production warmhearted-tapir-205; no code deployment or environment
+change occurred. Read-only preflight found zero unexpired hosted active entries,
+the exact retained legacy guard and expired incomplete AMZN lease. Relevant
+metadata was backed up locally before mutation. The CAS used head revision
+`de66fdf19795939a6373669118d47d89bb61d23a2e8478010a88d742e8b2ec10`, guard token
+`846ec5fd-a2b6-46e9-835b-78713b5dbf8a`, lease token
+`981f824e-de5c-4988-83b3-6eb67feacc55` and the reviewed v5 scope. It succeeded.
+
+One public AMZN-only 1W request (no explicit retry) returned HTTP 200 ready at
+2026-11-14T16:12:04.730Z in 2782 ms, 47673 response bytes. AMZN portfolio and SPY
+both had six finite points spanning 2026-11-06 through 2026-11-13. Readback confirms
+monthly-v2 content replacement, completed lease/expires zero, AMZN guard settled,
+and every other guard and revocation unchanged. No blanket delete/reset occurred.
+The new AMZN head revision is
+`70c8512d6f112a9657674a2f374f5485cdcde04f6e9f119c902340019f852c21`.
+
+Cost: two direct read-only Convex HTTP requests, one exact-CAS mutation HTTP
+request, one public market HTTP request. Internal backend Convex call/DB operation
+counts and provider HTTP/body bytes were not instrumented by this public endpoint;
+these are unknown, not zero. No repeated live matrix or automatic retry was run.
+Private local metadata snapshots and the cumulative operation journal are under
+LOCALAPPDATA/Tikr/task-journals/prod-amzn-repair-2026-11-14. No credential is stored
+there. This repairs the existing AMZN blocker only; uncommitted prevention hardening
+is deployed to DEV and still requires a reviewed production code rollout. Original
+worker termination reason remains unknown. This check is not financial certification.

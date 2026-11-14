@@ -55,6 +55,7 @@ test("cold hosts revalidate browser history against shared manifests and refresh
       payload: JSON.stringify(retained),
     });
   });
+  let activeChecks = 2;
   let catalogUnavailable = false;
   let calendarCalls = 0,
     barCalls = 0;
@@ -105,6 +106,18 @@ test("cold hosts revalidate browser history against shared manifests and refresh
           operation.args.symbols.length
         )
           scope = operation.args.scope;
+        if (
+          operation.name === "control" &&
+          operation.args.op === "check" &&
+          activeChecks-- > 0
+        )
+          return new Response(null, {
+            status: 503,
+            headers: {
+              "X-Tikr-Code": "REFRESH_GUARDED",
+              "X-Tikr-Guard-State": "active",
+            },
+          });
         const response = await t.fetch(url.pathname, init);
         if (
           holdResultRead &&
@@ -236,7 +249,8 @@ test("cold hosts revalidate browser history against shared manifests and refresh
         expectedLeaseToken: null,
       },
     );
-    request.retry = true;
+    // Recovery is automatic after conversion, without editor Retry or reload loops.
+    request.retry = false;
     expect((await openHost()).status).toBe("ready");
     request.retry = false;
     await t.run(async (ctx) => {

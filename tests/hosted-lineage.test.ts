@@ -132,9 +132,22 @@ test("retained control state preserves budgets, guards, active observations and 
   expect(await call({ op: "begin", symbols: ["AMZN"] })).toEqual({
     code: "REFRESH_GUARDED",
   });
+  // Old callers must no longer create another token-only guard.
+  await expect(call({ op: "begin", symbols: ["BA"] })).rejects.toThrow(
+    "LEASE_LOST",
+  );
+  const leaseToken = crypto.randomUUID();
+  await t.mutation(makeFunctionReference<"mutation">("market:acquire"), {
+    key: "asset:BA",
+    token: leaseToken,
+    cycle: "2026-11-14",
+    retry: true,
+    evidenceScope: scope,
+    reviewedPolicy: policy,
+  });
   const outcomes = await Promise.all([
-    call({ op: "begin", symbols: ["BA"] }),
-    call({ op: "begin", symbols: ["BA"] }),
+    call({ op: "begin", symbols: ["BA"], leaseToken }),
+    call({ op: "begin", symbols: ["BA"], leaseToken }),
   ]);
   expect(outcomes.filter((x) => x === null)).toHaveLength(1);
   expect(outcomes.filter((x) => x?.code === "REFRESH_GUARDED")).toHaveLength(1);

@@ -1,3 +1,35 @@
+## Production AMZN repair completed - 2026-11-14
+
+Owner authorized exact legacy-guard CAS and one replacement refresh. Preflight
+backed up metadata and found no live hosted owner. CAS succeeded; public AMZN 1W
+returned 200 ready with AMZN/SPY on six shared dates November 6-13. Readback confirms
+replacement history, completed lease and settled AMZN guard; other guards and
+revocations unchanged. Three direct Convex HTTP calls plus one public market call;
+internal Convex/provider counts unknown (not zero). No prod deployment/env change.
+See production-history-recovery.md. New prevention hardening remains DEV-only.
+
+## Guard recovery hardening - 2026-11-14
+
+Owner approved this incident follow-up, superseding the deferral only for the
+scoped recovery changes here. New refresh begin requires one symbol and a live,
+matching lease; token-only guards cannot be created. Active owners are rechecked
+at most eight times over two seconds without provider work. Expired modern guards
+use existing automatic reclaim; legacy guards still require operator CAS.
+Added internal recoveryMetadata query (symbols + explicit asOf) returning only
+exact guard/head/lease metadata. It is not exposed by the HTTP gateway.
+Original HEAD accepts the lease-less regression; hardened source rejects it.
+69 Convex/runtime tests pass; focused 12 pass after explicit-time query review fix.
+Lint and both TypeScript checks pass. Final DEV-only backend deploy succeeded, including the query correction. No production writes or provider calls.
+See production-history-recovery.md for deployment/drain/migration approval gates.
+
+## Production AMZN incident - 2026-11-14
+
+Authorized read-only inspection confirms the retained token-only v5 AMZN guard,
+expired incomplete lease, and no recovery observation. This explains the current
+guard block; the original interruption remains unknown. Two production metadata
+queries, zero provider requests/writes/deployments. Exact head inspection and CAS
+recovery remain pending. See production-history-recovery.md. No guard cleared.
+
 ## Latest completed change ? general Alpaca dividend acceptance (2026-11-13)
 
 Implemented uniformly for all tickers under the owner-approved assumption below.
