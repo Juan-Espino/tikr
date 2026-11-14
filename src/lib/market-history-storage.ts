@@ -35,6 +35,14 @@ export function withDisposableHistory(
     staged = new Map<string, Stored>(),
     used = new Map<string, HistoryChunk>();
   const incoming = new Map(hints.map((row) => [row.key, row]));
+  for (const [key, row] of incoming) {
+    try {
+      if (revision(JSON.parse(row.payload)) !== row.revision)
+        incoming.delete(key);
+    } catch {
+      incoming.delete(key);
+    }
+  }
   const publish = (row: Stored, root: string) => {
     const key = namespace + row.key + root;
     memory.delete(key);
@@ -77,11 +85,23 @@ export function withDisposableHistory(
       const durable = keys.filter((key) => !price(key) || legacy.has(key));
       const rows = durable.length ? await storage.read(durable) : [];
       rows.forEach(observe);
+      // During the compatibility window, retained legacy chunks may reconstruct
+      // lost disposable content. They remain hints: loadAsset must validate the
+      // entire reconstructed asset against the CURRENT authoritative head root.
+      const missing = keys.filter(
+        (key) =>
+          price(key) &&
+          modern.has(key) &&
+          !memory.has(namespace + key + roots.get(key)) &&
+          !incoming.has(key),
+      );
+      const retained = missing.length ? await storage.read(missing) : [];
       for (const key of keys.filter((key) => price(key) && modern.has(key))) {
         const root = roots.get(key);
         const candidate =
           (root && memory.get(namespace + key + root)?.row) ??
-          incoming.get(key);
+          incoming.get(key) ??
+          retained.find((row) => row.key === key);
         if (!root || !candidate) continue;
         try {
           if (revision(JSON.parse(candidate.payload)) !== candidate.revision)
@@ -113,14 +133,23 @@ export function withDisposableHistory(
           memory.get(namespace + chunkKey + roots.get(chunkKey))?.row,
       );
       if (chunks.some((row) => !row)) throw Error("REVISION_CHANGED");
-      // The existing root hash commits to every normalized price and action. No
-      // per-month database documents or duplicate durable hash map are necessary.
+      // Persist payload and head in the SAME fenced transaction. Browser/process
+      // copies accelerate reads; losing them must not require provider admission.
+      // The existing asset root still authenticates every price and action.
       const updated = {
         ...head,
         payload: JSON.stringify({ ...data, content: true }),
       };
       await storage.write(key, token, [
         ...rows.filter((row) => !price(row.key) && row !== head),
+        ...chunks
+          .filter((row): row is Stored => row !== undefined)
+          .map(({ key, payload, revision, dependencies }) => ({
+            key,
+            payload,
+            revision,
+            dependencies,
+          })),
         updated,
       ]);
       observe({ ...updated, checkedAt: clock() });

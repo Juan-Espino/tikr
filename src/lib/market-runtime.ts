@@ -1,7 +1,15 @@
 import { personalHistoryStart } from "./market-policy.ts";
 import { diagnose, providerCredentials } from "./market-diagnostics.ts";
 import "server-only";
-import { hosted, reserveHostedProvider } from "./market-hosted.ts";
+import {
+  hosted,
+  reserveHostedProvider,
+  control,
+  gateway,
+  policyIdentity,
+} from "./market-hosted.ts";
+import { marketFailure } from "./market-errors.ts";
+import { randomUUID } from "node:crypto";
 import { open } from "node:fs/promises";
 import { constants } from "node:fs";
 import { isAbsolute } from "node:path";
@@ -10,6 +18,7 @@ import { createDurableBacktests } from "./durable-market.ts";
 import { withProcessResults } from "./market-result-memory.ts";
 import { withDisposableHistory } from "./market-history-storage.ts";
 import { createBatchedPersonalLoader } from "./alpaca/batched-loader.ts";
+import { ALPACA_CASH_INTERPRETATION } from "./alpaca/personal-loader.ts";
 import { revision, convexStorage } from "./market-storage.ts";
 import { createVerifiedLoader } from "./alpaca/verified-loader.ts";
 import type { ReviewedAsset } from "./alpaca/verified-loader.ts";
@@ -57,10 +66,6 @@ async function personalSource(symbols: string[]) {
     secret,
     transport,
     retries: 0,
-    maxPages: 8,
-    maxTotalBytes: 8 * 1024 * 1024,
-    maxTotalBars: 1300,
-    maxTotalActions: 1000,
   };
   const now = new Date(),
     cycle = freshnessCycle(now);
@@ -174,6 +179,8 @@ export function publicView(view: CacheView, amount: string): MarketResponse {
     status: view.status,
     code: view.code,
     retryAt: view.retryAt,
+    originalFailure: view.originalFailure,
+    guardState: view.guardState,
     asOf: view.asOf,
     assetReturns: view.assetReturns
       ? Object.fromEntries(
@@ -240,6 +247,60 @@ async function openConfiguredMarket(
   const url = process.env.TIKR_CONVEX_URL ?? "https://hosted.convex.cloud",
     key = hosted() ? "gateway" : process.env.TIKR_CONVEX_ADMIN_KEY;
   if (!url || !key) throw new Error("STORAGE_NOT_CONFIGURED");
+  let recovering = false;
+  if (hosted()) {
+    try {
+      providerCredentials();
+    } catch (error) {
+      diagnose("config", error);
+      throw error;
+    }
+    const symbols = [
+      ...new Set([
+        "SPY",
+        ...request.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol)),
+      ]),
+    ];
+    const scope = revision({
+      policy: PROVISIONAL_POLICY,
+      start: personalHistoryStart(freshnessCycle(new Date())),
+    });
+    try {
+      await control("check", scope, symbols);
+    } catch (error) {
+      let failure = marketFailure(error);
+      let recoverable = false;
+      if (
+        failure?.code === "REFRESH_GUARDED" &&
+        failure.guardState === "abandoned"
+      ) {
+        try {
+          const candidates = await gateway<string[]>("control", {
+            ...policyIdentity(scope),
+            op: "recover",
+            scope,
+            symbols,
+            token: randomUUID(),
+          });
+          recoverable = candidates.length > 0;
+          recovering = recoverable;
+        } catch (error) {
+          failure = marketFailure(error);
+        }
+      }
+      if (!recoverable) {
+        if (!failure) throw error;
+        const view: MarketResponse = {
+          status: "blocked",
+          code: failure.code,
+          retryAt: failure.retryAt,
+          originalFailure: failure.originalFailure,
+          guardState: failure.guardState,
+        };
+        return { initial: view, settled: Promise.resolve(view) };
+      }
+    }
+  }
   const provisional = process.env.TIKR_MARKET_MODE === "personal-provisional";
   const data = provisional ? undefined : await bundle();
   const source = data
@@ -272,9 +333,13 @@ async function openConfiguredMarket(
       history.storage,
       revision({ url, hosted: hosted(), revision: source.revision }),
     ),
+    // Includes bounded admission/provider queueing and atomic publication. The
+    // old 15s single-process default expired healthy cold multi-portfolio work.
+    timeoutMs: hosted() ? 45000 : 15000,
     calendar: () => source.calendar,
     historyStart: source.historyStart,
     evidenceRevision: source.revision,
+    normalizationRevision: provisional ? ALPACA_CASH_INTERPRETATION : undefined,
     evidenceValidUntil: () => source.expires,
     supportedSymbols: data
       ? Object.keys(data.reviews)
@@ -286,7 +351,7 @@ async function openConfiguredMarket(
   const job = await run(
     { portfolios: request.portfolios, amount: request.amount },
     request.range,
-    request.retry,
+    recovering ? true : request.retry,
   );
   return {
     initial: {

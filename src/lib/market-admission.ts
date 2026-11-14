@@ -10,9 +10,7 @@ import {
 } from "node:fs/promises";
 import { join, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
-import { MARKET_BUDGET } from "./market-budget.ts";
 import { supersededMarketScope } from "./market-policy.ts";
-import { developmentIoAllowance } from "./market-dev-allowance.ts";
 type Ledger = {
   version: 1;
   month: string;
@@ -433,12 +431,9 @@ export function createAdmission(
         throw new Error("ADMISSION_CONFIG");
       if (scope) await this.assertActive(scope);
       const month = clock().toISOString().slice(0, 7);
-      const ioLimit = developmentIoAllowance(process.env, month);
       await transact((l) => {
         if (scope && l.revoked?.includes(scope))
           throw new Error("EVIDENCE_REVOKED");
-        if (l.calls + 1 > MARKET_BUDGET.monthlyCalls || l.io + bytes > ioLimit)
-          throw new Error("CACHE_BUDGET");
         l.calls++;
         l.io += bytes;
         if (kind) {

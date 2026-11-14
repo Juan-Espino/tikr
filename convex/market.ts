@@ -1,16 +1,18 @@
 import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { ConvexError, getDocumentSize, v } from "convex/values";
+import { getDocumentSize, v } from "convex/values";
 import {
   supersededMarketScope,
   PERSONAL_SOURCE_POLICY,
 } from "../src/lib/market-policy";
-import {
-  MARKET_BUDGET as B,
-  FREE_ALLOWANCE as F,
-  storageCharge,
-} from "../src/lib/market-budget";
+import { MARKET_BUDGET as B, storageCharge } from "../src/lib/market-budget";
 const dependency = v.object({ key: v.string(), revision: v.string() });
+const failureSummary = v.object({
+  trace: v.string(),
+  at: v.number(),
+  stage: v.string(),
+  code: v.string(),
+});
 const entry = v.object({
   key: v.string(),
   payload: v.string(),
@@ -21,22 +23,28 @@ const validKey = (key: string) => {
   if (!/^[A-Za-z0-9:._-]{1,160}$/.test(key)) throw new Error("INVALID_KEY");
 };
 export async function budget(ctx: MutationCtx, bytes: number, now: number) {
-  const row = await ctx.db
+  let row = await ctx.db
     .query("marketBudget")
     .withIndex("by_key", (q) => q.eq("key", "global"))
     .unique();
-  if (!row || row.reviewedThrough < now)
-    throw new ConvexError({ code: "TEAM_BUDGET_UNVERIFIED" });
+  if (!row) {
+    const id = await ctx.db.insert("marketBudget", {
+      key: "global",
+      month: new Date(now).toISOString().slice(0, 7),
+      io: 0,
+      calls: 0,
+      storage: 0,
+      entries: 0,
+      reviewedThrough: 0,
+      otherStorage: 0,
+      otherIo: 0,
+      otherCalls: 0,
+    });
+    row = (await ctx.db.get(id))!;
+  }
   const month = new Date(now).toISOString().slice(0, 7);
   const io = (row.month === month ? row.io : 0) + bytes + 8192;
   const calls = (row.month === month ? row.calls : 0) + 1;
-  if (
-    io > B.monthlyIoBytes ||
-    calls > B.monthlyCalls ||
-    io + row.otherIo > F.monthlyIoBytes * 0.75 ||
-    calls + row.otherCalls > F.monthlyCalls * 0.75
-  )
-    return null;
   await ctx.db.patch(row._id, { month, io, calls });
   return { ...row, month, io, calls };
 }
@@ -53,10 +61,7 @@ export const configure = internalMutation({
     if (
       Object.values(args).some((n) => !Number.isSafeInteger(n) || n < 0) ||
       args.reviewedThrough < now ||
-      args.reviewedThrough > now + 32 * 86400000 ||
-      args.otherStorage + B.storageBytes > F.storageBytes * 0.75 ||
-      args.otherIo + B.monthlyIoBytes > F.monthlyIoBytes * 0.75 ||
-      args.otherCalls + B.monthlyCalls > F.monthlyCalls * 0.75
+      args.reviewedThrough > now + 32 * 86400000
     )
       throw new Error("TEAM_BUDGET_INVALID");
     const row = await ctx.db
@@ -84,9 +89,7 @@ export const read = internalMutation({
     if (keys.length > 80 || new Set(keys).size !== keys.length)
       throw new Error("READ_LIMIT");
     keys.forEach(validKey);
-    const admission = await budget(ctx, keys.length * 1024, Date.now());
-    if (!admission || admission.io > B.monthlyIoBytes - 10_000_000)
-      return { status: "budget" as const, rows: [] };
+    await budget(ctx, keys.length * 1024, Date.now());
     const rows = await Promise.all(
       keys.map((key) =>
         ctx.db
@@ -101,8 +104,7 @@ export const read = internalMutation({
       (s, row) => s + (row ? getDocumentSize(row) * 2 : 1024),
       0,
     );
-    if (!(await budget(ctx, bytes, Date.now())))
-      return { status: "budget" as const, rows: [] };
+    await budget(ctx, bytes, Date.now());
     return {
       status: "ok" as const,
       admissionUnits: bytes + keys.length * 1024 + 16384,
@@ -127,9 +129,12 @@ export const acquire = internalMutation({
       v.literal("cooldown"),
       v.literal("limit"),
       v.literal("acquired"),
+      v.literal("guarded"),
+      v.literal("revoked"),
     ),
     admissionUnits: v.optional(v.number()),
     retryAt: v.optional(v.number()),
+    failure: v.optional(failureSummary),
   }),
   args: {
     key: v.string(),
@@ -137,6 +142,7 @@ export const acquire = internalMutation({
     cycle: v.string(),
     retry: v.boolean(),
     from: v.optional(v.string()),
+    evidenceScope: v.optional(v.string()),
     reviewedPolicy: v.optional(v.literal(PERSONAL_SOURCE_POLICY)),
   },
   handler: async (ctx, args) => {
@@ -155,6 +161,54 @@ export const acquire = internalMutation({
       .unique();
     if (row && row.expires > now)
       return { status: "busy" as const, admissionUnits: 32768 };
+    // Reject authoritative blockers before spending a provider-attempt allowance.
+    // The same transaction serializes this check with guard/lease changes.
+    let failure:
+      import("../src/lib/market-failure-record").RefreshFailure | undefined;
+    if (args.key.startsWith("asset:")) {
+      if (
+        args.evidenceScope !== undefined &&
+        !/^[a-f0-9]{64}$/.test(args.evidenceScope)
+      )
+        throw Error("INVALID_LEASE");
+      const hosted = await ctx.db
+        .query("marketHosted")
+        .withIndex("by_key", (q) => q.eq("key", "global"))
+        .unique();
+      if (hosted) {
+        const state = JSON.parse(hosted.payload) as import("./hosted").State;
+        failure =
+          state.failures?.[`${args.evidenceScope}:${args.key.slice(6)}`];
+        const superseded = (scope: string) =>
+          supersededMarketScope(
+            scope,
+            args.evidenceScope ?? "",
+            args.reviewedPolicy,
+          );
+        if (state.revoked.some((scope) => !superseded(scope)))
+          return { status: "revoked" as const, admissionUnits: 32768 };
+        const blocked = Object.keys(state.guards).some((key) => {
+          if (
+            !key.endsWith(`:${args.key.slice(6)}`) ||
+            superseded(key.split(":")[0]!)
+          )
+            return false;
+          const observation = state.observations?.[key];
+          return !(
+            key === `${args.evidenceScope}:${args.key.slice(6)}` &&
+            observation !== undefined &&
+            observation.token === state.guards[key] &&
+            observation.expires <= now
+          );
+        });
+        if (blocked)
+          return {
+            status: "guarded" as const,
+            admissionUnits: 32768,
+            ...(failure ? { failure } : {}),
+          };
+      }
+    }
     const attempts = row?.cycle === args.cycle ? row.attempts : 0;
     const policyReview =
       args.key.startsWith("asset:") &&
@@ -162,8 +216,8 @@ export const acquire = internalMutation({
       row !== null &&
       row.reviewedPolicy !== PERSONAL_SOURCE_POLICY;
     // Expanding a successfully committed window is new work, under the same
-    // symbol lease. Failed attempts, retries and arbitrary scope strings cannot
-    // bypass cooldowns. Budgets and active lease ownership still apply.
+    // symbol lease. Counters describe attempted work but never gate refreshes.
+    // Active ownership and authoritative revocations still apply.
     const expansion =
       !policyReview &&
       args.key.startsWith("asset:") &&
@@ -173,30 +227,6 @@ export const acquire = internalMutation({
       row.completedFrom > args.from;
     const scopeAttempts =
       row?.cycle === args.cycle ? (row.scopeAttempts ?? row.attempts) : 0;
-    // One revalidation for this exact reviewed normalization upgrade. Retain all
-    // counters; arbitrary revision strings cannot authorize additional attempts.
-    if (
-      args.key !== "catalog:refresh" &&
-      !expansion &&
-      !policyReview &&
-      scopeAttempts >= (args.retry ? 2 : 1)
-    )
-      return {
-        status: "daily" as const,
-        retryAt: nextCycle(args.cycle),
-        admissionUnits: 32768,
-      };
-    if (
-      args.key !== "catalog:refresh" &&
-      !expansion &&
-      attempts > 0 &&
-      now - row!.attemptedAt < 60000
-    )
-      return {
-        status: "cooldown" as const,
-        retryAt: row!.attemptedAt + 60000,
-        admissionUnits: 32768,
-      };
     const value = {
       key: args.key,
       token: args.token,
@@ -206,15 +236,37 @@ export const acquire = internalMutation({
       scopeAttempts: expansion ? 1 : scopeAttempts + 1,
       attemptedAt: now,
       expires: now + 60000,
-      ...(args.reviewedPolicy || row?.reviewedPolicy
-        ? { reviewedPolicy: args.reviewedPolicy ?? row?.reviewedPolicy }
+      ...(args.evidenceScope
+        ? {
+            // Hosted claim is not provider work. Begin commits these counters only
+            // after catalog, revocation and observation ownership checks succeed.
+            attempts,
+            scopeAttempts,
+            attemptedAt: row?.attemptedAt ?? 0,
+            pendingAttempt: {
+              attempts: attempts + 1,
+              scopeAttempts: expansion ? 1 : scopeAttempts + 1,
+              attemptedAt: now,
+              ...(args.reviewedPolicy
+                ? { reviewedPolicy: args.reviewedPolicy }
+                : {}),
+            },
+          }
+        : {}),
+      ...((
+        args.evidenceScope
+          ? row?.reviewedPolicy
+          : (args.reviewedPolicy ?? row?.reviewedPolicy)
+      )
+        ? {
+            reviewedPolicy: args.evidenceScope
+              ? row?.reviewedPolicy
+              : (args.reviewedPolicy ?? row?.reviewedPolicy),
+          }
         : {}),
     };
     if (row) await ctx.db.replace(row._id, value);
     else {
-      const rows = await ctx.db.query("marketLeases").take(67);
-      if (rows.length >= 66)
-        return { status: "limit" as const, admissionUnits: 32768 };
       await ctx.db.insert("marketLeases", value);
     }
     return { status: "acquired" as const, admissionUnits: 32768 };
@@ -322,12 +374,6 @@ export const write = internalMutation({
     }
     const b = await budget(ctx, io, now);
     if (!b) return { status: "budget" as const };
-    if (
-      b.storage + delta > B.storageBytes - 6_000_000 ||
-      b.entries + added > B.maxEntries ||
-      b.storage + delta + b.otherStorage > F.storageBytes * 0.75
-    )
-      return { status: "storage" as const, admissionUnits: io + 8192 };
     for (const { old, data } of writes) {
       if (old) await ctx.db.replace(old._id, data);
       else await ctx.db.insert("marketEntries", data);
@@ -377,6 +423,7 @@ export const write = internalMutation({
         throw Error("REVISION_CHANGED");
       delete hostedState.guards[guardKey];
       delete hostedState.observations?.[guardKey];
+      delete hostedState.failures?.[guardKey];
       await ctx.db.patch(hostedRow._id, {
         payload: JSON.stringify(hostedState),
       });
@@ -407,7 +454,7 @@ export const release = internalMutation({
 });
 
 // Next New York 09:00 after the lease cycle, including DST transitions.
-function nextCycle(cycle: string) {
+export function nextCycle(cycle: string) {
   const candidate = Date.parse(cycle + "T14:00:00Z") + 86400000;
   const hour = Number(
     new Intl.DateTimeFormat("en-US", {

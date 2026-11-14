@@ -1,7 +1,19 @@
+## Owner-approved Alpaca dividend interpretation (2026-11-13)
+
+For all tickers in the personal Alpaca integration, treat the provider's reported
+cash-dividend `rate` as USD cash per traded share/ADR. Accept foreign, missing-currency
+and other currency metadata without converting or multiplying that rate. Retain any
+withholding already reflected in the provider amount; apply no additional FX, ADR
+ratio, tax gross-up or tax deduction. This is an owner-approved application assumption,
+not an independently established provider guarantee for every record. It supersedes
+the earlier blanket foreign-dividend rejection and the claim that all results exclude
+source withholding. Positive amounts, interpretable ex/payment dates, payment-date
+reinvestment, split/dividend ordering, shared periods and complete holdings remain.
+
 # Personal market-data integration
 
 Current architecture: [market-redesign-checkpoint.md](market-redesign-checkpoint.md).
-This replaces the earlier durable-history/result-cache integration description.
+The November13 correction restores durable monthly history while retaining process-only results.
 
 ## Scope and activation gates
 
@@ -20,9 +32,9 @@ engine changes and `alpaca-validation.md` for evidence/oracle procedures.
 
 ## Durable storage and refreshes
 
-The server keeps only asset roots/metadata, shared admission/fencing/attempts,
-revocations and validated catalog state in Convex. Monthly normalized history is
-browser/process disposable content. New calendar and derived-result writes are
+The server keeps asset roots/metadata and matching monthly normalized payloads,
+shared admission/fencing/attempts, revocations and validated catalog state in Convex.
+Browser/process history copies are disposable accelerators. New calendar and derived-result writes are
 removed. Legacy monthly manifests remain readable; shared guards and historical
 revocations are never bypassed by a new cache identity. Recovery still binds the
 atomic committed head revision to readback receipts. Files/process memory are not
@@ -30,8 +42,9 @@ shared or durable on Vercel.
 
 See `on-demand-cache.md` for restart, cache-loss and multitab behavior;
 `market-accounting.md` for control units versus measurements; and
-`market-deployed-cleanup.md` before any deployment or record cleanup. Source schema
-is unchanged and deployed records have not been deleted or reset.
+`market-deployed-cleanup.md` before any deployment or record cleanup. The earlier source-only checkpoint below is historical. The November13 DEV
+compatibility rollout adds an optional pending-attempt field; deployed records
+have not been deleted or reset.
 
 ## Server configuration inventory
 
@@ -190,3 +203,92 @@ It preserves the guard token, all heads, revocations and counters and adds expir
 observation metadata. Conversion does not establish data validity or unlock reads.
 See `market-deployed-cleanup.md` for the authorization sequence. No actual retained
 production record was inspected, converted or resolved in this task.
+
+
+## November13 development recovery verification
+
+Owner-authorized work stays in `t3-dev-history-refresh-recovery`, based on merged
+PR18 at `a4038e7`. Compatible backend changes were deployed only to
+`dev:stoic-corgi-586`. The DEV bearer gateway and current rounded team-review fields
+were configured for bounded verification. Production was neither inspected nor
+mutated, and no public site, paid service, provisioning of a new target, legacy
+conversion, ledger reset or record cleanup was performed.
+
+See [history-refresh-journal.md](history-refresh-journal.md) for exact before/after
+reproductions, trace IDs, costs, retained-state readback and remaining limits.
+New hosted claims defer attempt-counter changes until catalog/guard validation
+admits `begin`; rejected guards and waiting claims do not spend an attempt. Original
+failure summaries remain attached to guarded source/ticker state through cooldown.
+Only active guards wait; expired observations permit an ordinary explicit Retry,
+while token-only legacy guards still require exact approved operator conversion.
+The reviewed normalization validation exception remains narrow and counters are
+retained. Validated source progress grants bounded publication time, never an
+unlimited heartbeat. Stale owners cannot publish or settle replacement observations.
+
+Browser/process content loss is distinct from an upstream failure. Retained legacy
+monthly rows are optional reconstruction hints and must reproduce the COMPLETE
+current authoritative root before use. A valid monthly self-hash alone is never
+sufficient. If reconstruction fails, ordinary source lease/attempt/admission gates
+apply. Retry detects missing payload before selecting work and reuses a healthy
+benchmark instead of needlessly spending its provider allowance. Wider authoritative
+coverage survives revalidation even when its disposable payload is lost; the
+selected investment period is never silently shortened.
+
+Real DEV verification recovered AAPL/MSFT/NVDA from retained expired observations,
+returned the full tech portfolio plus SPY for November5?12, then reopened warm with
+zero provider requests. The originating interruption was the bounded task harness,
+not an observed Alpaca outage. The earlier real cold-process generic cache failure
+was separately reproduced in isolated fixtures. Neither result reconstructs the
+unknown original production failure or certifies production, provider finality,
+exhaustive actions or public display/cache rights.
+
+### November13 real browser release rehearsal
+
+The later real DEV rehearsal supersedes any broad readiness interpretation of the
+prior warm success: all16 portfolio/range cases were blocked. A graceful restart
+with restored task browser storage confirmed missing disposable payload + exhausted
+daily source attempts returns CACHE_CONTENT_UNAVAILABLE -> REFRESH_COOLDOWN.
+Two market:read OCC conflicts occurred; the precise cause of every storage failure
+is unresolved. Synthetic194 Node/66 Convex checks passed. Next-day testing skipped.
+See dev-release-rehearsal.md. Production readiness remains blocked.
+
+## November13 durable payload DEV verification
+
+Head-only writes were reproduced before the correction with a fresh process,
+no browser hints, no persisted result and exhausted source admission: blocked.
+After persisting monthly payloads atomically with the head, the same case is ready
+with identical complete results and zero additional source loads. Actual hosted
+runtime also passes fresh-browser/different-cash calculation under normal production
+limits without another bars request. This is a DEV reproduction, not attribution
+of the unknown original production cause.
+
+Temporary DEV refresh relief is platform-URL bound to stoic-corgi-586, explicitly
+configured server-side, and preserves counters/guards/budgets. Production cannot
+enable it through the same flag. Existing old head-only rows are not silently
+backfilled: their next admitted validated refresh persists complete payloads.
+A future production rollout must account for those rows and existing daily attempts;
+no broader lineage exception, revocation reset or production repair is authorized.
+
+Final November13 continued acceptance:196 Node,70 Convex/runtime,5 mutants,
+lint/types/build and42 appropriately scoped browser regressions pass. Real16-case
+route matrix passes; fresh-process/browser4portfolio check with DEV relief OFF
+passes without bars/actions provider work. Equalweights/cash/create/save/reload/
+secondtab UI flow passes, with a canceled-response collector limitation documented.
+DEV relief restored; production unchanged. Exact evidence/cost/limits and old-head
+production recovery requirements: dev-release-rehearsal.md final section.
+
+Source-readiness continuation: collector storageState/cancellation lifecycle now
+passes in isolated synthetic browser (2portfolios,55chunks,edited75/25weights).
+YTD/comparison/add/remove/weight and exact cached year-start checks pass. Retained
+real four-case evidence asserts ready personal-provisional responses and synthetic
+labelcount0; no new live run. Specific approval-gated production recovery procedure:
+production-history-recovery.md. No production inspection/action in this continuation.
+
+MVP continuation2026-11-13: exactforeign cash terms and remainingunknowncurrency are
+recorded in mvp-history-readiness.md. ExplicitUSDcashnormalization now permitsforeign
+and special flags without guessedFX/ADRratio. Missingforeigncurrency remainsunverified.
+AutoexpiredguardrecoveryretainsCAS/revocations; operationalquotas removedsharedsource.
+
+FinalMVPfollowupacceptance: actualforeignASML/TSM1Yremainsblockedafteroneeditorretry;
+sourcecurrencyabsentcannotestablishUSDgrosscashperADR/share. Real1Wloading/recovery,
+WARchartandreloadpass. Nooperationalquotaenforcementwasrestored. Seemvp-history-readiness.md.

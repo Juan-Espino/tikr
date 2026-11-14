@@ -1,3 +1,37 @@
+## Latest completed change ? general Alpaca dividend acceptance (2026-11-13)
+
+Implemented uniformly for all tickers under the owner-approved assumption below.
+Foreign/currency metadata no longer blocks cash normalization. Old interpretation
+failures revalidate using a separate cache revision, preserving authoritative guards
+and revocations. Final207Node/68Convex tests, lint/types/build pass; SolLowreviewpass.
+Terra fullAI1Y/5Y/reloadready; no currencyerror/publicreference. RealQA recorded17
+providercalls againstplanned12: overrunexplicitlydocumented, no furtherlivechecks.
+Source uncommitted; noPR. Main clean; ownerreview43202running. Four reliability items
+remain **Post-MVP polish**, deferred. See mvp-history-readiness.md finalsection.
+
+## Current owner direction ? 2026-11-13
+
+Accept Alpaca reported USD cash dividends across all tickers under the assumption
+in backtest-methodology.md, retaining embedded withholding and applying no second
+conversion or gross-up. Earlier missing-currency blockers are superseded by this
+approved interpretation; prior empirical findings remain historical evidence.
+
+### Post-MVP polish ? explicitly deferred by owner
+
+These are follow-up improvements, not work to implement in this dividend task:
+
+- Refresh recovery without repeated reloads: safely recover failed/interrupted work
+  without leaving a portfolio guarded. Preserve existing safe reload recovery.
+- Calendar and SPY reliability: persist validated shared data so restarts and temporary
+  provider failures do not prevent cached portfolios from loading.
+- Period changes/cache coverage: strengthen 1W/1Y/5Y end-to-end coverage, retain every
+  holding and never present an older chart as the completed new period.
+- Temporary provider/data failures: improve bounded retries, precise messages and
+  continued use of the last validated result where still trustworthy.
+
+No production rollout, commit, push or PR is authorized. Current implementation and
+verification evidence are in mvp-history-readiness.md.
+
 ## Hosted retained-policy fix - source verification (2026-11-12)
 
 Implementation remains uncommitted in the dedicated `t3/fix-hosted-history-revoked-lineage`
@@ -913,3 +947,283 @@ Owner authorized commit, push and PR creation for the verified recovery source i
 this sidebar chat on 2026-11-12. This supersedes earlier no-publication statements
 for this source change only; merge, deployment, production inspection/mutations,
 legacy conversion and real provider requests remain unauthorized.
+
+
+## November13 development history-refresh reproduction and repair
+
+Work stays in `t3-dev-history-refresh-recovery`, base `a4038e7` (merged PR18).
+Implementation was performed by Sol Low; only mandated browser QA used Terra Medium.
+No commit, push, PR, merge or production mutation was performed. Main is still clean
+at `a4038e7`. Current source was inspected rather than replaying the superseded task.
+
+Confirmed and reproduced: guard rejection consumed a claim attempt; begin/settlement
+errors could skip lease cleanup; a final guard check hid the initiating source error;
+fresh metadata was mistaken for available disposable content; Retry needlessly
+refreshed healthy SPY; and lost wider payload could shrink a replacement cache to a
+narrow requested window. Focused regressions failed before their corresponding fixes.
+The exact reviewed v3/v4-to-v5 lineage exceptions and financial engine/oracles remain
+unchanged. Source now preserves bounded original failure/trace/timestamp, active vs
+abandoned status and known retry time, staged hosted attempt accounting, bounded
+progress, atomic fenced publication/readback/settlement and root-validated legacy
+rehydration. See `history-refresh-journal.md` for precise reproductions and matrix.
+
+Owner-authorized compatible DEV backend rollout completed on `stoic-corgi-586`.
+Current team-review fields and its previously absent bearer gateway configuration
+were set only on DEV. Counter/cap continuity was verified. No legacy conversion,
+manual guard settlement/deletion or manufactured deployed fixture was used.
+The actual tech runtime first reproduced generic cache failure with HTTP200 provider
+responses. A subsequent task-harness phase refusal interrupted three DEV observations;
+normal restarted Retry recovered AAPL/MSFT/NVDA with real provider validation and
+six common portfolio/SPY sessions November5?12. Warm reopen used zero provider calls.
+This is distinct from the unknown original production cause.
+
+Final checks: Node194/194, Vitest66/66, all five engine mutation probes,
+`pnpm.cmd check`, focused formatting and a credential-cleared production build pass.
+All42 browser regressions pass across the configured and disabled fixture modes;
+Terra independently passes10 dashboard error-state cases, with its narrower scope
+recorded in the task journal. Exact task
+cost after compatible rollout/preflight:32 provider HTTP /1,840,165 received bytes;
+329 Convex HTTP /5,085,219 received bytes;30,104,947 additional conservative backend
+admission units. No local/backend allowance extension or historical refund/reset.
+Actual deployed DB operations/billing, independent subscription verification,
+provider finality/action completeness and public rights remain unverified.
+
+Next: owner review of this uncommitted source and the explicitly synthetic
+loopback review at`http://127.0.0.1:43139/qa-fixture/seed`, launched from this
+worktree with`node scripts/qa-market-redesign.mjs`. Production rollout and exact legacy
+CAS/drain/backup/rehearsal remain separate approvals. If all disposable and matching
+legacy history is lost after the existing source allowance is exhausted, preserve
+that limit and report its real retry time; do not bypass it to claim availability.
+
+### November13 release rehearsal: RED
+
+Owner-authorized checks1-5 and7 ran; next-day check6 skipped. Fresh check/build,
+194 Node tests,66 Convex/runtime cases and five financial mutation checks passed.
+All16 real DEV portfolio/range cases failed availability; restored browser storage
+after server restart also returned CACHE_CONTENT_UNAVAILABLE and daily cooldown.
+Two DEV market:read OCC conflicts were observed, without attributing all storage
+errors. See dev-release-rehearsal.md for evidence, exact cost and limitations.
+Next: fix/reproduce payload-loss recovery and contention, then rerun real acceptance.
+No production rollout is recommended; no Git publication or production mutation.
+
+## November13 implementation follow-up in progress
+
+Owner authorizes continued DEV implementation/testing and temporary DEV refresh
+relief, bounded service spending and preservation of future free-tier capacity.
+A new failing-before regression isolates head-only writes in market-history-storage:
+monthly data was omitted, so browser/process loss plus exhausted admission blocked
+loads. Monthly payloads now commit atomically with the fenced authoritative head.
+Malformed hints fall back to durable data; whole-root forgery/revocation checks stay.
+Gateway mutations serialize through the bounded process write queue to reduce
+self-contention on shared budget state. No claim of cross-instance contention cure.
+
+DEV-only flag TIKR_DEV_REFRESH_RELIEF=explicit is bound to the platform URL
+stoic-corgi-586, bypassing source daily/cooldown lockouts while retaining counters,
+leases, guards and all spending caps. It cannot activate on production. Compatible
+DEV backend deployed; no production mutation. Owner authorization persists until
+further notice; removal before release is an explicit checklist item.
+
+One fixed task transport allocation is now1500 cumulative Convex HTTP (additional
+500), provider100 HTTP/64MiB unchanged; preflight360,865,884 estimated admission
+units plus134MB conservatively reserved other usage. No automatic extension.
+Normal production-limit regression proves fresh browser/process + different amount
+can calculate from durable data without another bars request. Final live acceptance
+and exact measurements will be appended; no readiness claim yet.
+
+Publication follow-up: real QA trace71637e78-b00f-478f-9351-fe1ee8e3064c reached
+HTTP200 bars/actions but failed storage-write. Sanitized DEV logs established
+argument validation involving checkedAt. The initial durable-write correction
+had forwarded unchanged monthly read rows including their database-only checkedAt.
+The new actual-Convex-validator regression failed before projection and passes
+after explicit key/payload/revision/dependencies projection. This was a defect
+in the new correction caught before release, not attributed to original production.
+The original retained guard/lease state is preserved for normal explicit Retry.
+
+## Final November13 follow-up: DEV history acceptance PASS
+
+See dev-release-rehearsal.md final section for exact changes, before/after failures,
+acceptance matrix/cost, QA harness limitations and production rollout requirements.
+All196 Node/70 Convex tests,5 mutants, check/build and42 correctly scoped browser
+regressions pass. Real16-case route matrix passes; fresh process/browser allfour
+portfolios pass with DEV relief OFF and spent attempts. UI create/add/equalweights/
+startingcash/save/reload/secondtab passes; partial collector report and screenshots
+preserved after canceled-body collector hung. Latest300 DEV log entries show no
+function errors; inspected leases completed/released, guards/failure summaries empty.
+
+Final cumulative84 provider HTTP/4,828,799 bytes,1452 Convex HTTP/22,603,067 bytes;
+retained interrupted-body reservations6,291,456 units. Admission estimate414,788,683,
+tracked calls9989/storage8,392,896 bytes/788 entries. No backend budget increase.
+DEV relief restored until owner notice. Production normal policy remains unchanged.
+No commit/push/PR/production mutation. Main clean. Real loopback review43201 running
+with fixed remaining48 Convex calls; source command in rehearsal report.
+
+Next: owner source review, then separately approved production-compatible rollout
+and exact old-head/guard/counter recovery plan. Original production trigger remains
+unknown; DEV passing is evidence for reproduced defects, not production certification.
+Next-day live boundary test6 skipped as requested; landing demo copy debt remains.
+
+Local certificate follow-up: owner browser could not trust loopback TLS. A loopback-
+only HTTP adapter now serves http://127.0.0.1:43202 with host/origin checks and
+private-control blocking, preserving underlying metering/backend configuration.
+Verified page/JS200, invalid input400, foreign writes/private controls403. No
+certificate installation, production change or remote service calls. Run from this
+worktree: node scripts/dev-review-http.mjs; underlying43201 must also be running.
+
+## Source-readiness continuation complete
+
+Collector lifecycle fixed with bounded/deadline/sealed summaries and storageState
+before body drain. Isolated browser run restores2portfolios/55IndexedDBchunks and
+75/25 edited holdings; covers YTD/comparison/remove/add/manualweights/cancellation.
+This is synthetic. Retained real four-case capture independently asserts personal-
+provisional quality and zero synthetic labels; no fresh real export/provider call.
+Focused7market+5collector/adapterNode,11Convexaudit,3browser cases and dedicated
+persistence run pass. No blanket suite/build rerun for scripts/tests/docs changes.
+
+Review adapter normalized-origin/path gap corrected and tested; owner HTTP43202
+usable, private controls blocked. Task harness refuses missing journal/allocation;
+no counters recreated. No QA endpoints in production app routes, production cannot
+enable DEV relief, bounded allowlisted failure summaries preserved. No backend or
+application source changed in this continuation; no deploy/PR/commit/push/newagents.
+
+Production-history-recovery.md now provides specific classification, exact CAS
+preconditions, snapshot/drain/rehearsal, bounded admitted refresh, preserved counters/
+revocations and rollback/stop criteria. Cleanup excludes ALL referenced monthly
+chunks, including content:true heads. Source ready for owner review; actual production
+inventory/rollout/recovery still needs separate approval. Original cause unknown.
+
+Budget unchanged84provider/1452Convex,48Convexcalls remain at handoff snapshot;
+no extra provider/deployed Convex calls, extension/reset/refund. Nextdaylivecheck6
+still skipped; Terra coverage partial. Details/artifacts: dev-release-rehearsal.md.
+
+Owner-requested review cap increase:1750 cumulative Convex HTTP (+250), prior1500
+preserved; provider/backend limits unchanged. Persistent journal records authority
+and scope. Review remains http://127.0.0.1:43202. No production change.
+
+## Monthly usage implementation (supersedes small DEV review task cap)
+
+Owner approved35/45/50 actual-usage policy and production usage-only credential
+access through private entry. DEV native monthly call stop207,902 installed and
+verified. Retired local1,750callcap for review only after native protection readback;
+cumulative journal retained. Existing conservative I/O guard/provider limits intact.
+No production mutation. Production peer permits only authorized usage GET; key
+server-only/ignored and absent from public build. Shared configured totals12560calls/
+0.1614449434GB now live; other team deployments not yet inventoried, so no false
+whole-team completeness. Refresh15min; private owner banner on HTTP43202.
+
+Important: fractional0.2694GB native I/O stop rejected400BadJsonBody; installedCLI
+requires positive integer limits. No1GB substitute or claim of hard50%teamI/O.
+Local wrapper's periodic shared stop is not enforcement for all production functions.
+Production native call limit/IOstrategy still need review. See convex-usage-monitoring.md.
+
+Seven focused synthetic tests, lint/types/build, isolated UI real-incomplete and
+simulated35/45/50/mobile checks pass; zero history/Alpaca calls for acceptance.
+No fullmatrix repeated, nextday6 stillskipped. Source uncommitted; noPR/push/commit.
+
+Final monthlymonitoring source/handoff status: DEV+productionusage-onlyGETconnected;
+DEVmonthlycall207902 verified, oldtaskcap retired for allDEVworkflow modes.7focused
+syntheticchecks andrealpartial/simulatedbannerstates/mobile/check/build pass without
+history/providerwork. Native50%IOstop remainsunsupported and cannot be certified;
+existingI/Oguardretained, prodsettingsunchanged, teaminventoryunverified. Exact
+native/read-onlyscope, monitor-lifetime/freshness and nextapproval requirements are
+in convex-usage-monitoring.md. NoPR/commit/push orproductionmutation.
+
+Owner UI correction (2026-11-13): removed the routine provisional-source disclosure from DataStatus; compact ready cards render no status text, while refresh/history failures and synthetic QA identification remain. Source only; existing review build requires rebuild to display this correction.
+
+## 2026-11-13 corporate-action/dashboard follow-up — incomplete acceptance
+
+Owner reports d1fd1eaa-69a9-430a-9ee5-3bcec63f3a0b and
+433c396d-4e67-4841-84e4-52f3e496bcc6 for NVDA/AMD/ASML/TSM.
+The actual rejected corporate-action record has NOT been recovered. Foreign
+USD/ADR dividend rejection is a source-backed hypothesis, not a proven cause.
+Persistent task journal reports providerHttp=100 and PROVIDER_PHASE_100 refusal;
+no new provider request or allowance extension is authorized by this continuation.
+
+Implemented: dashboard Retry button is a sibling of the card navigation button
+(no nested controls); guarded/cooldown feedback preserves supported original
+financial failure explanations; unsupported-action copy no longer implies a
+shorter period is always a solution. Personal-loader rejection logs include an
+allowlisted reason, supported event family, ticker and request trace, excluding
+amounts, upstream IDs, free-text issues and raw bodies. No financial normalization,
+revocation, lease settlement or guard bypass was changed without evidence.
+
+Verification: existing personal-loader/durable suites 53/53; personal-loader with
+new bounded diagnostic regression 19/19. These are synthetic. No new live check,
+production mutation, commit, push or PR. Dashboard browser acceptance and exact
+TSM/ASML correction remain outstanding. Existing same-day ambiguity tests still
+intentionally block unverified dividend unit basis; passing tests do not establish
+support for foreign currency, ADR fees, spin-offs or merger exchanges.
+
+PR readiness remains BLOCKED for the requested complete fix: obtain the actual
+rejected normalized event under a newly bounded allowance or sanitized retained
+fixture, establish its units/currency and terms, reproduce and correct it, verify
+reload/retry in an isolated browser, then run affected acceptance. Earlier claims
+of broad source readiness do not certify this newly reported case. Next-day live
+check 6 remains skipped. Full shared production usage stop also remains incomplete
+as documented in convex-usage-monitoring.md.
+
+Owner decision (2026-11-13): retire the local DEV harness 100-request task count
+cap. This supersedes the request-count blocker above, not the financial acceptance
+status. Cumulative journal and historical allocations/refusals remain intact;
+64 MiB provider body/reservation ceiling, pacing, monthly checks and backend
+admission/guards remain. No production setting or application quota was changed.
+
+## Terra live DEV matrix findings (2026-11-13)
+
+Native Edge fallback followed two built-in snapshot timeouts and unavailable
+computer-use host. Early Terra runs were incomplete harness checks, not passes.
+Final response-matched checks reproduced AI NVDA/AMD/ASML/TSM guarded for 1W,
+1Y and 5Y (b154359f-c44c-4d48-9b5d-87078a6d5b0e,
+657b821a-9fb1-40c5-b40d-385fa5c46b62,
+7118a10a-ff2a-456e-b161-13236de7f13c). HTTP200 wraps a blocked result;
+it does not mean history succeeded. DEV server retained source trace
+2208d4bd-3855-46de-a052-634107c5218b confirms provider bars/actions200,
+then ASML and TSM cash_dividends rejected with unverified_dividend_terms.
+This establishes validator rejection, not which individual flag/amount/currency
+or ADR basis was responsible; raw bodies were not retained. Subsequent requests
+were rejected at hosted control before provider work. Do not attribute this to
+missing history, original production cause, or the removed100call task cap.
+
+War PLTR/RTX/BA and dividends SPY/SCHD/O/KO returned ready1W for
+2026-11-05..2026-11-12, sixpoints per portfolio/SPY series. References
+3d717fa5-e326-43dd-be28-ac8398589ec8 and
+f7a45d79-0232-4606-982f-451c9b60ef92. These are UI/transport checks,
+not independent financial calculation certification. Split/mixed, isolatedTSM/ASML,
+persistence/retry/comparison/cashweights/mobile still untested in this matrix.
+Actual cumulative113provider/5967836receivedbytes/6291456reservedbytes,
+2127ConvexHTTP. Delegation baseline103 =>10provider and221ConvexHTTP;
+sharedownertraffic included, not isolated billing. Initialbatch ceiling123 remains.
+Next: distinguish exact safe dividend rejection flags, normalize only established
+terms, preserve current revocations and use validated replacement/guard recovery;
+complete missing deterministic/UI cases before PR readiness. No production action.
+
+Chart display follow-up (2026-11-13): dashboard result/legend visible while plot
+missing. Applied explicit full width and min-width zero through the compact result,
+plot flex wrapper and HistoryChart root to avoid intrinsic percentage-width collapse
+inside the card button. TypeScript passes; browser dimensional/path verification
+required before declaring visual fix confirmed. No financial calculation changes.
+
+## 2026-11-13 owner-directed MVP continuation
+
+See mvp-history-readiness.md, which supersedes earlier quota/monitor plans. Removed
+operational usage/daily/cooldown gates from sharedsource, deleted localusage monitor,
+removedDEVnativecallcutoff(readbackempty), preserved historicalledgers. CompatibleDEV
+backenddeployedstoic-corgi-586; no productionmutation/publication. Fixedexplicitchart
+sizing; backend-onlyreferences; dashboardreloadrecovery; editorRetryretained.
+206Node+68Convex tests pass. SolLowper-stepreviewsrecorded inreadinessdoc. Actualforeign
+ASML/TSMrecordsconfirmed missingcurrency; safeUSDnormalization+independentfixtures
+pass, but actual1Y/5Yacceptance remainsblockedbydenomination/unitproof, not quotas.
+FinalTerraQAandreadinessreviewpending. Sourceuncommitted, noPR.
+
+FinalTerra2026-11-13: graph confirmed desktop/mobile; realWAR1Wreloadready andfullAI1W
+reloadrecoverystoready; noUIrefs/dashboardRetry. Combined42syntheticbrowserpass,
+persistence/editingpass. ActualAI1YfailsASMLTSMUNSUPPORTED_ACTION, editorRetryclick
+returns same. Finalnarrow8providerHTTP/116404providerbytes/93ConvexHTTP; cumulative128
+provider. Exactfieldsforeigntruecurrencyabsentremainunverified, so task/PRreadiness
+NOTcomplete. Do not spendmoreblind retries orrelaxfinancialvalidation. See
+mvp-history-readiness.md finalTerraevidence and externaldata limitation.
+
+TSMdenominationupdate2026-11-13: oneboundedissuercomparisonprovesfourcurrentTSM
+provideramountsalreadyUSDNETperADR (matchissuer, notgross). Earliermissingcurrency
+explanationwasincompleteforTHESEevents. Remaininggross/netmethodologymismatchand
+blanketforeignrejectionaretheissue; donotconvertUSDagainorguessuniformtaxgrossup.
+See mvp-history-readiness.md correctionandadditiveprobeaccounting1HTTP/1001B.

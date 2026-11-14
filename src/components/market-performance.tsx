@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { marketErrorMessage } from "~/lib/market-errors";
+import { validRefreshFailure } from "~/lib/market-failure-record";
 import type { MarketRequest, MarketResponse } from "~/lib/market-contract";
 import type { Portfolio, Range } from "~/lib/demo";
 import { HoldingReturns } from "./holding-returns";
@@ -130,6 +131,11 @@ export function useMarketResults(
               publish({
                 status: "blocked",
                 issues: failure?.issues,
+                reference: failure?.reference,
+                guardState: failure?.guardState,
+                originalFailure: validRefreshFailure(failure?.originalFailure)
+                  ? failure.originalFailure
+                  : undefined,
                 code: marketErrorMessage(failure?.code)
                   ? failure?.code
                   : "DATA_UNAVAILABLE",
@@ -246,7 +252,6 @@ export function DataStatus({
 }) {
   if (
     compact &&
-    view.dataQuality !== "personal-provisional" &&
     view.dataQuality !== "synthetic" &&
     (view.status === "ready" || view.status === "refreshing") &&
     !view.shortenedBy?.length &&
@@ -264,13 +269,7 @@ export function DataStatus({
       {view.dataQuality === "synthetic" && (
         <span className="block">Synthetic QA data; not market history.</span>
       )}
-      {view.dataQuality === "personal-provisional" && view.series && (
-        <span className="block">
-          Personal provisional Alpaca data; subject to corrections.
-          Corporate-action completeness is not independently verified.
-        </span>
-      )}
-      {marketErrorMessage(view.code) ??
+      {marketErrorMessage(view.code, view.guardState) ??
         (view.status === "blocked"
           ? view.dataQuality === "personal-provisional"
             ? "We couldn't load market history right now. Please try again later."
@@ -300,6 +299,14 @@ export function DataStatus({
       {view.retryAt && Number.isSafeInteger(view.retryAt) ? (
         <span className="block">
           Retry after {new Date(view.retryAt).toLocaleString()}.
+        </span>
+      ) : null}
+      {(view.code === "REFRESH_GUARDED" || view.code === "REFRESH_COOLDOWN") &&
+      validRefreshFailure(view.originalFailure) &&
+      (view.originalFailure.code === "UNSUPPORTED_ACTION" ||
+        view.originalFailure.code === "MISSING_PRICE") ? (
+        <span className="block">
+          Previous failure: {marketErrorMessage(view.originalFailure.code)}
         </span>
       ) : null}
       {view.issues?.length ? (
@@ -396,7 +403,9 @@ export function MarketPerformanceView({
       color: undefined,
     });
   return (
-    <div className={compact ? "flex min-h-0 flex-1 flex-col" : ""}>
+    <div
+      className={compact ? "flex min-h-0 w-full min-w-0 flex-1 flex-col" : ""}
+    >
       {main && (
         <>
           {!compact && (
@@ -429,7 +438,7 @@ export function MarketPerformanceView({
             ))}
           </div>
           <div
-            className={`${compact ? "flex min-h-0 flex-1 flex-col pt-4" : ""} ${view.status === "refreshing" ? "market-pulse" : ""}`}
+            className={`${compact ? "flex min-h-0 w-full min-w-0 flex-1 flex-col pt-4" : ""} ${view.status === "refreshing" ? "market-pulse" : ""}`}
           >
             <HistoryChart
               compact={compact}

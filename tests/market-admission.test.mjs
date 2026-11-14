@@ -106,21 +106,18 @@ test("upstream reservations persist across restart and count failed calls withou
     const clock = () => new Date("2026-11-04T15:00:00Z");
     const gate = createAdmission(dir, clock);
     await gate.reserve(450_000_000); // Simulated failed/unknown request retains its entire reservation.
-    await assert.rejects(
-      createAdmission(dir, clock).reserve(60_000_000),
-      /CACHE_BUDGET/,
-    );
+    await createAdmission(dir, clock).reserve(60_000_000);
     const settle = await gate.reserve(10_000_000);
     await settle(5000);
     await settle(0);
     const row = JSON.parse(await readFile(join(dir, "ledger.json"), "utf8"));
-    assert.equal(row.calls, 2);
-    assert.equal(row.io, 450_005_000);
+    assert.equal(row.calls, 3);
+    assert.equal(row.io, 510_005_000);
   } finally {
     await cleanup(dir);
   }
 });
-test("concurrent processes cannot reserve the same remaining budget", async () => {
+test("concurrent processes atomically count usage without a quota", async () => {
   const dir = await mkdtemp(join(tmpdir(), "tikr-admission-"));
   try {
     const gate = createAdmission(dir);
@@ -128,7 +125,7 @@ test("concurrent processes cannot reserve the same remaining budget", async () =
       gate.reserve(300_000_000),
       createAdmission(dir).reserve(300_000_000),
     ]);
-    assert.equal(outcomes.filter((r) => r.status === "fulfilled").length, 1);
+    assert.equal(outcomes.filter((r) => r.status === "fulfilled").length, 2);
   } finally {
     await cleanup(dir);
   }

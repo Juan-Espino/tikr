@@ -1,3 +1,15 @@
+## Owner-approved Alpaca dividend interpretation (2026-11-13)
+
+For all tickers in the personal Alpaca integration, treat the provider's reported
+cash-dividend `rate` as USD cash per traded share/ADR. Accept foreign, missing-currency
+and other currency metadata without converting or multiplying that rate. Retain any
+withholding already reflected in the provider amount; apply no additional FX, ADR
+ratio, tax gross-up or tax deduction. This is an owner-approved application assumption,
+not an independently established provider guarantee for every record. It supersedes
+the earlier blanket foreign-dividend rejection and the claim that all results exclude
+source withholding. Positive amounts, interpretable ex/payment dates, payment-date
+reinvestment, split/dividend ordering, shared periods and complete holdings remain.
+
 ## Owner-approved requested-period rule (2026-11-10)
 
 Confirmed first availability after the requested first trading session returns SHORT_HISTORY and blocks every portfolio and SPY series. It never moves the shared start. Choosing a shorter period creates a fresh investment; require two completed shared sessions. Missing bars/provider failures do not establish first availability. Requested-window coverage can be asserted separately with periodCoverageVerified while inceptionVerified remains false; its firstAvailable field is then only the covered boundary and must be on/before the requested start. This flag is an upstream coverage attestation, not permission to ignore missing required closes/actions or proof of lifetime inception. Personal provisional limitations still apply.
@@ -33,7 +45,7 @@ Caller attestations explicitly include known first availability or explicit requ
 
 ## Approved scope and remaining evidence
 
-The comparison benchmark is the SPY ETF, not the index. The simulation excludes taxes, brokerage fees, spreads and slippage, and does not deduct fund operating expenses a second time. Historical results are hypothetical; past performance does not guarantee future returns. Selection with hindsight does not establish that assets could have been selected in advance. Interface results must show requested and actual dates, blocking limitation explanations and assumptions; this offline module does not implement interface copy. Unsupported spin-offs and other non-split/non-dividend events stop the calculation.
+The comparison benchmark is the SPY ETF, not the index. The simulation applies no additional taxes, brokerage fees, spreads or slippage, and does not deduct fund operating expenses a second time. Provider-reported dividend cash retains any source withholding under the owner-approved Alpaca interpretation above. Historical results are hypothetical; past performance does not guarantee future returns. Selection with hindsight does not establish that assets could have been selected in advance. Interface results must show requested and actual dates, blocking limitation explanations and assumptions; this offline module does not implement interface copy. Unsupported spin-offs and other non-split/non-dividend events stop the calculation.
 
 A provider adapter must independently establish calendar and bar finality, session timestamp mapping, revision delays, raw price basis, first availability, complete pagination and access, action correction coverage, payment dates and normalized units. Neither the calendar supplied by a caller nor the decimal engine proves these claims. Alpaca adjustment modes have not been shown to reproduce payment-close reinvestment; an adjusted dividend series combined with explicit dividends would double count. Provider investigation references: [historical bars](https://docs.alpaca.markets/us/reference/stockbars), [corporate actions](https://docs.alpaca.markets/us/reference/corporateactions-1), [deprecated legacy announcements](https://docs.alpaca.markets/us/reference/get-v2-corporate_actions-announcements-1), and [staff correction discussion](https://forum.alpaca.markets/t/bad-data-incorrect-price-adjustment-for-cash-dividend/18614). These are research references, not validation or permission for public use. No provider calls or account validation occurred here.
 

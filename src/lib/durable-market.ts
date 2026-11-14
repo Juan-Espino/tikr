@@ -18,6 +18,9 @@ const revokedAssets = new WeakMap<MarketStorage, Set<string>>();
 const revokedFor = (store: MarketStorage, symbols: string[]) =>
   symbols.some((symbol) => revokedAssets.get(store)?.has(symbol));
 import { cachedAsset, rememberAsset } from "./market-asset-memory.ts";
+import { marketTrace, traceFields } from "./market-trace.ts";
+import { randomUUID } from "node:crypto";
+import { refreshCodes, type RefreshFailure } from "./market-failure-record.ts";
 type AssetHead = {
   format: "monthly-v2";
   meta: Omit<Asset, "prices" | "actions">;
@@ -199,7 +202,9 @@ export function createDurableBacktests(options: {
   supportedSymbols: string[];
   historyStart: string;
   clock?: () => Date;
+  timeoutMs?: number;
   evidenceRevision?: string;
+  normalizationRevision?: string;
   evidenceValidUntil: () => number;
 }) {
   const assertEvidence = () => {
@@ -273,6 +278,7 @@ export function createDurableBacktests(options: {
       request,
       range,
       evidenceRevision: options.evidenceRevision,
+      normalizationRevision: options.normalizationRevision,
       policy: "raw-sip-payment-close-0900-requested-v3",
     });
     const resultKey = `result:slot${parseInt(identity.slice(0, 4), 16) % 16}`;
@@ -286,9 +292,56 @@ export function createDurableBacktests(options: {
       ...symbols.map((s) => `asset:${s}`),
     ]);
     const headMap = new Map(heads.map((h) => [h.key, h]));
+    const availableContent = new Map<string, Asset>();
+    const missingContent = new Map<string, RefreshFailure>();
+    const cacheMiss = (symbol: string) => {
+      if (missingContent.has(symbol)) return;
+      const failure: RefreshFailure = {
+        trace: marketTrace() ?? randomUUID(),
+        at: clock().valueOf(),
+        stage: "cache",
+        code: "CACHE_CONTENT_UNAVAILABLE",
+      };
+      missingContent.set(symbol, failure);
+      console.error(
+        JSON.stringify({
+          event: "market_cache_miss",
+          symbol,
+          ...failure,
+          sourceRevision: options.evidenceRevision,
+        }),
+      );
+    };
+    if (retry)
+      await Promise.all(
+        symbols
+          .filter((symbol) => !recovering.includes(symbol))
+          .map(async (symbol) => {
+            const head = headMap.get(`asset:${symbol}`);
+            if (
+              !head ||
+              freshnessCycle(new Date(head.checkedAt)) !== cycle ||
+              (JSON.parse(head.payload) as AssetHead).evidenceRevision !==
+                options.evidenceRevision ||
+              !covers(head, period.start)
+            )
+              return;
+            try {
+              availableContent.set(symbol, await loadAsset(storage, head));
+            } catch (error) {
+              if (
+                !(error instanceof Error) ||
+                error.message !== "REVISION_CHANGED"
+              )
+                throw error;
+              cacheMiss(symbol);
+            }
+          }),
+      );
     const completingRequest =
       retry &&
       symbols.some((symbol) => {
+        if (missingContent.has(symbol)) return true;
         const head = headMap.get(`asset:${symbol}`);
         if (!head) return true;
         const meta = JSON.parse(head.payload) as AssetHead;
@@ -351,15 +404,29 @@ export function createDurableBacktests(options: {
               options.evidenceRevision &&
             covers(old, q.from)
           ) {
-            loadedHeads.set(key, old);
-            const asset = await loadAsset(storage, old);
-            loadedAssets.set(q.symbol, asset);
-            return {
-              feed: "sip",
-              asset,
-              pendingSession: (JSON.parse(old.payload) as AssetHead)
-                .pendingSession,
-            };
+            let asset = availableContent.get(q.symbol);
+            if (!asset && !missingContent.has(q.symbol)) {
+              try {
+                asset = await loadAsset(storage, old);
+              } catch (error) {
+                if (
+                  !(error instanceof Error) ||
+                  error.message !== "REVISION_CHANGED"
+                )
+                  throw error;
+                cacheMiss(q.symbol);
+              }
+            }
+            if (asset) {
+              loadedHeads.set(key, old);
+              loadedAssets.set(q.symbol, asset);
+              return {
+                feed: "sip",
+                asset,
+                pendingSession: (JSON.parse(old.payload) as AssetHead)
+                  .pendingSession,
+              };
+            }
           }
           if (!retry) {
             const limited = (await storage.read([limitationKey]))[0];
@@ -372,6 +439,7 @@ export function createDurableBacktests(options: {
                     through?: string;
                     cycle?: string;
                     evidenceRevision?: string;
+                    normalizationRevision?: string;
                   }
                 | undefined;
               try {
@@ -385,6 +453,8 @@ export function createDurableBacktests(options: {
                 limitation.symbol === q.symbol &&
                 limitation.cycle === cycle &&
                 limitation.evidenceRevision === options.evidenceRevision &&
+                limitation.normalizationRevision ===
+                  options.normalizationRevision &&
                 limitation.from === q.from &&
                 limitation.through === q.through &&
                 (limitation.code === "MISSING_PRICE" ||
@@ -393,7 +463,20 @@ export function createDurableBacktests(options: {
                 throw new MarketFailure(limitation.code);
             }
           }
-          const token = await storage.acquire(key, cycle, retry, q.from);
+          const token = await storage
+            .acquire(key, cycle, retry, q.from)
+            .catch((error) => {
+              const failure = marketFailure(error),
+                original = missingContent.get(q.symbol);
+              if (failure && original)
+                throw new MarketFailure(
+                  failure.code,
+                  failure.retryAt,
+                  failure.originalFailure ?? original,
+                  failure.guardState,
+                );
+              throw error;
+            });
           if (!token) {
             let current: Stored | undefined;
             for (let i = 0; i < 3; i++) {
@@ -429,16 +512,36 @@ export function createDurableBacktests(options: {
             }
             throw new Error("REFRESH_BUSY_OR_LIMITED");
           }
-          const finishGuard = await storage.beginRefresh(q.symbol);
+          let finishGuard:
+            Awaited<ReturnType<MarketStorage["beginRefresh"]>> | undefined;
           let received = false,
             safeToRelease = false;
-          let stage = "source";
+          let stage: RefreshFailure["stage"] = "guard";
           try {
+            stage = "guard";
+            finishGuard = await storage.beginRefresh(q.symbol);
+            stage = "source";
             const previous = old
               ? await loadAsset(storage, old).catch(() => undefined)
               : undefined;
-            const retainedFrom =
-              previous && previous.from < q.from ? previous.from : q.from;
+            const oldManifest = old
+              ? (JSON.parse(old.payload) as AssetHead)
+              : undefined;
+            const authoritativeFrom =
+              oldManifest?.format === "monthly-v2" &&
+              oldManifest.evidenceRevision === options.evidenceRevision &&
+              oldManifest.meta.symbol === q.symbol &&
+              /^\d{4}-\d{2}-\d{2}$/.test(oldManifest.meta.from) &&
+              Number.isFinite(Date.parse(oldManifest.meta.from)) &&
+              new Date(oldManifest.meta.from).toISOString().slice(0, 10) ===
+                oldManifest.meta.from
+                ? oldManifest.meta.from
+                : q.from;
+            const retainedFrom = [
+              previous?.from ?? q.from,
+              authoritativeFrom,
+              q.from,
+            ].sort()[0]!;
             const refreshed = await options.load({
               ...q,
               // Explicit retries must not replace a wider validated cache with a narrow window.
@@ -450,6 +553,7 @@ export function createDurableBacktests(options: {
               previous,
             });
             received = true;
+            stage = "validation";
             const asset = refreshed.asset;
             if (
               refreshed.feed !== "sip" ||
@@ -487,6 +591,7 @@ export function createDurableBacktests(options: {
               options.evidenceRevision,
             );
             stage = "storage-read";
+            await storage.progressRefresh?.(q.symbol);
             const existing = await storage.read(records.map((r) => r.key));
             const changed = records.filter(
               (r) =>
@@ -511,17 +616,34 @@ export function createDurableBacktests(options: {
             safeToRelease = true;
             return refreshed;
           } catch (error) {
+            const candidate =
+              error instanceof Error && "code" in error
+                ? error.code
+                : error instanceof Error
+                  ? error.message
+                  : undefined;
+            const failureRecord: RefreshFailure = {
+              trace: marketTrace() ?? randomUUID(),
+              at: clock().valueOf(),
+              stage,
+              code: refreshCodes.includes(candidate as never)
+                ? (candidate as RefreshFailure["code"])
+                : "UNKNOWN_FAILURE",
+            };
             console.error(
               JSON.stringify({
                 event: "market_refresh_failure",
                 symbol: q.symbol,
-                stage,
-                from: q.from,
-                through: q.through,
+                ...failureRecord,
+                ...traceFields(),
+                sourceRevision: options.evidenceRevision,
                 received,
-                code: marketFailure(error)?.code ?? "UNCLASSIFIED_FAILURE",
               }),
             );
+            if (finishGuard)
+              await storage
+                .recordFailure?.(q.symbol, failureRecord)
+                .catch(() => undefined);
             if (
               old &&
               error instanceof Error &&
@@ -565,6 +687,7 @@ export function createDurableBacktests(options: {
                 through: q.through,
                 cycle,
                 evidenceRevision: options.evidenceRevision,
+                normalizationRevision: options.normalizationRevision,
               };
               await storage
                 .write(key, token, [
@@ -587,14 +710,23 @@ export function createDurableBacktests(options: {
                   );
                 });
             }
+            if (failure)
+              throw new MarketFailure(
+                failure.code,
+                failure.retryAt,
+                failureRecord,
+              );
             throw error;
           } finally {
             try {
-              if (safeToRelease) await finishGuard();
+              try {
+                if (safeToRelease) await finishGuard?.();
+              } finally {
+                await finishGuard?.endObservation?.();
+              }
             } finally {
-              await finishGuard.endObservation?.();
+              await storage.release(key, token).catch(() => undefined);
             }
-            await storage.release(key, token).catch(() => undefined);
           }
         },
       });
@@ -696,7 +828,9 @@ export function createDurableBacktests(options: {
       initial,
       settled: settle()
         .then(async (view) => {
-          await storage.assertReadable(symbols);
+          // A retained guard is expected after failed provider work. Preserve
+          // that original blocked result instead of replacing it with a guard.
+          if (view.result) await storage.assertReadable(symbols);
           if (revokedFor(storage, symbols)) throw new Error("EVIDENCE_REVOKED");
           assertEvidence();
           return view;
@@ -714,6 +848,8 @@ export function createDurableBacktests(options: {
             requested: period,
             code: marketFailure(error)?.code ?? "REFRESH_FAILED",
             retryAt: marketFailure(error)?.retryAt,
+            originalFailure: marketFailure(error)?.originalFailure,
+            guardState: marketFailure(error)?.guardState,
           };
         }),
     };
@@ -741,6 +877,16 @@ export function createDurableBacktests(options: {
         ]),
       ];
       const wait = async (): Promise<CacheView> => {
+        if (error instanceof MarketFailure && error.guardState !== "active")
+          return {
+            status: "blocked",
+            requested: period,
+            code: error.code,
+            retryAt: error.retryAt,
+            originalFailure: error.originalFailure,
+            guardState: error.guardState,
+          };
+        let last = marketFailure(error);
         for (let attempt = 0; attempt < 30; attempt++) {
           await new Promise((resolve) => setTimeout(resolve, 400));
           try {
@@ -748,6 +894,12 @@ export function createDurableBacktests(options: {
             const next = await run(request, range, retry);
             return await next.settled;
           } catch (error) {
+            last = marketFailure(error);
+            if (
+              last?.code === "REFRESH_GUARDED" &&
+              last.guardState === "abandoned"
+            )
+              break;
             if (
               !(error instanceof Error) ||
               error.message !== "REFRESH_GUARDED"
@@ -755,7 +907,9 @@ export function createDurableBacktests(options: {
               return {
                 status: "blocked",
                 requested: period,
-                code: "UNVERIFIED_DATA",
+                code: last?.code ?? "UNVERIFIED_DATA",
+                retryAt: last?.retryAt,
+                originalFailure: last?.originalFailure,
               };
           }
         }
@@ -763,6 +917,9 @@ export function createDurableBacktests(options: {
           status: "blocked",
           requested: period,
           code: "REFRESH_GUARDED",
+          retryAt: last?.retryAt,
+          originalFailure: last?.originalFailure,
+          guardState: last?.guardState,
         };
       };
       return {

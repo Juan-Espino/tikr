@@ -48,8 +48,8 @@ test("exhausted manual attempts report the next New York cutoff across DST", asy
         ...args,
         retry: true,
       });
-      expect(denied.status).toBe("daily");
-      expect(denied.retryAt).toBe(Date.parse(expected!));
+      expect(denied.status).toBe("acquired");
+      expect(denied.retryAt).toBeUndefined();
     }
   } finally {
     vi.useRealTimers();
@@ -221,15 +221,18 @@ test("manual retries share durable cooldown and atomic monthly admission across 
       ...args,
       retry: true,
     });
-    expect(cooldown.status).toBe("cooldown");
+    expect(cooldown.status).toBe("acquired");
     const lease = await f.t.run((ctx) =>
       ctx.db
         .query("marketLeases")
         .withIndex("by_key", (q) => q.eq("key", args.key))
         .unique(),
     );
-    expect(cooldown.retryAt).toBe(lease!.attemptedAt + 60000);
-    vi.setSystemTime(cooldown.retryAt!);
+    expect(cooldown.retryAt).toBeUndefined();
+    await f.t.mutation(ref("market:release"), {
+      key: args.key,
+      token: args.token,
+    });
     const results = await Promise.all(
       [0, 1].map(() =>
         f.t.mutation(ref("market:acquire"), {
@@ -247,10 +250,10 @@ test("manual retries share durable cooldown and atomic monthly admission across 
     const reservations = await Promise.all(
       [0, 1].map(() => f.call("provider")),
     );
-    expect(reservations.filter((r) => r === null)).toHaveLength(1);
+    expect(reservations.filter((r) => r === null)).toHaveLength(2);
     expect(
       reservations.filter((r) => r?.code === "SHARED_BUDGET_EXHAUSTED"),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   } finally {
     vi.useRealTimers();
   }

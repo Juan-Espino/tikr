@@ -213,3 +213,25 @@ the cache redesign. Synthetic QA responses have an explicit non-market-data disc
 The QA follow-up retains fractional percent-axis labels and enough axis room to
 avoid clipping, including compact cards. Palette, typography and layout rules
 remain unchanged. Final evidence is in `market-browser-acceptance.md`.
+
+
+## November13 operational feedback
+
+The existing inline status area now carries precise active/interrupted/legacy
+refresh copy, actual retry timing and a wrapping error reference. Layout, approved
+Manrope typography, near-black/stone palette, chart conventions and reduced-motion
+behavior remain. No new operator recovery instructions appear in the product.
+Verification details are in `history-refresh-journal.md`.
+
+Monthlyusage ownernotice: small flat bordered status in existing app shell, available
+only on loopback ownerreview43202. Normal/incomplete state neutral; warning amber,
+urgent/stop red with status/alert roles. Details collapse normal-state limits and
+coverage; no accountusage/credentials fetched on public origins. 390pxnooverflow
+verified. This is operatorvisibility, not publicbilling UI. See convex-usage-monitoring.md.
+
+Owner decision (2026-11-13): portfolio cards omit the provisional Alpaca informational disclosure; retain actionable refresh/history errors and synthetic QA labels.
+
+Owner UI decision (2026-11-13): no operational usage banner, dashboard Retry or error
+reference identifiers in the UI. Editor Retry remains. Compact chart wrappers use full
+width and explicit176px plot height. Safe actionable failure text remains; synthetic
+QA labels stay visible only in isolated fixture builds. See mvp-history-readiness.md.

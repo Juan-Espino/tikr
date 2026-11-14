@@ -1,3 +1,5 @@
+Owner update2026-11-13: operational quotas are removed for MVP. `market_limits.ts` retains only compatibility for legacy visitor-expiry callbacks; it enforces no rate or concurrency policy. See `../mvp-history-readiness.md`.
+
 # Convex market coordination
 
 This app uses Convex for shared market coordination, not browser portfolios or a

@@ -7,6 +7,7 @@ import {
 } from "./adapter.ts";
 import { createPersonalLoader } from "./personal-loader.ts";
 import type { Calendar } from "../backtest.ts";
+import { marketTrace, withMarketTrace } from "../market-trace.ts";
 
 // Process-local provider concurrency only. Durable per-symbol leases remain
 // responsible for cross-instance admission; this queue does not replace them.
@@ -24,6 +25,7 @@ async function slot<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 type Pending = {
+  trace?: string;
   query: Query;
   resolve: (value: Candidates) => void;
   reject: (error: unknown) => void;
@@ -56,18 +58,38 @@ export function createBatchedPersonalLoader(
           ...new Set(batch.flatMap((item) => item.query.symbols)),
         ].sort();
         void slot(() =>
-          fetcher(
-            { ...config, maxTotalBars: 1300 * symbols.length },
-            {
-              ...batch[0]!.query,
-              symbols,
-              signal: AbortSignal.any(
-                batch.flatMap((item) =>
-                  item.query.signal ? [item.query.signal] : [],
+          withMarketTrace(() => {
+            console.error(
+              JSON.stringify({
+                event: "market_provider_batch",
+                stage: "provider-batch",
+                trace: marketTrace(),
+                parents: [
+                  ...new Set(
+                    batch
+                      .map((item) => item.trace)
+                      .filter(
+                        (trace): trace is string =>
+                          !!trace && /^[a-f0-9-]{36}$/.test(trace),
+                      ),
+                  ),
+                ],
+                symbolCount: symbols.length,
+              }),
+            );
+            return fetcher(
+              { ...config, maxTotalBars: 1300 * symbols.length },
+              {
+                ...batch[0]!.query,
+                symbols,
+                signal: AbortSignal.any(
+                  batch.flatMap((item) =>
+                    item.query.signal ? [item.query.signal] : [],
+                  ),
                 ),
-              ),
-            },
-          ),
+              },
+            );
+          }),
         ).then(
           (value) => {
             for (const item of batch) {
@@ -92,7 +114,7 @@ export function createBatchedPersonalLoader(
     calendar,
     (_config, query) =>
       new Promise<Candidates>((resolve, reject) => {
-        queue.push({ query, resolve, reject });
+        queue.push({ query, resolve, reject, trace: marketTrace() });
         if (!scheduled) {
           scheduled = true;
           setTimeout(flush, 5);

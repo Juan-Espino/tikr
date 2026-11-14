@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createFixture, portfolios } from "./support/market-fixture.ts";
+import {
+  createFixture,
+  portfolios,
+  sessions,
+} from "./support/market-fixture.ts";
 import {
   createProviderMeasurement,
   measuredTransport,
@@ -65,7 +69,7 @@ test("overlapping dashboard loads coalesce SPY, wider coverage serves every shor
     /EVIDENCE_REVOKED/,
   );
 });
-test("unavailable or corrupt browser cache after process loss fails closed without a new provider attempt", async () => {
+test("unavailable or corrupt browser cache after process loss restores durable history without a provider attempt", async () => {
   for (const hints of [undefined, "corrupt"]) {
     const f = createFixture("after", `edge-loss-${hints}`);
     const cold = await f.run(
@@ -82,7 +86,8 @@ test("unavailable or corrupt browser cache after process loss fails closed witho
         ? cold.history.map((row) => ({ ...row, payload: "{}" }))
         : [],
     );
-    assert.equal(value.final.status, "blocked");
+    assert.equal(value.final.status, "ready");
+    assert.equal(value.final.result.actual.end, cold.final.result.actual.end);
     assert.equal(f.provider.requests, before);
   }
 });
@@ -127,4 +132,58 @@ test("three simultaneous dashboard portfolio loads batch unique holdings and SPY
   );
   assert.ok(values.every((value) => value.final.status === "ready"));
   assert.equal(f.provider.requests, 2);
+});
+
+test("YTD comparison and holding/weight edits recalculate from warm history without omitted holdings", async () => {
+  const f = createFixture("after", "acceptance-edits");
+  assert.equal(
+    (await f.run({ portfolios, amount: "10000" }, "5Y")).final.status,
+    "ready",
+  );
+  const providerBefore = f.provider.requests;
+  const primary = {
+    id: "edited",
+    holdings: [
+      { symbol: "AAA", weight: "50" },
+      { symbol: "BBB", weight: "50" },
+    ],
+  };
+  const run = (p) =>
+    f.run({ portfolios: [p, portfolios[1]], amount: "1234.56" }, "YTD");
+  const before = (await run(primary)).final;
+  assert.equal(before.status, "ready");
+  assert.equal(
+    before.result.actual.start,
+    sessions.find((day) => day >= "2026-01-01"),
+  );
+  const edited = {
+    ...primary,
+    holdings: [
+      { symbol: "AAA", weight: "75" },
+      { symbol: "CCC", weight: "25" },
+    ],
+  };
+  const after = (await run(edited)).final;
+  assert.equal(after.status, "ready");
+  assert.deepEqual(Object.keys(after.assetReturns).sort(), [
+    "AAA",
+    "CCC",
+    "DDD",
+    "EEE",
+    "FFF",
+    "SPY",
+  ]);
+  const series = [...after.result.portfolios, after.result.benchmark];
+  for (const s of series) {
+    assert.equal(s.points[0].value, "1234.56");
+    assert.deepEqual(
+      s.points.map((p) => p.date),
+      series[0].points.map((p) => p.date),
+    );
+  }
+  assert.notEqual(
+    after.result.portfolios[0].ending,
+    before.result.portfolios[0].ending,
+  );
+  assert.equal(f.provider.requests, providerBefore);
 });

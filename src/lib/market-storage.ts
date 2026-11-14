@@ -10,6 +10,9 @@ import { ConvexError } from "convex/values";
 import { withMarketWriteTurn } from "./market-write-queue.ts";
 import { storageReservation } from "./market-reservation.ts";
 import type { PERSONAL_SOURCE_POLICY } from "./market-policy.ts";
+import type { RefreshFailure } from "./market-failure-record.ts";
+import { validRefreshFailure } from "./market-failure-record.ts";
+import { traceFields } from "./market-trace.ts";
 export type Stored = {
   key: string;
   payload: string;
@@ -26,6 +29,8 @@ export interface MarketStorage {
     symbol: string,
   ): Promise<(() => Promise<void>) & { endObservation?: () => Promise<void> }>;
   recoverySymbols?(symbols: string[]): Promise<string[]>;
+  recordFailure?(symbol: string, failure: RefreshFailure): Promise<void>;
+  progressRefresh?(symbol: string): Promise<void>;
   confirmRefresh?(symbol: string, headRevision: string): Promise<void>;
   /** Publish disposable content only after its complete normalized asset root matches. */
   confirmRead?(symbol: string, headRevision: string): Promise<void>;
@@ -295,6 +300,27 @@ export function convexStorage(
     },
     ...(hosted()
       ? {
+          progressRefresh: async (symbol: string) => {
+            await gateway("control", {
+              ...policyIdentity(evidenceRevision),
+              op: "progress",
+              scope: evidenceRevision,
+              symbols: [symbol],
+              token: hostedGuards.get(`asset:${symbol}`),
+              leaseToken: hostedLeases.get(`asset:${symbol}`),
+            });
+          },
+          recordFailure: async (symbol: string, failure: RefreshFailure) => {
+            await gateway("control", {
+              ...policyIdentity(evidenceRevision),
+              op: "failure",
+              scope: evidenceRevision,
+              symbols: [symbol],
+              token: hostedGuards.get(`asset:${symbol}`),
+              leaseToken: hostedLeases.get(`asset:${symbol}`),
+              failure,
+            });
+          },
           recoverySymbols: (symbols: string[]) =>
             gateway<string[]>("control", {
               ...policyIdentity(evidenceRevision),
@@ -345,24 +371,28 @@ export function convexStorage(
     async beginRefresh(symbol) {
       if (hosted()) {
         const token = randomUUID();
+        const leaseToken = hostedLeases.get(`asset:${symbol}`);
         await gateway("control", {
           ...policyIdentity(evidenceRevision),
           op: "begin",
           scope: evidenceRevision,
           symbols: [symbol],
           token,
-          leaseToken: hostedLeases.get(`asset:${symbol}`),
+          leaseToken,
         });
         hostedGuards.set(`asset:${symbol}`, token);
-        return async () => {
-          await gateway("control", {
+        let ended: Promise<void> | undefined;
+        const finish = () =>
+          (ended ??= gateway("control", {
             op: "finish",
             scope: evidenceRevision,
             symbols: [symbol],
             token,
-            leaseToken: hostedLeases.get(`asset:${symbol}`),
-          });
-        };
+            leaseToken,
+          }).then(() => undefined));
+        // Ending work marks it abandoned; the guard remains until a validated
+        // replacement commits. Storage/validation failures must end it too.
+        return Object.assign(finish, { endObservation: finish });
       }
       await assertPolicyActive([symbol]);
       return (await localAdmission()).beginRefresh(evidenceRevision, symbol);
@@ -389,23 +419,60 @@ export function convexStorage(
     },
     async acquire(key, cycle, retry, from) {
       const token = randomUUID();
-      const r = await call<{ status: string; retryAt?: number }>("acquire", {
+      const r = await call<{
+        status: string;
+        retryAt?: number;
+        failure?: RefreshFailure;
+      }>("acquire", {
         key,
         token,
         cycle,
         retry,
         ...(from ? { from } : {}),
+        ...(hosted() && key.startsWith("asset:")
+          ? { evidenceScope: evidenceRevision }
+          : {}),
         ...(reviewedPolicy ? { reviewedPolicy } : {}),
       });
+      if (r.status !== "acquired")
+        console.error(
+          JSON.stringify({
+            event: "market_lease_rejected",
+            stage: "lease",
+            status: [
+              "budget",
+              "busy",
+              "daily",
+              "cooldown",
+              "limit",
+              "guarded",
+              "revoked",
+            ].includes(r.status)
+              ? r.status
+              : "unknown",
+            ...(key.startsWith("asset:") &&
+            /^[A-Z][A-Z0-9.-]{0,15}$/.test(key.slice(6))
+              ? { symbol: key.slice(6) }
+              : {}),
+            ...(Number.isSafeInteger(r.retryAt) && r.retryAt! > 0
+              ? { retryAt: r.retryAt }
+              : {}),
+            ...traceFields(),
+          }),
+        );
       if (r.status === "budget")
         throw new MarketFailure("SHARED_BUDGET_EXHAUSTED");
+      const original = validRefreshFailure(r.failure) ? r.failure : undefined;
+      if (r.status === "guarded")
+        throw new MarketFailure("REFRESH_GUARDED", undefined, original);
+      if (r.status === "revoked") throw new MarketFailure("EVIDENCE_REVOKED");
       // Calculation-slot contention must not throttle calculations from fresh assets.
       // Only source/calendar leases authorize provider work.
       if (key.startsWith("job:") && r.status !== "acquired") return null;
       if (r.status === "cooldown")
-        throw new MarketFailure("REFRESH_COOLDOWN", r.retryAt);
+        throw new MarketFailure("REFRESH_COOLDOWN", r.retryAt, original);
       if (r.status === "daily")
-        throw new MarketFailure("REFRESH_COOLDOWN", r.retryAt);
+        throw new MarketFailure("REFRESH_COOLDOWN", r.retryAt, original);
       if (hosted() && key.startsWith("asset:") && r.status === "acquired")
         hostedLeases.set(key, token);
       return r.status === "acquired" ? token : null;

@@ -81,3 +81,12 @@ Update `plan.md` with evidence-backed status and the next task. Update `product.
 ## Personal data integration verification
 
 For the optional personal server integration, read `market-data-integration.md`. Run the Node evidence/durable/admission tests with `--conditions=react-server --experimental-strip-types`, and `pnpm exec vitest run` for the local Convex transaction tests. Browser tests use the installed Edge and a credential-cleared loopback dev server; keep screenshots under system temp. Do not deploy or enable real market data merely because synthetic tests pass. Never delete/reset the admission ledger, abandoned refresh guards, locks or revocation markers to bypass evidence/resource gates. Main checkout remains unchanged; work stays in the isolated feature worktree.
+
+## Current dividend assumption and deferred polish (owner, 2026-11-13)
+
+Apply the general Alpaca reported-USD-cash rule in `backtest-methodology.md` to all
+tickers, retaining provider withholding. Do not reintroduce currency/foreign flag
+rejections or invent an additional conversion/gross-up. Keep amount/date and financial
+integrity validation. The four reliability improvements are tracked in `plan.md` under
+**Post-MVP polish ? explicitly deferred by owner**; do not expand this task to implement
+them. Preserve already implemented recovery behavior.

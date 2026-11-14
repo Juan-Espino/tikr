@@ -1,8 +1,8 @@
 # Alpaca / Convex redesign
 
-Implementation in the dedicated feature worktree, based on merged PR #16 at
-`13541876960932b664aab55ab19f28b307fc0fd7`. No publication, deployment,
-provisioning, live provider requests or deployed record changes are authorized.
+Implementation in the dedicated history-refresh worktree, based on merged PR18
+at `a4038e7`. Owner authorizes compatible DEV stoic-corgi-586 rollout and bounded
+real DEV verification. No production mutation, publication or provisioning.
 
 ## Responsibilities and trust boundary
 
@@ -24,9 +24,11 @@ valid even when a browser hint is rejected.
 
 Convex retains necessary shared asset manifests (metadata, month keys, root
 revision and checked time), refresh leases/attempts, admission budgets, catalog
-membership and hosted guards/revocations. It no longer receives new monthly
-history payloads, portfolio results or calendar cache writes from this runtime.
-The manifest's `content: true` identifies disposable monthly payloads. The existing
+membership and hosted guards/revocations. November13 correction: monthly payloads
+now persist atomically with the head to survive loss of browser/process copies.
+Portfolio results and calendar remain process caches. The manifest's `content: true`
+retains compatibility with root-validated browser hints; it no longer means payload
+storage is omitted. The existing
 `monthly-v2` metadata and root revision preserve atomic head write, lease
 completion and recovery readback. Source schema and existing records are retained.
 
@@ -73,10 +75,11 @@ stores no durable portfolio-result cache. On storage denial or quota failure,
 work continues using the server cache when possible.
 
 Restart/multiple instances lose independent process state. Browser hints can
-rehydrate a current manifest without provider work. If both disposable caches
-lose required content, the request fails closed. Explicit retry uses existing
+rehydrate a current manifest without provider work. New durable monthly payloads
+also survive loss of both disposable caches. Old head-only records without
+matching payload still fail closed. Explicit retry uses existing
 shared attempt/cooldown/resource gates; it is not an entitlement to another
-provider call. Exhausted attempts or an abandoned legacy guard can therefore
+provider call (except the separately configured DEV-only relief). Exhausted attempts or an abandoned legacy guard can therefore
 require operator reconciliation. No automatic fresh namespace or record reset is
 used to recover availability. Offline requests end unavailable after the bounded
 network timeout; previously rejected results are not accepted offline.

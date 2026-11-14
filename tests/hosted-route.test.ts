@@ -59,6 +59,8 @@ test("safe admission errors preserve Retry-After and never leak upstream text", 
       expect(response.headers.get("Retry-After")).toBeTruthy();
       const text = await response.text();
       expect(text).not.toContain("canary");
+      expect(text).not.toContain("reference");
+      expect(response.headers.get("X-Tikr-Trace")).toBeNull();
       expect(text).toContain(
         code === "upstream-private-canary" ? "STORAGE_UNAVAILABLE" : code,
       );
@@ -93,8 +95,12 @@ test("safe admission errors preserve Retry-After and never leak upstream text", 
     expect(marketErrorMessage("SHARED_BUDGET_EXHAUSTED")).toBe(
       "We couldn't load market history right now. Please try again later.",
     );
-    expect(marketErrorMessage("REFRESH_GUARDED")).toBe(
-      marketErrorMessage("EVIDENCE_REVOKED"),
+    expect(marketErrorMessage("REFRESH_GUARDED")).toContain("earlier refresh");
+    expect(marketErrorMessage("REFRESH_GUARDED", "active")).toContain(
+      "being refreshed",
+    );
+    expect(marketErrorMessage("REFRESH_GUARDED", "abandoned")).toContain(
+      "interrupted",
     );
     expect(marketErrorMessage("MISSING_PRICE")).not.toBe(
       marketErrorMessage("STORAGE_UNAVAILABLE"),

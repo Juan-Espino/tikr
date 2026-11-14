@@ -84,3 +84,54 @@ integration evidence; this browser run is not a real multi-instance deployment o
 live provider acceptance. Public caching/display rights, provider finality,
 corporate-action completeness, paid capacity and deployed migration remain
 separate gates. No publication/deployment is implied.
+
+
+## November13 refresh-recovery follow-up
+
+Current source verification is in [history-refresh-journal.md](history-refresh-journal.md).
+The new regression exercises original UUID references, retry timing and distinct
+active/interrupted/legacy status at390/1440px on single detail and batched dashboard
+responses, with no leaked debug canary or blocked-result chart. Existing retry
+intent remains one explicit operation and is cleared by a later range edit.
+
+Root's42 distinct Edge regressions pass across the configured synthetic and
+credential-cleared disabled-integration fixtures (37 +5). The initial five failures
+were run against the wrong fixture mode and were rerun successfully in their
+intended disabled mode. Reduced-motion, keyboard and touch-selection regressions
+are included. Terra Medium independently passed10 dashboard error-state cases,
+inspecting the mobile interrupted-refresh screenshot. Its narrower scope does not
+establish independent acceptance of all root-regression cases.
+
+Preview opened successfully but two snapshot attempts returned exactly
+`Preview automation snapshot timed out after 15000ms.` Installed Edge fallback
+used fresh contexts. The first Terra smoke was incomplete and a later attempt
+encountered an overnight-stopped server; these are not counted as acceptance.
+The final10-case Terra report is`%TEMP%/tikr-qa-report.json`; screenshots and root
+logs remain under system temp. No source implementation was delegated.
+The synthetic review server is left on loopback43139, with an explicit synthetic
+label and no credentials or owner browser data. No synthetic endpoint was deployed.
+
+
+Supplemental root Edge touch check passed on the final review server at390px with
+reduced motion: tapping the actual chart opened a tooltip with the primary
+portfolio and `$11,000`/`10.00%`, excluded SPY from tooltip rows, and caused no
+horizontal overflow. The full-page screenshot was inspected:
+`%TEMP%/tikr-refresh-touch-tooltip.png`; script:`%TEMP%/tikr-refresh-touch-check.cjs`.
+This was explicitly synthetic UI evidence, not a live calculation or an independent
+Terra touch acceptance.
+
+November13 final user-flow acceptance: real16case route matrix ready; allfour
+portfolios ready after restart/freshbrowser with DEV reliefdisabled; actual UI
+create/add/equalweights/startingcash/save/reload/secondtab verified by root. Terra
+followup was incomplete; root completed checks. Collector hung after screenshots
+and assertions on canceled request bodies; partial JSON preserved and owned test
+browser closed.42 regression cases pass across37 configured+5 disabled-data/demo.
+See dev-release-rehearsal.md, including exact cost and production limitations.
+
+Source-readiness continuation: the new bounded collector and isolated browser run
+close the synthetic storageState/canceled-body lifecycle gap. Snapshot restored two
+portfolios,55IDBchunks,AAA75/CCC25 after add/remove/edit/save. YTD and comparison
+coverage passes. Retained REAL normal-policy capture (17:33:06UTC) was asserted:
+4ready personal-provisional cases, syntheticText0; this is not a new live check.
+The original real-flow state export is absent and is not fabricated. Source report
+has explicit synthetic/real distinction, partial Terra coverage, and skippedtest6.

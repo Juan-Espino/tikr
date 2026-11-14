@@ -15,8 +15,9 @@ function Disclosure() {
   return (
     <p className="text-muted-foreground text-xs leading-6">
       Hypothetical historical results in USD, with buy-and-hold weights and
-      payment-date dividend reinvestment. Ordinary splits are handled; fees and
-      taxes are excluded. Past performance does not guarantee future returns.
+      payment-date dividend reinvestment. Ordinary splits are handled. No
+      additional fees or taxes are applied; reported dividends may reflect
+      source withholding. Past performance does not guarantee future returns.
     </p>
   );
 }
