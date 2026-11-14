@@ -1,4 +1,5 @@
 import "server-only";
+import { traceFields } from "../market-trace.ts";
 import { fetchCandidates, AlpacaError } from "./adapter.ts";
 import type { Config, Candidates } from "./adapter.ts";
 import type { Asset, Action, Calendar } from "../backtest.ts";
@@ -42,8 +43,10 @@ export function createAdmittedTransport(
 
 import { PERSONAL_SOURCE_POLICY } from "../market-policy.ts";
 export const PROVISIONAL_POLICY = PERSONAL_SOURCE_POLICY;
+// Separates cached interpretation failures/results from authoritative scope guards.
+export const ALPACA_CASH_INTERPRETATION = "provider-reported-usd-cash-v1";
 const provenance =
-  "Personal provisional Alpaca SIP; subject to corrections; action completeness not independently established";
+  "Personal provisional Alpaca SIP; reported dividend rates treated as USD cash per traded share/ADR with source withholding retained; subject to corrections";
 
 // These flags express acceptance under the personal provisional policy, never analyst verification.
 // Complete window coverage does not prove inception; leading missing bars fail too.
@@ -69,12 +72,33 @@ export function provisionalAsset(
   const actions: Action[] = c.actions
     .filter((a) => !a.date || (a.date >= c.start && a.date <= c.end))
     .map<Action>((a) => {
+      const reject = (reason: string): never => {
+        console.error(
+          JSON.stringify({
+            event: "market_action_rejected",
+            stage: "validation",
+            code: "UNSUPPORTED_ACTION",
+            ...traceFields(),
+            symbol: /^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol) ? symbol : "unknown",
+            kind: [
+              "cash_dividends",
+              "forward_splits",
+              "reverse_splits",
+            ].includes(a.kind)
+              ? a.kind
+              : "other",
+            reason,
+            ...(a.terms ? { terms: a.terms } : {}),
+          }),
+        );
+        throw new Error("UNSUPPORTED_ACTION");
+      };
       if (
         a.symbol !== symbol ||
         !a.date ||
         (a.date >= c.start && a.date <= c.end && !sessions.includes(a.date))
       )
-        throw new Error("UNSUPPORTED_ACTION");
+        return reject("invalid_event_date_or_symbol");
       if (
         (a.kind === "forward_splits" || a.kind === "reverse_splits") &&
         !a.issues.length &&
@@ -103,7 +127,17 @@ export function provisionalAsset(
           amount: a.amount,
           basis: "postSplit",
         };
-      throw new Error("UNSUPPORTED_ACTION");
+      return reject(
+        a.kind === "cash_dividends"
+          ? !a.paymentDate || !a.amount
+            ? "missing_dividend_fields"
+            : a.issues.some((i) => i !== "dividend unit basis unverified")
+              ? "unverified_dividend_terms"
+              : "ambiguous_same_day_action"
+          : a.kind === "forward_splits" || a.kind === "reverse_splits"
+            ? "unverified_split_terms"
+            : "unsupported_event_type",
+      );
     })
     .filter((a) => a.date >= c.start && a.date <= c.end);
   return {

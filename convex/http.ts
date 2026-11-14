@@ -2,11 +2,17 @@ import { httpRouter, makeFunctionReference } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { ConvexError, type Value } from "convex/values";
 import { marketFailureCodes } from "../src/lib/market-errors";
+import { validRefreshFailure } from "../src/lib/market-failure-record";
 const http = httpRouter();
 http.route({
   path: "/market-gateway",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
+    const candidateTrace = request.headers.get("X-Tikr-Trace");
+    const trace =
+      candidateTrace && /^[a-f0-9-]{36}$/.test(candidateTrace)
+        ? candidateTrace
+        : undefined;
     const key = process.env.TIKR_MARKET_GATEWAY_KEY;
     if (
       !key ||
@@ -43,6 +49,26 @@ http.route({
         !["read", "acquire", "write", "release", "control"].includes(input.name)
       )
         throw Error();
+      if (trace)
+        console.log(
+          JSON.stringify({
+            event: "market_gateway",
+            trace,
+            stage: input.name === "acquire" ? "lease" : input.name,
+            ...(input.name === "control" &&
+            [
+              "begin",
+              "recover",
+              "check",
+              "failure",
+              "finish",
+              "provider",
+              "providerFinish",
+            ].includes(String(input.args.op))
+              ? { operation: input.args.op }
+              : {}),
+          }),
+        );
       const result: Value = await ctx.runMutation(
         makeFunctionReference<"mutation", Record<string, Value>, Value>(
           `${input.name === "control" ? "hosted" : "market"}:${input.name}`,
@@ -55,8 +81,18 @@ http.route({
         typeof result === "object" &&
         "code" in result
       ) {
-        const failure = result as { code: string; retryAt?: number };
-        return failureResponse(failure.code, failure.retryAt);
+        const failure = result as {
+          code: string;
+          retryAt?: number;
+          failure?: unknown;
+          guardState?: string;
+        };
+        return failureResponse(
+          failure.code,
+          failure.retryAt,
+          failure.failure,
+          failure.guardState,
+        );
       }
       return Response.json(
         { result },
@@ -78,7 +114,12 @@ http.route({
 });
 export default http;
 
-function failureResponse(code: string, retryAt?: number) {
+function failureResponse(
+  code: string,
+  retryAt?: number,
+  failure?: unknown,
+  guardState?: string,
+) {
   const safe = marketFailureCodes.includes(code as never)
     ? code
     : "STORAGE_UNAVAILABLE";
@@ -86,6 +127,10 @@ function failureResponse(code: string, retryAt?: number) {
     "X-Tikr-Code": safe,
     "Cache-Control": "no-store",
   };
+  if (validRefreshFailure(failure))
+    headers["X-Tikr-Original-Failure"] = JSON.stringify(failure);
+  if (guardState === "active" || guardState === "abandoned")
+    headers["X-Tikr-Guard-State"] = guardState;
   if (retryAt && Number.isSafeInteger(retryAt)) {
     headers["X-Tikr-Retry-At"] = String(retryAt);
     headers["Retry-After"] = String(

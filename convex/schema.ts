@@ -22,6 +22,14 @@ export default defineSchema({
     completedFrom: v.optional(v.string()),
     scopeAttempts: v.optional(v.number()),
     reviewedPolicy: v.optional(v.literal(PERSONAL_SOURCE_POLICY)),
+    pendingAttempt: v.optional(
+      v.object({
+        attempts: v.number(),
+        scopeAttempts: v.number(),
+        attemptedAt: v.number(),
+        reviewedPolicy: v.optional(v.literal(PERSONAL_SOURCE_POLICY)),
+      }),
+    ),
   }).index("by_key", ["key"]),
   marketBudget: defineTable({
     key: v.string(),

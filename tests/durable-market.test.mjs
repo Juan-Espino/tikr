@@ -643,7 +643,10 @@ test("one explicit guarded retry terminates after source, write or receipt failu
         await createDurableBacktests(f.options)(req, "Max", true)
       ).settled;
       assert.equal(final.status, "blocked");
-      assert.equal(final.code, "REFRESH_GUARDED");
+      assert.equal(
+        final.code,
+        mode === "write" ? "STORAGE_UNAVAILABLE" : "REFRESH_FAILED",
+      );
       assert.equal(final.result, undefined);
       assert.equal(calls, 1);
     } finally {
@@ -991,7 +994,68 @@ test("measured before/after result storage workload has identical financial outp
   );
 });
 
-test("disposable history stores only authoritative heads and rejects forged browser content", async () => {
+test("bounded coordinator deadline includes admission queueing before healthy provider work", async () => {
+  for (const [timeoutMs, expected] of [
+    [5, "blocked"],
+    [200, "ready"],
+  ]) {
+    const f = fixture();
+    const load = f.options.load;
+    const result = await (
+      await createDurableBacktests({
+        ...f.options,
+        timeoutMs,
+        load: async (q) => {
+          await new Promise((resolve, reject) => {
+            const timer = setTimeout(resolve, 30);
+            q.signal.addEventListener(
+              "abort",
+              () => {
+                clearTimeout(timer);
+                reject(Error("ABORTED"));
+              },
+              { once: true },
+            );
+          });
+          return load(q);
+        },
+      })(req, "Max")
+    ).settled;
+    assert.equal(result.status, expected);
+  }
+});
+
+test("durable monthly payload survives process/browser loss with refresh allowance exhausted", async () => {
+  const { withDisposableHistory } =
+    await import("../src/lib/market-history-storage.ts");
+  const f = fixture();
+  f.store.namespace = "durable-payload-before-restart";
+  const first = await (
+    await createDurableBacktests({
+      ...f.options,
+      storage: withDisposableHistory(f.store).storage,
+    })(req, "Max")
+  ).settled;
+  assert.equal(first.status, "ready");
+  for (const key of f.rows.keys())
+    if (key.startsWith("result:")) f.rows.delete(key);
+  f.store.namespace = "durable-payload-after-restart";
+  f.store.acquire = async (key) => {
+    if (key.startsWith("asset:")) throw new MarketFailure("REFRESH_COOLDOWN");
+    return "token";
+  };
+  const second = await (
+    await createDurableBacktests({
+      ...f.options,
+      storage: withDisposableHistory(f.store).storage,
+    })(req, "Max")
+  ).settled;
+  assert.equal(second.status, "ready");
+  assert.deepEqual(second.result, first.result);
+  assert.equal(f.calls(), 2);
+});
+
+test("history persists authoritative chunks and rejects forged browser content", async () => {
   const { withDisposableHistory } =
     await import("../src/lib/market-history-storage.ts");
   const f = fixture();
@@ -1006,7 +1070,7 @@ test("disposable history stores only authoritative heads and rejects forged brow
   assert.equal(first.status, "ready");
   assert.equal(
     [...f.rows.keys()].some((key) => key.startsWith("price:")),
-    false,
+    true,
   );
   assert.ok(JSON.parse(f.rows.get("asset:AAA").payload).content);
   const hints = history.exported();
@@ -1032,6 +1096,7 @@ test("disposable history stores only authoritative heads and rejects forged brow
     hints.map((row) => ({
       ...row,
       payload: row.payload.replace("100", "999"),
+      revision: revision(JSON.parse(row.payload.replace("100", "999"))),
     })),
   );
   const rejected = await (
@@ -1050,4 +1115,209 @@ test("disposable history stores only authoritative heads and rejects forged brow
     ),
     /EVIDENCE_REVOKED/,
   );
+});
+
+test("guard rejection and failed guard settlement always release the acquired lease without provider work", async () => {
+  for (const stage of ["begin", "finish"]) {
+    const f = fixture();
+    const released = [];
+    f.store.release = async (key) => {
+      released.push(key);
+    };
+    f.store.beginRefresh = async () => {
+      if (stage === "begin") throw new MarketFailure("REFRESH_GUARDED");
+      return async () => {
+        throw Error("STORAGE_UNAVAILABLE");
+      };
+    };
+    const final = await (
+      await createDurableBacktests(f.options)(req, "Max", true)
+    ).settled;
+    assert.equal(final.status, "blocked");
+    assert.deepEqual(released.sort(), ["asset:AAA", "asset:SPY"]);
+    assert.equal(f.calls(), stage === "begin" ? 0 : 2);
+  }
+});
+
+test("retry after disposable payload loss preserves the authoritative wider coverage boundary", async () => {
+  const f = fixture();
+  const days = [
+    "2024-10-28",
+    "2024-10-29",
+    "2024-10-30",
+    "2024-10-31",
+    "2024-11-01",
+    "2024-11-04",
+    "2024-11-05",
+    "2024-11-06",
+    "2024-11-07",
+    "2024-11-08",
+  ];
+  f.options.calendar = () => ({
+    ...calendar,
+    from: days[0],
+    through: "2024-11-09",
+    sessions: days,
+  });
+  f.options.historyStart = days[0];
+  f.setNow("2024-11-09T14:00:00Z");
+  const requested = [];
+  f.options.load = async (q) => {
+    requested.push(q.from);
+    return {
+      feed: "sip",
+      asset: {
+        ...asset(q.symbol),
+        firstAvailable: days[0],
+        from: q.from,
+        through: days.at(-1),
+        prices: Object.fromEntries(
+          days.filter((d) => d >= q.from).map((d) => [d, "100"]),
+        ),
+      },
+    };
+  };
+  assert.equal(
+    (await (await createDurableBacktests(f.options)(req, "Max")).settled)
+      .status,
+    "ready",
+  );
+  for (const key of f.rows.keys())
+    if (key.startsWith("price:") || key.startsWith("result:"))
+      f.rows.delete(key);
+  requested.length = 0;
+  const final = await (
+    await createDurableBacktests(f.options)(req, "1W", true)
+  ).settled;
+  assert.equal(final.status, "ready");
+  assert.deepEqual(requested, [days[0], days[0]]);
+  assert.equal(final.result.actual.start, "2024-11-01");
+});
+
+test("lost modern disposable content can rehydrate retained legacy rows only against the current complete root", async () => {
+  const { withDisposableHistory } =
+    await import("../src/lib/market-history-storage.ts");
+  const f = fixture();
+  assert.equal(
+    (await (await createDurableBacktests(f.options)(req, "Max")).settled)
+      .status,
+    "ready",
+  );
+  for (const [key, row] of f.rows) {
+    if (key.startsWith("result:")) f.rows.delete(key);
+    if (key.startsWith("asset:"))
+      row.payload = JSON.stringify({
+        ...JSON.parse(row.payload),
+        content: true,
+      });
+  }
+  const restored = withDisposableHistory({
+    ...f.store,
+    namespace: "retained-legacy-root-oracle",
+  });
+  const final = await (
+    await createDurableBacktests({ ...f.options, storage: restored.storage })(
+      req,
+      "Max",
+    )
+  ).settled;
+  assert.equal(final.status, "ready");
+  assert.equal(f.calls(), 2);
+  // A retained monthly row whose self-hash is valid still cannot override a
+  // different authoritative whole-asset root after process/browser cache loss.
+  const row = f.rows.get("price:AAA:2024-11");
+  const value = JSON.parse(row.payload);
+  value.prices[sessions[1]] = "999";
+  row.payload = JSON.stringify(value);
+  row.revision = revision(value);
+  const changed = withDisposableHistory({
+    ...f.store,
+    namespace: "retained-legacy-root-negative",
+  });
+  const blocked = await (
+    await createDurableBacktests({
+      ...f.options,
+      storage: changed.storage,
+      load: async () => {
+        throw new MarketFailure("SOURCE_FAILURE");
+      },
+    })(req, "Max")
+  ).settled;
+  assert.equal(blocked.status, "blocked");
+  assert.equal(blocked.result, undefined);
+});
+
+test("an explicit retry for lost content reuses a healthy benchmark even when its provider allowance is exhausted", async () => {
+  const f = fixture();
+  assert.equal(
+    (await (await createDurableBacktests(f.options)(req, "Max")).settled)
+      .status,
+    "ready",
+  );
+  for (const key of f.rows.keys())
+    if (key.startsWith("price:AAA:") || key.startsWith("result:"))
+      f.rows.delete(key);
+  const acquire = f.store.acquire;
+  f.store.acquire = async (...args) => {
+    if (args[0] === "asset:SPY")
+      throw new MarketFailure(
+        "REFRESH_COOLDOWN",
+        Date.parse("2024-11-07T14:00:00Z"),
+      );
+    return acquire(...args);
+  };
+  const refreshed = [];
+  f.options.load = async (q) => {
+    refreshed.push(q.symbol);
+    return { feed: "sip", asset: asset(q.symbol) };
+  };
+  const final = await (
+    await createDurableBacktests(f.options)(req, "Max", true)
+  ).settled;
+  assert.equal(final.status, "ready");
+  assert.deepEqual(refreshed, ["AAA"]);
+});
+
+test("loader interpretation changes revalidate limitations without changing authoritative scope", async () => {
+  for (const current of ["old-cash-rule", "provider-reported-usd-cash-v1"]) {
+    const f = fixture();
+    const limitation = {
+      symbol: "AAA",
+      code: "UNSUPPORTED_ACTION",
+      from: sessions[0],
+      through: sessions.at(-1),
+      cycle: "2024-11-06",
+      evidenceRevision: "same-authoritative-scope",
+      normalizationRevision: "old-cash-rule",
+    };
+    // Use the actual fixture cycle rather than pretending this is a provider correction.
+    const { freshnessCycle } = await import("../src/lib/market-cache.ts");
+    limitation.cycle = freshnessCycle(f.options.clock());
+    f.rows.set("limitation:AAA:Max", {
+      key: "limitation:AAA:Max",
+      payload: JSON.stringify(limitation),
+      revision: revision(limitation),
+      dependencies: [],
+      checkedAt: f.options.clock().valueOf(),
+    });
+    const loaded = [];
+    const original = f.options.load;
+    f.options.load = async (q) => {
+      loaded.push(q.symbol);
+      return original(q);
+    };
+    const final = await (
+      await createDurableBacktests({
+        ...f.options,
+        evidenceRevision: limitation.evidenceRevision,
+        normalizationRevision: current,
+      })(req, "Max")
+    ).settled;
+    assert.equal(
+      final.status,
+      current === "old-cash-rule" ? "blocked" : "ready",
+    );
+    assert.equal(loaded.includes("AAA"), current !== "old-cash-rule");
+    assert.equal(limitation.evidenceRevision, "same-authoritative-scope");
+  }
 });

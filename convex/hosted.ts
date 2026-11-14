@@ -6,9 +6,13 @@ import {
 import { catalogShard, validateShard } from "../src/lib/asset-catalog";
 import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { limiter, hostedConcurrency } from "./market_limits";
+import { limiter } from "./market_limits";
 import { v } from "convex/values";
-import { budget } from "./market";
+import { budget, nextCycle } from "./market";
+import {
+  validRefreshFailure,
+  type RefreshFailure,
+} from "../src/lib/market-failure-record";
 
 // One bounded control document serializes all hosts. Revocations never expire.
 export type State = {
@@ -19,6 +23,7 @@ export type State = {
   visitors?: Record<string, number>;
   revoked: string[];
   guards: Record<string, string>;
+  failures?: Record<string, RefreshFailure>;
   observations?: Record<
     string,
     { token: string; leaseToken: string; expires: number }
@@ -36,6 +41,8 @@ export const control = internalMutation({
       v.literal("begin"),
       v.literal("recover"),
       v.literal("finish"),
+      v.literal("failure"),
+      v.literal("progress"),
       v.literal("revoke"),
     ),
     scope: v.string(),
@@ -47,11 +54,33 @@ export const control = internalMutation({
     visitor: v.optional(v.string()),
     leaseToken: v.optional(v.string()),
     receivedBytes: v.optional(v.number()),
+    failure: v.optional(
+      v.object({
+        trace: v.string(),
+        at: v.number(),
+        stage: v.string(),
+        code: v.string(),
+      }),
+    ),
   },
   returns: v.union(
     v.null(),
     v.array(v.string()),
-    v.object({ code: v.string(), retryAt: v.optional(v.number()) }),
+    v.object({
+      code: v.string(),
+      retryAt: v.optional(v.number()),
+      failure: v.optional(
+        v.object({
+          trace: v.string(),
+          at: v.number(),
+          stage: v.string(),
+          code: v.string(),
+        }),
+      ),
+      guardState: v.optional(
+        v.union(v.literal("active"), v.literal("abandoned")),
+      ),
+    }),
   ),
   handler: async (ctx, a) => {
     if (
@@ -88,7 +117,9 @@ export const control = internalMutation({
       : { day, opens: 0, buckets: {}, active: {}, revoked: [], guards: {} };
     // Release and revocation must remain possible after quota exhaustion.
     if (
-      !["revoke", "finish", "leave", "providerFinish"].includes(a.op) &&
+      !["revoke", "finish", "failure", "leave", "providerFinish"].includes(
+        a.op,
+      ) &&
       !(await budget(
         ctx,
         a.op === "provider"
@@ -98,6 +129,62 @@ export const control = internalMutation({
       ))
     )
       return { code: "SHARED_BUDGET_EXHAUSTED" };
+    if (a.op === "failure") {
+      if (
+        a.symbols.length !== 1 ||
+        !validRefreshFailure(a.failure) ||
+        a.failure.at > now ||
+        now - a.failure.at > 120000
+      )
+        throw Error("INVALID_CONTROL");
+      const key = `${a.scope}:${a.symbols[0]}`;
+      const observation = s.observations?.[key];
+      const lease = await ctx.db
+        .query("marketLeases")
+        .withIndex("by_key", (q) => q.eq("key", `asset:${a.symbols[0]}`))
+        .unique();
+      if (
+        s.guards[key] !== a.token ||
+        observation?.token !== a.token ||
+        observation.leaseToken !== a.leaseToken ||
+        lease?.token !== a.leaseToken
+      )
+        throw Error("LEASE_LOST");
+      s.failures ??= {};
+      // Preserve the initiating failure through subsequent cooldown/guard refusals.
+      s.failures[key] ??= a.failure;
+      await save(ctx, row?._id, s);
+      return null;
+    }
+    if (a.op === "progress") {
+      if (a.symbols.length !== 1) throw Error("INVALID_CONTROL");
+      const key = `${a.scope}:${a.symbols[0]}`;
+      const observation = s.observations?.[key];
+      const lease = await ctx.db
+        .query("marketLeases")
+        .withIndex("by_key", (q) => q.eq("key", `asset:${a.symbols[0]}`))
+        .unique();
+      if (
+        !lease ||
+        lease.token !== a.leaseToken ||
+        lease.expires <= now ||
+        s.guards[key] !== a.token ||
+        observation?.token !== a.token ||
+        observation.leaseToken !== a.leaseToken ||
+        observation.expires <= now
+      )
+        throw Error("LEASE_LOST");
+      if (s.revoked.some((scope) => !superseded(scope)))
+        return { code: "EVIDENCE_REVOKED" };
+      // Validated source progress grants bounded publication time, never an
+      // indefinite heartbeat. The original attemptedAt anchors the hard bound.
+      const expires = Math.min(now + 60000, lease.attemptedAt + 120000);
+      if (expires <= now) throw Error("LEASE_LOST");
+      observation.expires = expires;
+      await ctx.db.patch(lease._id, { expires });
+      await save(ctx, row?._id, s);
+      return null;
+    }
     if (a.op === "providerFinish") {
       if (!Number.isSafeInteger(a.receivedBytes) || a.receivedBytes! < 0)
         throw Error("INVALID_CONTROL");
@@ -157,7 +244,7 @@ export const control = internalMutation({
     if (a.op === "recover") {
       if (s.revoked.some((scope) => !superseded(scope)))
         return { code: "EVIDENCE_REVOKED" };
-      return a.symbols.filter((symbol) => {
+      const symbols = a.symbols.filter((symbol) => {
         const key = `${a.scope}:${symbol}`;
         const observation = s.observations?.[key];
         return (
@@ -166,6 +253,7 @@ export const control = internalMutation({
           observation.expires <= now
         );
       });
+      return symbols;
     }
     if (a.op === "revoke") {
       if (!s.revoked.includes(a.scope)) {
@@ -198,11 +286,6 @@ export const control = internalMutation({
         // Keep the shared in-flight resource bound; browsing has no request quota.
         for (const [t, expires] of Object.entries(s.active))
           if (expires <= now) delete s.active[t];
-        if (Object.keys(s.active).length >= hostedConcurrency())
-          return {
-            code: "REFRESH_BUSY",
-            retryAt: Math.min(...Object.values(s.active)),
-          };
         s.active[a.token] = now + 120000;
       }
       if (
@@ -213,8 +296,35 @@ export const control = internalMutation({
               key.endsWith(`:${symbol}`) && !superseded(key.split(":")[0]!),
           ),
         )
-      )
-        return { code: "REFRESH_GUARDED" };
+      ) {
+        const keys = Object.keys(s.guards).filter(
+          (key) =>
+            a.symbols.some((symbol) => key.endsWith(`:${symbol}`)) &&
+            !superseded(key.split(":")[0]!),
+        );
+        const observations = keys.map((key) => s.observations?.[key]);
+        const active = observations.filter((o) => o && o.expires > now);
+        const failure = keys.map((key) => s.failures?.[key]).find(Boolean);
+        return {
+          code: "REFRESH_GUARDED",
+          ...(active.length
+            ? {
+                guardState: "active" as const,
+                retryAt: Math.max(...active.map((o) => o!.expires)),
+              }
+            : keys.every((key) => {
+                  const observation = s.observations?.[key];
+                  return (
+                    observation !== undefined &&
+                    observation.token === s.guards[key] &&
+                    observation.expires <= now
+                  );
+                })
+              ? { guardState: "abandoned" as const }
+              : {}),
+          ...(failure ? { failure } : {}),
+        };
+      }
       if (a.op === "begin")
         for (const symbol of a.symbols) {
           const k = `${a.scope}:${symbol}`;
@@ -245,6 +355,11 @@ export const control = internalMutation({
             return { code: "REFRESH_GUARDED" };
           if (!s.guards[k] && Object.keys(s.guards).length >= 96)
             throw Error("GUARD_LIMIT");
+          if (lease?.pendingAttempt && a.leaseToken === lease.token)
+            await ctx.db.patch(lease._id, {
+              ...lease.pendingAttempt,
+              pendingAttempt: undefined,
+            });
           s.guards[k] = a.token;
           if (!a.leaseToken || !lease) continue;
           s.observations ??= {};

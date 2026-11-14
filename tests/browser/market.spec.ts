@@ -412,7 +412,7 @@ test("timeframe picker hides Max while migrating a saved Max selection", async (
     page.getByRole("button", { name: "Set timeframe to 1Y" }),
   ).toBeVisible();
 });
-test("unconfigured real endpoint blocks without inventing returns", async ({
+test("unconfigured real endpoint blocks without inventing returns @unconfigured", async ({
   page,
 }) => {
   await page.goto("/portfolio/test-one");
@@ -519,7 +519,7 @@ test("local endpoint rejects foreign origins and oversized requests", async ({
   expect(huge.status()).toBe(413);
 });
 for (const width of [390, 768, 1440])
-  test(`layout at ${width}px preserves blocked state without horizontal overflow`, async ({
+  test(`layout at ${width}px preserves blocked state without horizontal overflow @unconfigured`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width, height: 900 });
@@ -1241,7 +1241,7 @@ test("main metrics remain stable for matching dates and change for a shorter sha
   await expect(page.getByText(/2024-11-04 – 2024-11-04/)).toBeVisible();
 });
 
-test("provisional quality is visible in the workspace and compact dashboard", async ({
+test("provisional source disclosure is omitted from the workspace and dashboard", async ({
   page,
 }) => {
   await mockMarket(page, (route) =>
@@ -1253,13 +1253,19 @@ test("provisional quality is visible in the workspace and compact dashboard", as
     }),
   );
   await page.goto("/portfolio/test-one");
+  await expect(page.getByText(/Personal provisional Alpaca data/)).toHaveCount(
+    0,
+  );
   await expect(
-    page.getByText(/Personal provisional Alpaca data/),
-  ).toBeVisible();
+    page.getByText("Synthetic QA data; not market history."),
+  ).toHaveCount(0);
   await page.goto("/dashboard");
   await expect(
     page.getByText(/Personal provisional Alpaca data/).first(),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Synthetic QA data; not market history."),
+  ).toHaveCount(0);
 });
 
 test("catalog search debounces, ignores superseded responses, supports keyboard selection and equal weights", async ({
@@ -1326,7 +1332,7 @@ test("catalog search debounces, ignores superseded responses, supports keyboard 
   ).toBeVisible();
 });
 
-test("credential-free demo search is labeled and supports touch selection", async ({
+test("credential-free demo search is labeled and supports touch selection @unconfigured", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -1584,7 +1590,7 @@ test("each ticker limitation is readable destructive text on desktop and mobile"
     for (const [symbol, explanation] of [
       ["IPO", "2026-10-12"],
       ["BA", "We couldn't load market history right now"],
-      ["RTX", "corporate action"],
+      ["RTX", "Corporate-action"],
       ["GAP", "missing bar does not establish"],
       ["LIMIT", "We couldn't load market history right now"],
     ]) {
@@ -1676,7 +1682,7 @@ test("legacy portfolio and draft hydrate to one week; explicit one year survives
 
 test("operational history failures show professional copy without backend recovery details", async ({
   page,
-}) => {
+}, info) => {
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const code of [
@@ -1698,7 +1704,9 @@ test("operational history failures show professional copy without backend recove
       await page.goto("/portfolio/test-one");
       await expect(
         page.getByText(
-          "We couldn't load market history right now. Please try again later.",
+          code === "REFRESH_GUARDED"
+            ? "Market history is unavailable while an earlier refresh is reviewed. Please try again later."
+            : "We couldn't load market history right now. Please try again later.",
           { exact: true },
         ),
       ).toBeVisible();
@@ -1720,9 +1728,85 @@ test("operational history failures show professional copy without backend recove
       ).toBe(true);
       if (code === "REFRESH_GUARDED")
         await page.screenshot({
-          path: `${process.env.TIKR_BROWSER_OUTPUT}/operational-history-${width}.png`,
+          path: info.outputPath(`operational-history-${width}.png`),
           fullPage: true,
         });
+      await unmockMarket(page);
+    }
+  }
+});
+
+test("refresh diagnostics stay hidden while precise guard feedback survives single and batched errors", async ({
+  page,
+}) => {
+  const reference = "12345678-1234-4234-8234-123456789012";
+  const original = "87654321-4321-4321-8321-210987654321";
+  const retryAt = Date.now() + 60000;
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [code, guardState, message] of [
+      ["SOURCE_FAILURE", undefined, "We couldn't load market history"],
+      ["REFRESH_GUARDED", "active", "Market history is being refreshed"],
+      [
+        "REFRESH_GUARDED",
+        "abandoned",
+        "A previous history refresh was interrupted",
+      ],
+      ["REFRESH_GUARDED", undefined, "an earlier refresh is reviewed"],
+      [
+        "REFRESH_COOLDOWN",
+        undefined,
+        "Market history is temporarily unavailable",
+      ],
+    ] as const) {
+      await mockMarket(page, (route) =>
+        route.fulfill({
+          status: code === "REFRESH_COOLDOWN" ? 429 : 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            status: "blocked",
+            code,
+            guardState,
+            retryAt,
+            reference,
+            originalFailure: {
+              trace: original,
+              at: Date.now(),
+              stage: "source",
+              code: "TIMEOUT",
+            },
+            debug: "private-provider-canary",
+          }),
+        }),
+      );
+      // Detail uses single transport; dashboard simultaneously exercises the batch.
+      for (const path of ["/portfolio/test-one", "/dashboard"]) {
+        await page.goto(path);
+        await expect(
+          page.getByText(message, { exact: false }).first(),
+        ).toBeVisible();
+        await expect(
+          page
+            .getByText(`Error reference: ${original}.`, { exact: true })
+            .first(),
+        ).toHaveCount(0);
+        await expect(
+          page
+            .getByText(`Retry after ${new Date(retryAt).toLocaleString()}.`, {
+              exact: true,
+            })
+            .first(),
+        ).toBeVisible();
+        expect(await page.locator("body").innerText()).not.toContain(
+          "private-provider-canary",
+        );
+        await expect(page.locator(".recharts-line path")).toHaveCount(0);
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+      }
       await unmockMarket(page);
     }
   }

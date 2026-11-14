@@ -99,6 +99,13 @@ export type CandidateAction = {
   numerator?: string;
   denominator?: string;
   issues: string[];
+  terms?: {
+    foreign: boolean | null;
+    special: boolean | null;
+    currency: "USD" | "other" | "missing";
+    subtype: "ordinary" | "interest" | "return_of_capital" | "other";
+    dueBill: boolean;
+  };
 };
 export type Candidates = {
   symbols: string[];
@@ -172,13 +179,13 @@ export async function fetchCandidates(
     secret,
     timeoutMs = 10000,
     retries = 2,
-    maxPages = 100,
+    maxPages = Number.MAX_SAFE_INTEGER,
     maxResponseBytes = 2 * 1024 * 1024,
     maxResponseChunks = 16384,
-    maxTotalBytes = 32 * 1024 * 1024,
+    maxTotalBytes = Number.MAX_SAFE_INTEGER,
     maxPageRecords = 10000,
-    maxTotalBars = 250000,
-    maxTotalActions = 25000,
+    maxTotalBars = Number.MAX_SAFE_INTEGER,
+    maxTotalActions = Number.MAX_SAFE_INTEGER,
     transport = fetch,
     sleep = defaultSleep,
   } = config;
@@ -193,7 +200,7 @@ export async function fetchCandidates(
     retries > 5 ||
     !Number.isInteger(maxPages) ||
     maxPages < 1 ||
-    maxPages > 1000 ||
+    maxPages > Number.MAX_SAFE_INTEGER ||
     !Number.isInteger(maxResponseBytes) ||
     maxResponseBytes < 1 ||
     maxResponseBytes > 16 * 1024 * 1024 ||
@@ -202,16 +209,16 @@ export async function fetchCandidates(
     maxResponseChunks > 65536 ||
     !Number.isInteger(maxTotalBytes) ||
     maxTotalBytes < 1 ||
-    maxTotalBytes > 128 * 1024 * 1024 ||
+    maxTotalBytes > Number.MAX_SAFE_INTEGER ||
     !Number.isInteger(maxPageRecords) ||
     maxPageRecords < 1 ||
     maxPageRecords > 10000 ||
     !Number.isInteger(maxTotalBars) ||
     maxTotalBars < 1 ||
-    maxTotalBars > 500000 ||
+    maxTotalBars > Number.MAX_SAFE_INTEGER ||
     !Number.isInteger(maxTotalActions) ||
     maxTotalActions < 1 ||
-    maxTotalActions > 100000
+    maxTotalActions > Number.MAX_SAFE_INTEGER
   )
     return fail("CONFIG");
   const symbols = query.symbols;
@@ -500,18 +507,40 @@ export async function fetchCandidates(
             issues,
           };
           if (kind === "cash_dividends") {
+            a.terms = {
+              foreign: typeof row.foreign === "boolean" ? row.foreign : null,
+              special: typeof row.special === "boolean" ? row.special : null,
+              currency:
+                row.currency === "USD"
+                  ? "USD"
+                  : row.currency
+                    ? "other"
+                    : "missing",
+              subtype:
+                row.sub_type == null
+                  ? "ordinary"
+                  : row.sub_type === "interest" ||
+                      row.sub_type === "return_of_capital"
+                    ? row.sub_type
+                    : "other",
+              dueBill:
+                row.due_bill_on_date != null || row.due_bill_off_date != null,
+            };
             a.paymentDate = maybeDate(row.payable_date, "missing payment date");
             if (row.rate == null) issues.push("missing rate");
             else a.amount = positive(row.rate);
+            // Owner-approved Alpaca interpretation for ALL tickers: rate is USD
+            // cash per traded share/ADR, retaining source withholding. Foreign
+            // and currency metadata do not trigger FX, ADR multiplication or a
+            // gross-up. This is an application assumption, not a provider guarantee.
+            if (row.due_bill_on_date != null || row.due_bill_off_date != null)
+              issues.push("unsupported dividend due bills");
             if (
-              row.special !== false ||
-              row.foreign !== false ||
-              row.sub_type != null ||
-              row.due_bill_on_date != null ||
-              row.due_bill_off_date != null ||
-              (row.currency != null && row.currency !== "USD")
+              row.sub_type != null &&
+              row.sub_type !== "interest" &&
+              row.sub_type !== "return_of_capital"
             )
-              issues.push("unsupported dividend terms");
+              issues.push("unknown dividend subtype");
             issues.push("dividend unit basis unverified");
             if (a.paymentDate && eventDate && a.paymentDate < eventDate)
               issues.push("payment before ex-date");

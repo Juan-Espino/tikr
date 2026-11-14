@@ -8,8 +8,19 @@ import {
   personalHistoryStart,
 } from "./market-policy.ts";
 import { createHash, randomUUID } from "node:crypto";
+import { marketTrace, traceFields } from "./market-trace.ts";
+import { validRefreshFailure } from "./market-failure-record.ts";
+import { withMarketWriteTurn } from "./market-write-queue.ts";
 export const hosted = () => process.env.TIKR_MARKET_HOSTED_ORIGIN !== undefined;
 export async function gateway<T>(
+  name: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  // All gateway mutations update shared accounting. Avoid self-inflicted OCC
+  // storms when a dashboard opens several overlapping portfolios at once.
+  return withMarketWriteTurn(() => gatewayTurn<T>(name, args));
+}
+async function gatewayTurn<T>(
   name: string,
   args: Record<string, unknown>,
 ): Promise<T> {
@@ -29,6 +40,7 @@ export async function gateway<T>(
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
+      ...(marketTrace() ? { "X-Tikr-Trace": marketTrace()! } : {}),
     },
     body: JSON.stringify({ name, args }),
     redirect: "error",
@@ -36,13 +48,37 @@ export async function gateway<T>(
     cache: "no-store",
   });
   if (!response.ok || !response.body) {
+    console.error(
+      JSON.stringify({
+        event: "market_gateway_rejection",
+        stage: name === "acquire" ? "lease" : "control",
+        operation: ["read", "acquire", "write", "release", "control"].includes(
+          name,
+        )
+          ? name
+          : "unknown",
+        status: response.status,
+        ...traceFields(),
+      }),
+    );
     const code = response.headers.get("X-Tikr-Code");
     const retry = Number(response.headers.get("X-Tikr-Retry-At"));
+    let original: unknown;
+    try {
+      original = JSON.parse(
+        response.headers.get("X-Tikr-Original-Failure") ?? "null",
+      );
+    } catch {
+      /* Untrusted diagnostics are discarded. */
+    }
+    const state = response.headers.get("X-Tikr-Guard-State");
     throw new MarketFailure(
       marketFailureCodes.includes(code as never)
         ? (code as MarketFailureCode)
         : "STORAGE_UNAVAILABLE",
       Number.isSafeInteger(retry) && retry > 0 ? retry : undefined,
+      validRefreshFailure(original) ? original : undefined,
+      state === "active" || state === "abandoned" ? state : undefined,
     );
   }
   const reader = response.body.getReader();

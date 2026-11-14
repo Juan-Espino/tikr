@@ -102,10 +102,16 @@ export function HistoryChart({
   return (
     <div
       aria-describedby={id}
-      className={`history-chart ${compact ? "flex h-full min-h-0 flex-col" : ""}`}
+      className={`history-chart w-full min-w-0 ${compact ? "flex h-full min-h-0 flex-col" : ""}`}
     >
-      <div className={compact ? "h-44 min-h-44 w-full flex-1" : "h-72 w-full"}>
-        <ResponsiveContainer width="100%" height="100%">
+      <div
+        className={compact ? "h-44 min-h-44 w-full shrink-0" : "h-72 w-full"}
+      >
+        <ResponsiveContainer
+          width="100%"
+          height={compact ? 176 : 288}
+          minWidth={0}
+        >
           <LineChart
             accessibilityLayer={!compact}
             data={data}

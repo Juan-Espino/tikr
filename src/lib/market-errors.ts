@@ -1,4 +1,5 @@
 // Public, bounded failure vocabulary. Never forward upstream exception text.
+import type { RefreshFailure } from "./market-failure-record.ts";
 export const marketFailureCodes = [
   "CATALOG_NOT_ENABLED",
   "CATALOG_PROVIDER",
@@ -27,10 +28,19 @@ export type MarketFailureCode = (typeof marketFailureCodes)[number];
 export class MarketFailure extends Error {
   readonly code: MarketFailureCode;
   readonly retryAt?: number;
-  constructor(code: MarketFailureCode, retryAt?: number) {
+  readonly originalFailure?: RefreshFailure;
+  readonly guardState?: "active" | "abandoned";
+  constructor(
+    code: MarketFailureCode,
+    retryAt?: number,
+    originalFailure?: RefreshFailure,
+    guardState?: "active" | "abandoned",
+  ) {
     super(code);
     this.code = code;
     this.retryAt = retryAt;
+    this.originalFailure = originalFailure;
+    this.guardState = guardState;
   }
 }
 export function marketFailure(error: unknown): MarketFailure | undefined {
@@ -75,9 +85,17 @@ export function marketFailure(error: unknown): MarketFailure | undefined {
     return new MarketFailure(error.message as MarketFailureCode);
   return undefined;
 }
-export function marketErrorMessage(code?: string) {
+export function marketErrorMessage(
+  code?: string,
+  guardState?: "active" | "abandoned",
+) {
+  if (code === "REFRESH_GUARDED" && guardState === "active")
+    return "Market history is being refreshed. Please wait before retrying.";
+  if (code === "REFRESH_GUARDED" && guardState === "abandoned")
+    return "A previous history refresh was interrupted. History is being recovered.";
   switch (code) {
     case "REFRESH_GUARDED":
+      return "Market history is unavailable while an earlier refresh is reviewed. Please try again later.";
     case "EVIDENCE_REVOKED":
     case "SHARED_BUDGET_EXHAUSTED":
     case "CACHE_BUDGET":
@@ -95,7 +113,7 @@ export function marketErrorMessage(code?: string) {
     case "SHORT_HISTORY":
       return "Confirmed history does not cover the requested period. Choose a shorter period.";
     case "UNSUPPORTED_ACTION":
-      return "A corporate action in this period cannot be modeled safely. Choose a period after the event.";
+      return "Corporate-action details for this period could not be validated. This portfolio has not been calculated.";
     case "SOURCE_LIMIT":
     case "SOURCE_FAILURE":
     case "REFRESH_FAILED":

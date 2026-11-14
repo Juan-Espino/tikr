@@ -1,3 +1,4 @@
+import type { RefreshFailure } from "./market-failure-record.ts";
 import { validTicker } from "./asset-catalog.ts";
 import { z } from "zod";
 import { allocation, validAmount } from "./demo";
@@ -63,6 +64,9 @@ export type MarketResponse = {
   status: "ready" | "refreshing" | "stale" | "blocked";
   code?: string;
   retryAt?: number;
+  reference?: string;
+  guardState?: "active" | "abandoned";
+  originalFailure?: RefreshFailure;
   asOf?: string;
   evidenceExpiresAt?: string;
   dataQuality?: "personal-provisional" | "reviewed" | "synthetic";

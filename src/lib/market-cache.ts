@@ -1,6 +1,8 @@
 import { marketFailure, type MarketFailureCode } from "./market-errors.ts";
 import "server-only";
-import { createHash } from "node:crypto";
+import type { RefreshFailure } from "./market-failure-record.ts";
+import { createHash, randomUUID } from "node:crypto";
+import { marketTrace } from "./market-trace.ts";
 import { backtest, BacktestError } from "./backtest.ts";
 import type {
   Asset,
@@ -110,6 +112,8 @@ export type CacheView = {
   dataRevisions?: Record<string, string>;
   code?: Code;
   retryAt?: number;
+  originalFailure?: RefreshFailure;
+  guardState?: "active" | "abandoned";
   issues?: { symbol: string; code: Code; firstAvailable?: string }[];
 };
 export type AssetRefresh = {
@@ -131,7 +135,6 @@ export type CacheOptions = {
   ) => Promise<{ feed: "sip"; asset: Asset; pendingSession?: string }>;
   clock?: () => Date;
   timeoutMs?: number;
-  retryCooldownMs?: number;
 };
 type Entry = {
   asset: Asset;
@@ -164,16 +167,8 @@ export function createOnDemandBacktests(options: CacheOptions) {
     [...supported].some((s) => !/^[A-Z][A-Z0-9.-]{0,15}$/.test(s))
   )
     fail("INVALID_INPUT");
-  const timeoutMs = options.timeoutMs ?? 15000,
-    cooldown = options.retryCooldownMs ?? 60000;
-  if (
-    !Number.isInteger(timeoutMs) ||
-    timeoutMs < 1 ||
-    timeoutMs > 60000 ||
-    !Number.isInteger(cooldown) ||
-    cooldown < 1 ||
-    cooldown > 86400000
-  )
+  const timeoutMs = options.timeoutMs ?? 15000;
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60000)
     fail("INVALID_INPUT");
   const clock = options.clock ?? (() => new Date());
   const entries = new Map<string, Entry>(),
@@ -185,6 +180,7 @@ export function createOnDemandBacktests(options: CacheOptions) {
   >();
   const errors = new Map<string, Code>();
   const retryTimes = new Map<string, number>();
+  const originalFailures = new Map<string, RefreshFailure>();
   const MAX_BYTES = 16 * 1024 * 1024,
     MAX_ITEM = 2 * 1024 * 1024;
   let entryBytes = 0,
@@ -357,20 +353,6 @@ export function createOnDemandBacktests(options: CacheOptions) {
     if (running.has(symbol)) return running.get(symbol)!;
     const now = clock();
     const last = attempts.get(symbol);
-    const previous = entries.get(symbol);
-    const expansion =
-      previous?.cycle === ctx.cycle &&
-      previous.asset.from > from &&
-      !errors.has(symbol) &&
-      Date.parse(previous.checkedAt) >= (last?.at ?? 0);
-    if (
-      !expansion &&
-      last?.cycle === ctx.cycle &&
-      (!retry || last.count >= 2 || now.valueOf() - last.at < cooldown)
-    ) {
-      errors.set(symbol, "DAILY_LIMIT");
-      return;
-    }
     attempts.set(symbol, {
       cycle: ctx.cycle,
       count: last?.cycle === ctx.cycle ? last.count + 1 : 1,
@@ -382,6 +364,12 @@ export function createOnDemandBacktests(options: CacheOptions) {
       try {
         const expiry = new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
+            originalFailures.set(symbol, {
+              trace: marketTrace() ?? randomUUID(),
+              at: clock().valueOf(),
+              stage: "source",
+              code: "TIMEOUT",
+            });
             controller.abort();
             reject(new CacheError("REFRESH_FAILED"));
           }, timeoutMs);
@@ -423,6 +411,7 @@ export function createOnDemandBacktests(options: CacheOptions) {
         });
         errors.delete(symbol);
         retryTimes.delete(symbol);
+        originalFailures.delete(symbol);
       } catch (e) {
         // Never forward provider bodies, secret-bearing exception messages or loader objects.
         const failure = marketFailure(e);
@@ -432,6 +421,8 @@ export function createOnDemandBacktests(options: CacheOptions) {
             (e instanceof CacheError ? e.code : "REFRESH_FAILED"),
         );
         if (failure?.retryAt) retryTimes.set(symbol, failure.retryAt);
+        if (failure?.originalFailure)
+          originalFailures.set(symbol, failure.originalFailure);
       } finally {
         if (timer) clearTimeout(timer);
         running.delete(symbol);
@@ -632,6 +623,9 @@ export function createOnDemandBacktests(options: CacheOptions) {
         : {}),
       retryAt:
         Math.max(0, ...symbols.map((s) => retryTimes.get(s) ?? 0)) || undefined,
+      originalFailure: symbols
+        .map((s) => originalFailures.get(s))
+        .find(Boolean),
       issues: symbols
         .filter((symbol) => errors.has(symbol))
         .map((symbol) => ({ symbol, code: errors.get(symbol)! })),

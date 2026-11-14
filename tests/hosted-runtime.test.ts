@@ -159,9 +159,18 @@ test("cold hosts revalidate browser history against shared manifests and refresh
     const first = await openHost();
     expect(first.status).toBe("ready");
     expect(first.series?.[0]?.ending).toBe("101.00");
+    // Fresh process + fresh browser + distinct calculation cannot rely on saved
+    // results or hints. Production's automatic daily source allowance is spent.
+    request.history = undefined;
+    request.amount = "200";
+    const freshBrowser = await openHost();
+    expect(freshBrowser.status).toBe("ready");
+    expect(freshBrowser.series?.[0]?.ending).toBe("202.00");
+    expect(barCalls).toBe(1);
+    request.amount = "100";
     const second = await openHost();
     expect(second.series).toEqual(first.series);
-    expect(calendarCalls).toBe(2);
+    expect(calendarCalls).toBe(3);
     expect(barCalls).toBe(1);
     // More distinct calculations than result slots: collisions only skip persistence.
     for (let i = 101; i <= 117; i++) {
@@ -193,7 +202,7 @@ test("cold hosts revalidate browser history against shared manifests and refresh
     vi.resetModules();
     const { openMarket } = await import("../src/lib/market-runtime");
     const guarded = await openMarket(request);
-    expect(guarded.initial.status).toBe("refreshing");
+    expect(guarded.initial.status).toBe("blocked");
     await vi.runAllTimersAsync();
     expect(await guarded.settled).toMatchObject({
       status: "blocked",

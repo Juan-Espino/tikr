@@ -193,8 +193,8 @@ test("failed refresh preserves only the last dated verified snapshot and sanitiz
   assert.equal(stale.code, "REFRESH_FAILED");
   assert(!JSON.stringify(stale).includes("synthetic-private-secret"));
   const before = f.calls.length;
-  assert.equal(f.cache.open(request).initial.status, "stale");
-  assert.equal(f.calls.length, before);
+  assert.equal((await f.cache.open(request).settled).status, "stale");
+  assert.equal(f.calls.length, before + 2);
 });
 
 test("failure without a verified result stays blocked; one automatic attempt and bounded explicit retry", async () => {
@@ -335,6 +335,9 @@ test("uncooperative loaders time out without leaking errors or hanging the refre
   const view = await f.cache.open(request).settled;
   assert.equal(view.status, "blocked");
   assert.equal(view.code, "REFRESH_FAILED");
+  assert.equal(view.originalFailure.code, "TIMEOUT");
+  assert.equal(view.originalFailure.stage, "source");
+  assert.match(view.originalFailure.trace, /^[a-f0-9-]{36}$/);
 });
 
 test("daily cycle rolls at New York 09:00 so an earlier open does not suppress the new session", async () => {
@@ -389,7 +392,7 @@ test("unchanged weekend refresh updates the verification date retained by a late
   assert.equal(stale.dataCheckedAt, checked.dataCheckedAt);
 });
 
-test("a second failed explicit retry is capped and reports affected holdings", async () => {
+test("repeated failed retries report holdings without a daily quota", async () => {
   const f = fixture();
   f.fail();
   await f.cache.open(request).settled;
@@ -397,8 +400,8 @@ test("a second failed explicit retry is capped and reports affected holdings", a
   await f.cache.open(request, { retry: true }).settled;
   f.advance("2024-11-05T14:02:00Z");
   const blocked = await f.cache.open(request, { retry: true }).settled;
-  assert.equal(f.calls.length, 4);
-  assert.equal(blocked.code, "DAILY_LIMIT");
+  assert.equal(f.calls.length, 6);
+  assert.equal(blocked.code, "REFRESH_FAILED");
   assert.deepEqual(blocked.issues.map((i) => i.symbol).sort(), ["AAA", "SPY"]);
 });
 
@@ -628,11 +631,12 @@ test("observed calendar corrections invalidate all affected fallbacks while pres
   assert.equal(preserved.result.benchmark.points.length, 2);
 });
 
-
 test("selected source window excludes older gaps and unsupported actions; all short tickers are reported", async () => {
-  const f = fixture({ transform: (a, q) => {
-    if (q.from < sessions[1]) throw new Error("UNSUPPORTED_ACTION");
-  }});
+  const f = fixture({
+    transform: (a, q) => {
+      if (q.from < sessions[1]) throw new Error("UNSUPPORTED_ACTION");
+    },
+  });
   f.advance("2024-11-06T14:00:00Z");
   const narrow = { ...request, start: sessions[1] };
   const result = await f.cache.open(narrow).settled;
@@ -640,13 +644,23 @@ test("selected source window excludes older gaps and unsupported actions; all sh
   assert.ok(f.calls.every((q) => q.from === sessions[1]));
   assert.equal(result.result.actual.start, sessions[1]);
   assert.equal(result.result.benchmark.points[0].date, sessions[1]);
-  const short = fixture({ transform: (a) => {
-    a.firstAvailable = sessions[1]; delete a.prices[sessions[0]];
-  }});
+  const short = fixture({
+    transform: (a) => {
+      a.firstAvailable = sessions[1];
+      delete a.prices[sessions[0]];
+    },
+  });
   const blocked = await short.cache.open(request).settled;
   assert.equal(blocked.status, "blocked");
   assert.equal(blocked.result, undefined);
-  assert.deepEqual(blocked.issues, ["AAA", "SPY"].map((symbol) => ({ symbol, code: "SHORT_HISTORY", firstAvailable: sessions[1] })));
+  assert.deepEqual(
+    blocked.issues,
+    ["AAA", "SPY"].map((symbol) => ({
+      symbol,
+      code: "SHORT_HISTORY",
+      firstAvailable: sessions[1],
+    })),
+  );
 });
 
 test("wider cached windows may serve narrow requests; partial windows never satisfy wider requests", async () => {
@@ -654,27 +668,37 @@ test("wider cached windows may serve narrow requests; partial windows never sati
   f.advance("2024-11-06T14:00:00Z");
   const full = await f.cache.open(request).settled;
   const narrow = await f.cache.open({ ...request, start: sessions[1] }).settled;
-  assert.equal(narrow.status, "ready"); assert.equal(f.calls.length, 2);
+  assert.equal(narrow.status, "ready");
+  assert.equal(f.calls.length, 2);
   assert.equal(narrow.result.actual.start, sessions[1]);
   assert.deepEqual(narrow.dataRevisions, full.dataRevisions);
   const partial = fixture();
   partial.advance("2024-11-06T14:00:00Z");
-  assert.equal((await partial.cache.open({ ...request, start: sessions[1] }).settled).status, "ready");
+  assert.equal(
+    (await partial.cache.open({ ...request, start: sessions[1] }).settled)
+      .status,
+    "ready",
+  );
   const wider = await partial.cache.open(request).settled;
-  assert.equal(wider.status, "ready"); assert.equal(wider.result.actual.start, sessions[0]);
-  assert.equal(partial.calls.length, 4); assert.ok(partial.calls.slice(2).every((q) => q.from === sessions[0]));
+  assert.equal(wider.status, "ready");
+  assert.equal(wider.result.actual.start, sessions[0]);
+  assert.equal(partial.calls.length, 4);
+  assert.ok(partial.calls.slice(2).every((q) => q.from === sessions[0]));
 });
-
 
 test("a wider caller joining a narrow in-flight load expands only after commit", async () => {
   let release;
-  const wait = new Promise((resolve) => { release = resolve; });
-  const f = fixture({ wait }); f.advance("2024-11-06T14:00:00Z");
+  const wait = new Promise((resolve) => {
+    release = resolve;
+  });
+  const f = fixture({ wait });
+  f.advance("2024-11-06T14:00:00Z");
   const narrow = f.cache.open({ ...request, start: sessions[1] });
   const wider = f.cache.open(request);
   release();
   const [one, two] = await Promise.all([narrow.settled, wider.settled]);
   assert.equal(one.result.actual.start, sessions[1]);
-  assert.equal(two.status, "ready"); assert.equal(two.result.actual.start, sessions[0]);
+  assert.equal(two.status, "ready");
+  assert.equal(two.result.actual.start, sessions[0]);
   assert.equal(f.calls.length, 4);
 });

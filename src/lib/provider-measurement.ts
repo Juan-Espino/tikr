@@ -1,4 +1,5 @@
 import "server-only";
+import { traceFields } from "./market-trace.ts";
 export type ProviderMeasurement = {
   requests: number;
   responses: number;
@@ -27,6 +28,32 @@ export function measuredTransport(
     const settlement = await reserve();
     metrics.requests++;
     const response = await transport(url, init);
+    let operation = "other";
+    try {
+      const path = new URL(
+        typeof url === "string" ? url : url instanceof URL ? url.href : url.url,
+      ).pathname;
+      operation =
+        (
+          {
+            "/v2/calendar": "calendar",
+            "/v2/assets": "catalog",
+            "/v2/stocks/bars": "bars",
+            "/v1/corporate-actions": "actions",
+          } as Record<string, string>
+        )[path] ?? "other";
+    } catch {
+      /* Only fixed operation names may reach diagnostics. */
+    }
+    console.error(
+      JSON.stringify({
+        event: "market_provider_response",
+        stage: "provider",
+        operation,
+        status: response.status,
+        ...traceFields(),
+      }),
+    );
     metrics.responses++;
     if (!response.body) {
       if (typeof settlement === "function")

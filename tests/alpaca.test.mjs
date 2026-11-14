@@ -136,9 +136,10 @@ test("observed bars contradicting genuine inception block conversion", async () 
   delete younger.prices.AAA["2024-01-02"];
   const proofs = evidence();
   proofs.inception.AAA.firstAvailable = "2024-01-03";
-  assert.throws(() => backtest(
-    toEngineInput(younger, sessions, proofs, portfolio, "100"),
-  ), (e) => e.code === "SHORT_HISTORY");
+  assert.throws(
+    () => backtest(toEngineInput(younger, sessions, proofs, portfolio, "100")),
+    (e) => e.code === "SHORT_HISTORY",
+  );
   const outsideSessions = structuredClone(candidates);
   outsideSessions.prices.AAA["2024-01-01"] = "100";
   assert.throws(
@@ -643,12 +644,12 @@ test("aggregate byte budget spans separate pages", async () => {
 test("resource configuration rejects invalid or excessive budgets", async () => {
   for (const [field, value] of [
     ["maxTotalBytes", 0],
-    ["maxTotalBytes", 134217729],
+    ["maxTotalBytes", Number.MAX_SAFE_INTEGER + 1],
     ["maxResponseChunks", 0],
     ["maxResponseChunks", 65537],
     ["maxPageRecords", 10001],
-    ["maxTotalBars", 500001],
-    ["maxTotalActions", 100001],
+    ["maxTotalBars", Number.MAX_SAFE_INTEGER + 1],
+    ["maxTotalActions", Number.MAX_SAFE_INTEGER + 1],
   ]) {
     const m = mock([], []);
     await assert.rejects(

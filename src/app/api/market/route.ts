@@ -6,6 +6,7 @@ import {
   marketRequestSchema,
 } from "~/lib/market-contract";
 import { openMarket } from "~/lib/market-runtime";
+import { withMarketTrace } from "~/lib/market-trace";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -14,11 +15,14 @@ const blocked = (
   status = 503,
   retryAt?: number,
   issues?: MarketResponse["issues"],
+  originalFailure?: MarketResponse["originalFailure"],
+  guardState?: MarketResponse["guardState"],
 ) =>
   Response.json(
     {
       status: "blocked",
       code,
+      ...(guardState ? { guardState } : {}),
       ...(retryAt ? { retryAt } : {}),
       ...(issues ? { issues } : {}),
     },
@@ -36,7 +40,17 @@ const blocked = (
       },
     },
   );
+// Trace IDs and retained diagnostic records stay in server logs/storage.
+function browserView(view: MarketResponse) {
+  const publicFields = { ...view };
+  delete publicFields.reference;
+  delete publicFields.originalFailure;
+  return publicFields;
+}
 export async function POST(request: Request) {
+  return withMarketTrace(() => post(request));
+}
+async function post(request: Request) {
   if (!validMarketOrigin(request)) {
     diagnose("origin", "ORIGIN_REJECTED");
     return blocked(hosted() ? "ORIGIN_REJECTED" : "LOCAL_ACCESS_ONLY", 403);
@@ -104,6 +118,8 @@ export async function POST(request: Request) {
           final.code === "REFRESH_COOLDOWN" ? 429 : 503,
           final.retryAt,
           final.issues,
+          final.originalFailure,
+          final.guardState,
         );
       }
       job = { initial: final, settled: Promise.resolve(final) };
@@ -114,12 +130,14 @@ export async function POST(request: Request) {
       async start(controller) {
         try {
           controller.enqueue(
-            encoder.encode(JSON.stringify(job.initial) + "\n"),
+            encoder.encode(JSON.stringify(browserView(job.initial)) + "\n"),
           );
           const final = await job.settled;
           if (final.status === "blocked") diagnose("stream", final.code);
           if (!cancelled)
-            controller.enqueue(encoder.encode(JSON.stringify(final) + "\n"));
+            controller.enqueue(
+              encoder.encode(JSON.stringify(browserView(final)) + "\n"),
+            );
         } catch (error) {
           diagnose("stream", error);
           if (!cancelled)
@@ -173,6 +191,9 @@ export async function POST(request: Request) {
         ? 429
         : 503,
       failure?.retryAt,
+      undefined,
+      failure?.originalFailure,
+      failure?.guardState,
     );
   }
 }

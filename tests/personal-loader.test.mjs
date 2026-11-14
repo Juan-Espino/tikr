@@ -711,3 +711,164 @@ test("acquiree-only cash mergers without an acquirer do not turn an older expans
     (e) => e.code === "EVIDENCE_CHANGED",
   );
 });
+
+test("action rejection logs bounded reason and trace without event payloads", async () => {
+  const { withMarketTrace } = await import("../src/lib/market-trace.ts");
+  const c = candidate();
+  c.actions = [
+    {
+      id: "private-provider-id",
+      symbol: "SPY",
+      date: days[1],
+      kind: "cash_dividends",
+      amount: "987.65",
+      paymentDate: days[2],
+      issues: ["unsupported dividend terms", "private-provider-text"],
+    },
+  ];
+  const logs = [];
+  const original = console.error;
+  console.error = (line) => logs.push(JSON.parse(line));
+  try {
+    assert.throws(
+      () => withMarketTrace(() => provisionalAsset(c, calendar, "SPY")),
+      /UNSUPPORTED_ACTION/,
+    );
+  } finally {
+    console.error = original;
+  }
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].reason, "unverified_dividend_terms");
+  assert.match(logs[0].trace, /^[a-f0-9-]{36}$/);
+  assert.equal(logs[0].symbol, "SPY");
+  assert.doesNotMatch(JSON.stringify(logs), /987.65|private-provider/);
+});
+
+test("foreign and special USD distributions retain payment-date cash semantics", async () => {
+  const dividendDays = [...days, "2024-11-06"];
+  const dividendCalendar = {
+    ...calendar,
+    through: dividendDays.at(-1),
+    sessions: dividendDays,
+  };
+  for (const symbol of ["TSM", "ASML"]) {
+    const load = createPersonalLoader(
+      config(async (url) =>
+        ok(
+          url.includes("/bars")
+            ? {
+                bars: {
+                  [symbol]: dividendDays.map((d, i) => ({
+                    t: `${d}T05:00:00Z`,
+                    c: [100, 99, 110, 220][i],
+                  })),
+                },
+                next_page_token: null,
+              }
+            : {
+                corporate_actions: {
+                  cash_dividends: [
+                    {
+                      id: "synthetic-foreign-usd",
+                      symbol,
+                      process_date: days[1],
+                      ex_date: days[1],
+                      payable_date: days[2],
+                      rate: 1,
+                      foreign: true,
+                      special: true,
+                      currency: "USD",
+                      sub_type: "return_of_capital",
+                    },
+                  ],
+                },
+                next_page_token: null,
+              },
+        ),
+      ),
+      dividendCalendar,
+    );
+    const { asset } = await load({
+      symbol,
+      from: days[0],
+      through: dividendDays.at(-1),
+      signal: new AbortController().signal,
+    });
+    const result = backtest({
+      calendar: dividendCalendar,
+      assets: [asset, { ...asset, symbol: "SPY", actions: [] }],
+      portfolios: [{ id: "p", holdings: [{ symbol, weight: "100" }] }],
+      amount: "100",
+      start: days[0],
+      end: dividendDays.at(-1),
+    });
+    // Independent oracle: one share, $1 receivable after ex-date; payment close
+    // buys 1/110 additional shares. Payment value is $111; the next $220 close must produce $222,
+    // rather than $221 from leaving the dividend as cash.
+    assert.equal(result.portfolios[0].ending, "222");
+    assert.equal(result.portfolios[0].points[1].value, "100");
+  }
+});
+
+test("all Alpaca foreign dividend rates use reported USD cash regardless of metadata", async () => {
+  const dates = [...days, "2024-11-06"];
+  const cal = { ...calendar, through: dates.at(-1), sessions: dates };
+  for (const symbol of ["TSM", "ASML", "SONY", "BABA"]) {
+    for (const currency of [undefined, "USD", "TWD", "EUR"]) {
+      const load = createPersonalLoader(
+        config(async (url) =>
+          ok(
+            url.includes("/bars")
+              ? {
+                  bars: {
+                    [symbol]: dates.map((d, i) => ({
+                      t: `${d}T05:00:00Z`,
+                      c: [100, 99, 110, 220][i],
+                    })),
+                  },
+                  next_page_token: null,
+                }
+              : {
+                  corporate_actions: {
+                    cash_dividends: [
+                      {
+                        id: "synthetic-provider-cash",
+                        symbol,
+                        process_date: days[1],
+                        ex_date: days[1],
+                        payable_date: days[2],
+                        rate: 0.79,
+                        foreign: true,
+                        special: false,
+                        ...(currency ? { currency } : {}),
+                      },
+                    ],
+                  },
+                  next_page_token: null,
+                },
+          ),
+        ),
+        cal,
+      );
+      const { asset } = await load({
+        symbol,
+        from: dates[0],
+        through: dates.at(-1),
+        signal: new AbortController().signal,
+      });
+      assert.equal(asset.actions[0].amount, "0.79");
+      const result = backtest({
+        calendar: cal,
+        assets: [asset, { ...asset, symbol: "SPY", actions: [] }],
+        portfolios: [{ id: "p", holdings: [{ symbol, weight: "100" }] }],
+        amount: "100",
+        start: dates[0],
+        end: dates.at(-1),
+      });
+      // One share + $0.79 reported cash. No 21% gross-up, extra tax,
+      // FX conversion or ADR ratio. Payment buys .79/110 shares; at220 =>221.58.
+      assert.equal(result.portfolios[0].ending, "221.58");
+      assert.equal(result.portfolios[0].points[1].value, "99.79");
+    }
+  }
+});

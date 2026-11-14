@@ -1,5 +1,6 @@
 import "server-only";
 import { AlpacaError } from "./alpaca/adapter.ts";
+import { traceFields } from "./market-trace.ts";
 
 const codes = new Set([
   "BROWSING_RATE_LIMIT",
@@ -62,7 +63,9 @@ export function diagnose(stage: MarketStage, error: unknown) {
     typeof candidate === "string" && codes.has(candidate)
       ? candidate
       : "UNKNOWN_FAILURE";
-  console.error(JSON.stringify({ event: "market_failure", stage, code }));
+  console.error(
+    JSON.stringify({ event: "market_failure", stage, code, ...traceFields() }),
+  );
 }
 export function providerCredentials(
   env: Record<string, string | undefined> = process.env,

@@ -1,3 +1,15 @@
+## Owner-approved Alpaca dividend interpretation (2026-11-13)
+
+For all tickers in the personal Alpaca integration, treat the provider's reported
+cash-dividend `rate` as USD cash per traded share/ADR. Accept foreign, missing-currency
+and other currency metadata without converting or multiplying that rate. Retain any
+withholding already reflected in the provider amount; apply no additional FX, ADR
+ratio, tax gross-up or tax deduction. This is an owner-approved application assumption,
+not an independently established provider guarantee for every record. It supersedes
+the earlier blanket foreign-dividend rejection and the claim that all results exclude
+source withholding. Positive amounts, interpretable ex/payment dates, payment-date
+reinvestment, split/dividend ordering, shared periods and complete holdings remain.
+
 Owner-approved operational history feedback (2026-11-11): backend, storage, budget and evidence-guard failures show concise professional unavailable/retry copy in the app; do not expose operator recovery instructions or raw technical errors. Keep technical causes in sanitized server diagnostics. Preserve specific ticker/history limitations and known retry timing, without inventing inception or prices. Provisional-source disclosure accompanies displayed results. Existing layout and approved supporting typography remain.
 
 Owner-approved history periods (2026-11-10): new dashboard sessions, portfolios and drafts default to 1W; comparisons use the active screen's selected period and starting amount. Owner correction (2026-11-11): migrate unmarked legacy 1Y values to 1W, including existing portfolios and drafts. Old v1 storage cannot distinguish explicit 1Y from the former default; disclose this ambiguity and let the owner select 1Y again. Record future explicit choices and preserve them. Other saved periods and the Max-to-5Y migration remain.
@@ -172,3 +184,44 @@ The implementation uses untrusted IndexedDB monthly hints plus bounded process
 history, with server root validation, and deduplicates holdings and
 SPY across portfolios, preserve authoritative legacy guards and corrections.
 No auth/profiles/cloud portfolios scaffolding is in scope. Implementation details and verification are in [market-redesign-checkpoint.md](market-redesign-checkpoint.md).
+
+
+## Owner-authorized development history recovery (November13)
+
+Operational status distinguishes an active refresh, an interrupted refresh eligible
+for explicit Retry, unresolved legacy observation review, a known cooldown/retry
+time, and ticker-specific unsupported/missing history. Browser errors may show a
+server-generated reference; technical diagnostics remain sanitized and server-side.
+This implements the owner's November12 recovery scope without changing investment
+methodology, required holdings, selected-period coverage, licensing, or production
+activation. Development verification and remaining cache-loss/allowance limits are
+recorded in [history-refresh-journal.md](history-refresh-journal.md).
+
+## Owner decision November13: temporary DEV refresh relief
+
+Until further owner notice, daily source-attempt and one-minute refresh lockouts
+may be bypassed ONLY on DEV stoic-corgi-586 when its private
+TIKR_DEV_REFRESH_RELIEF=explicit flag is enabled. The platform's exact site URL
+must also match; the production URL cannot enable this override. Retain counters,
+active lease protection, guards, revocations, validation and shared resource caps.
+Production policy is unchanged and must pass separate normal-limit regressions.
+No unlimited spending or repeated task-ceiling increases are authorized.
+
+Owner approved actual Convex usage warnings35%,urgent45%,targetstop50% monthly.
+Owner-only localreviewbanner showsactualconfiguredusage and incomplete/stalecoverage.
+Native DEVmonthlycallprotection replaces tiny taskcallcap; no new product quotas
+or financial changes. Productionusage-onlyread hookup separatelyauthorized; no
+productionsettingschanged. NativefractionalGBhardstopunsupported, so no whole-team
+50%I/O guarantee. See convex-usage-monitoring.md for exact active/inactive controls.
+
+Owner decision (2026-11-13): portfolio cards omit the provisional Alpaca informational disclosure; retain actionable refresh/history errors and synthetic QA labels.
+
+Owner decision (2026-11-13, MVP continuation) supersedes earlier quota and UI guidance:
+remove operational rate/budget/daily/cooldown enforcement from shared source for DEV
+and future production rollout; delete owner usage monitor UI and quota overrides.
+Keep financial validation, trusted revision/lease/revocation correctness and platform
+serialization bounds. Dashboard reload recovers expired work; editor Retry remains.
+Error references and retained diagnostics are backend-only. See mvp-history-readiness.md
+for exact evidence and the unresolved foreign missing-currency data blocker. Do not
+claim that insufficient history is the only possible failure or that live foreign
+amounts were verified merely because their source contains prices.
