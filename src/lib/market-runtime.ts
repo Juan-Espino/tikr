@@ -270,6 +270,25 @@ async function openConfiguredMarket(
     } catch (error) {
       let failure = marketFailure(error);
       let recoverable = false;
+      // Give an existing owner a short chance to finish; never duplicate its
+      // provider work. Recheck trust/ownership on every poll, including revocation.
+      for (
+        let poll = 0;
+        poll < 8 &&
+        failure?.code === "REFRESH_GUARDED" &&
+        failure.guardState === "active";
+        poll++
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        try {
+          await control("check", scope, symbols);
+          failure = undefined;
+          recoverable = true;
+        } catch (nextError) {
+          failure = marketFailure(nextError);
+          if (!failure) throw nextError;
+        }
+      }
       if (
         failure?.code === "REFRESH_GUARDED" &&
         failure.guardState === "abandoned"

@@ -8,6 +8,19 @@ import schema from "./schema";
 vi.mock("server-only", () => ({}));
 import { validMarketOrigin, gateway } from "../src/lib/market-hosted";
 const modules = import.meta.glob("./**/*.ts");
+const leaseToken = "11111111-1111-1111-1111-111111111111";
+async function seedLease(t: ReturnType<typeof convexTest>, symbol: string) {
+  await t.run((ctx) =>
+    ctx.db.insert("marketLeases", {
+      key: `asset:${symbol}`,
+      token: leaseToken,
+      expires: Date.now() + 60000,
+      attemptedAt: Date.now(),
+      attempts: 1,
+      cycle: "2026-11-14",
+    }),
+  );
+}
 
 test("overlapping hosts cannot exceed concurrency or both acquire a refresh guard", async () => {
   const t = convexTest(schema, modules);
@@ -49,6 +62,7 @@ test("overlapping hosts cannot exceed concurrency or both acquire a refresh guar
     t
       .mutation(makeFunctionReference<"mutation">("hosted:control"), {
         op,
+        leaseToken: op === "begin" ? leaseToken : undefined,
         scope,
         token,
         bucket,
@@ -65,6 +79,7 @@ test("overlapping hosts cannot exceed concurrency or both acquire a refresh guar
   );
   expect(entries.filter((r) => r.status === "fulfilled")).toHaveLength(8);
   expect(entries.filter((r) => r.status === "rejected")).toHaveLength(0);
+  await seedLease(t, "SPY");
   const guards = await Promise.allSettled(
     tokens.slice(0, 2).map((token) => call("begin", token, 0, ["SPY"])),
   );
@@ -180,6 +195,7 @@ test("two hosts share bounded admission, persistent guards, revocation and month
       t
         .mutation(makeFunctionReference<"mutation">("hosted:control"), {
           op,
+          leaseToken: op === "begin" ? leaseToken : undefined,
           scope,
           token,
           symbols,
@@ -203,6 +219,7 @@ test("two hosts share bounded admission, persistent guards, revocation and month
   const ids = Array.from({ length: 4 }, () => crypto.randomUUID());
   for (const id of ids) await a("enter", id, [], 1);
   await expect(b("enter", token, [], 2)).resolves.toBeNull();
+  await seedLease(t, "SPY");
   await a("begin", token, ["SPY"]);
   await expect(b("check", crypto.randomUUID(), ["SPY"])).rejects.toThrow(
     "REFRESH_GUARDED",
@@ -271,8 +288,10 @@ test("catalog eligibility accepts nineteen distinct compared symbols and rejects
       symbols: ["UNKNOWN"],
     }),
   ).rejects.toThrow("INVALID_CONTROL");
+  await seedLease(t, "NEW0");
   await t.mutation(makeFunctionReference<"mutation">("hosted:control"), {
     ...args,
+    leaseToken,
     op: "begin",
     symbols: ["NEW0"],
   });

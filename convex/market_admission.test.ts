@@ -85,6 +85,7 @@ async function fixture() {
     otherCalls: 0,
     reviewedThrough: Date.now() + 86400000,
   });
+  const leaseToken = crypto.randomUUID();
   const call = (
     op: string,
     visitor = "a".repeat(64),
@@ -93,6 +94,7 @@ async function fixture() {
   ) =>
     t.mutation(ref("hosted:control"), {
       op,
+      leaseToken: op === "begin" ? leaseToken : undefined,
       visitor,
       token,
       symbols,
@@ -104,7 +106,7 @@ async function fixture() {
     await call("leave", visitor, token);
     return result;
   };
-  return { t, call, open };
+  return { t, call, open, leaseToken };
 }
 test("ordinary browsing exceeds the former daily caps, refills, and retains historical counters", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -143,6 +145,16 @@ test("visitor registry no longer bounds admission; guards and revocations surviv
   const f = await fixture();
   for (let i = 0; i < 260; i++)
     expect(await f.open(i.toString(16).padStart(64, "0"))).toBeNull();
+  await f.t.run((ctx) =>
+    ctx.db.insert("marketLeases", {
+      key: "asset:SPY",
+      token: f.leaseToken,
+      expires: Date.now() + 60000,
+      attemptedAt: Date.now(),
+      attempts: 1,
+      cycle: "2026-11-14",
+    }),
+  );
   await f.call("begin", undefined, undefined, ["SPY"]);
   await f.call("revoke");
   expect((await f.call("check"))?.code).toBe("EVIDENCE_REVOKED");

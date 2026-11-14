@@ -4,7 +4,7 @@ import {
   REVIEWED_V5_SCOPE,
 } from "../src/lib/market-policy";
 import { catalogShard, validateShard } from "../src/lib/asset-catalog";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { limiter } from "./market_limits";
 import { v } from "convex/values";
@@ -325,6 +325,8 @@ export const control = internalMutation({
           ...(failure ? { failure } : {}),
         };
       }
+      if (a.op === "begin" && a.symbols.length !== 1)
+        throw Error("INVALID_CONTROL");
       if (a.op === "begin")
         for (const symbol of a.symbols) {
           const k = `${a.scope}:${symbol}`;
@@ -353,6 +355,14 @@ export const control = internalMutation({
             )
           )
             return { code: "REFRESH_GUARDED" };
+          // Never create token-only guards: every new refresh must be fenced.
+          if (
+            !a.leaseToken ||
+            !lease ||
+            lease.token !== a.leaseToken ||
+            lease.expires <= now
+          )
+            throw Error("LEASE_LOST");
           if (!s.guards[k] && Object.keys(s.guards).length >= 96)
             throw Error("GUARD_LIMIT");
           if (lease?.pendingAttempt && a.leaseToken === lease.token)
@@ -361,7 +371,6 @@ export const control = internalMutation({
               pendingAttempt: undefined,
             });
           s.guards[k] = a.token;
-          if (!a.leaseToken || !lease) continue;
           s.observations ??= {};
           s.observations[k] = {
             token: a.token,
@@ -462,5 +471,74 @@ export const reconcileLegacy = internalMutation({
     };
     await save(ctx, row._id, state);
     return null;
+  },
+});
+
+// Operator-only metadata. Never routed through the public market gateway.
+export const recoveryMetadata = internalQuery({
+  args: { symbols: v.array(v.string()), asOf: v.number() },
+  returns: v.array(
+    v.object({
+      key: v.string(),
+      token: v.string(),
+      state: v.union(
+        v.literal("active"),
+        v.literal("abandoned"),
+        v.literal("legacy"),
+        v.literal("revoked"),
+      ),
+      expectedHead: v.union(v.string(), v.null()),
+      expectedLeaseToken: v.union(v.string(), v.null()),
+      leaseExpires: v.number(),
+      observationExpires: v.union(v.number(), v.null()),
+    }),
+  ),
+  handler: async (ctx, { symbols, asOf }) => {
+    if (!Number.isSafeInteger(asOf) || asOf <= 0)
+      throw Error("INVALID_CONTROL");
+    if (
+      symbols.length > 19 ||
+      symbols.some((s) => !/^[A-Z][A-Z0-9.-]{0,15}$/.test(s))
+    )
+      throw Error("INVALID_CONTROL");
+    const row = await ctx.db
+      .query("marketHosted")
+      .withIndex("by_key", (q) => q.eq("key", "global"))
+      .unique();
+    if (!row) return [];
+    const state = JSON.parse(row.payload) as State;
+    const guards = Object.entries(state.guards);
+    if (guards.length > 96) throw Error("GUARD_LIMIT");
+    const result = [];
+    for (const [key, token] of guards) {
+      const [scope, symbol] = key.split(":");
+      if (!symbol || !symbols.includes(symbol)) continue;
+      const lease = await ctx.db
+        .query("marketLeases")
+        .withIndex("by_key", (q) => q.eq("key", `asset:${symbol}`))
+        .unique();
+      const head = await ctx.db
+        .query("marketEntries")
+        .withIndex("by_key", (q) => q.eq("key", `asset:${symbol}`))
+        .unique();
+      const observation = state.observations?.[key];
+      const classification = state.revoked.includes(scope!)
+        ? ("revoked" as const)
+        : !observation || observation.token !== token
+          ? ("legacy" as const)
+          : Math.max(observation.expires, lease?.expires ?? 0) > asOf
+            ? ("active" as const)
+            : ("abandoned" as const);
+      result.push({
+        key,
+        token,
+        state: classification,
+        expectedHead: head?.revision ?? null,
+        expectedLeaseToken: lease?.token ?? null,
+        leaseExpires: lease?.expires ?? 0,
+        observationExpires: observation?.expires ?? null,
+      });
+    }
+    return result;
   },
 });
