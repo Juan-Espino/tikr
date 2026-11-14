@@ -1,3 +1,59 @@
+## Current project status - reconciled 2026-11-14
+
+This summary supersedes historical uncommitted/no-PR/DEV-only checkpoints below.
+
+- Main at reconciliation start: `7172173045b8aff5541522105b6fc236f2a57387`, clean.
+  [PR 19](https://github.com/Juan-Espino/tikr/pull/19) merged November 14 04:03:57 UTC
+  (history recovery/general dividend handling); [PR 20](https://github.com/Juan-Espino/tikr/pull/20)
+  merged November 14 16:37:46 UTC (fenced guard creation/recovery inventory).
+  Prevention hardening is on main, not pending another source PR.
+- PR 20 Vercel and Preview Comments checks succeeded. These are PR checks, not
+  independent post-merge frontend/backend version verification. The owner reports
+  production working. This doc pass made no live request or deployment.
+- Owner-approved production AMZN repair succeeded before PR 20 merged: exact legacy
+  CAS, replacement refresh, six shared AMZN/SPY sessions November 6-13, stored content,
+  completed lease and settled guard. Other guards/revocations preserved. The original
+  worker interruption remains unknown. See production-history-recovery.md.
+- Implemented: real provisional Alpaca history/catalog through the server, durable
+  normalized monthly payloads/fenced heads in Convex, disposable IndexedDB/process
+  accelerators, local portfolios/drafts, allocations, SPY and comparisons.
+  Not implemented: real Google authentication, profiles/cloud portfolios or Groq.
+- General dividend assumption: reported cash rate is USD per traded share/ADR,
+  retain embedded withholding, no extra FX/ADR-ratio/gross-up. Missing currency or
+  foreign flags do not alone block normalization. This is the owner's application
+  assumption, not an established provider-wide guarantee. Financial validation stays.
+- Operational app rate/budget/daily/cooldown enforcement, owner usage monitor and
+  DEV native call cutoff were removed by later owner decision. Keep counters,
+  guards/revocations, ownership/fencing and input/serialization/provider-concurrency
+  bounds. Older quota/DEV-relief/monitor entries do not describe active controls.
+- Recorded acceptance: dividend checkpoint 207 Node/68 Convex-runtime cases; later
+  guard hardening 69 Convex-runtime cases, focused 12 and lint/types/build passed.
+  Counts describe their own checkpoints, not a new combined test run. Next-day
+  live check 6 remains explicitly skipped; licensing and exhaustive provider
+  finality/correction/action evidence remain unresolved. No fresh tests claimed here.
+
+### Next project milestone - recommendation, not implementation approval
+
+Google-only Better Auth sign-in and owner-scoped cloud portfolio saving. Preserve
+public guest experimentation and local portfolios/drafts. Offer explicit idempotent
+local-to-account import, retain local copies, require user resolution of duplicate
+names (no silent renaming), and enforce ownership on every server read/write.
+Verify sign-out/account switching, two independent users and cross-device/reload
+persistence. Design account deletion/retention and OAuth configuration before rollout.
+No credentials, provisioning or deployment is authorized by this recommendation.
+
+Then: catalog-grounded Groq theme discovery with separately approved AI quotas;
+then a broader-release pass for data display/cache rights, privacy/terms, honest
+landing/sign-in copy and deliberate abuse/cost protection under a newly approved
+policy. No removed limits are silently reinstated. The four Post-MVP polish items
+below remain explicitly deferred; preserve the scoped incident fixes already merged.
+
+### Historical implementation evidence
+
+Entries below describe their dated checkpoints. Later owner decisions, merges and
+this summary take precedence; old no-publication/DEV-only statements are not the
+current source status or blanket authorization for future operations.
+
 ## Production AMZN repair completed - 2026-11-14
 
 Owner authorized exact legacy-guard CAS and one replacement refresh. Preflight
@@ -6,7 +62,8 @@ returned 200 ready with AMZN/SPY on six shared dates November 6-13. Readback con
 replacement history, completed lease and settled AMZN guard; other guards and
 revocations unchanged. Three direct Convex HTTP calls plus one public market call;
 internal Convex/provider counts unknown (not zero). No prod deployment/env change.
-See production-history-recovery.md. New prevention hardening remains DEV-only.
+See production-history-recovery.md. This repair preceded PR20; prevention
+hardening has subsequently merged into main (see current summary).
 
 ## Guard recovery hardening - 2026-11-14
 
@@ -38,7 +95,7 @@ failures revalidate using a separate cache revision, preserving authoritative gu
 and revocations. Final207Node/68Convex tests, lint/types/build pass; SolLowreviewpass.
 Terra fullAI1Y/5Y/reloadready; no currencyerror/publicreference. RealQA recorded17
 providercalls againstplanned12: overrunexplicitlydocumented, no furtherlivechecks.
-Source uncommitted; noPR. Main clean; ownerreview43202running. Four reliability items
+This checkpoint preceded PR19; source is now on main. Four reliability items
 remain **Post-MVP polish**, deferred. See mvp-history-readiness.md finalsection.
 
 ## Current owner direction ? 2026-11-13

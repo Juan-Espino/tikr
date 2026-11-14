@@ -1,3 +1,26 @@
+## Current product status - reconciled 2026-11-14
+
+PR 19/20 are merged on main at `7172173`; see plan.md for evidence and next milestone.
+Implemented: Alpaca catalog search and provisional historical simulations, durable
+monthly history, SPY/comparisons, browser-local portfolios/drafts and IndexedDB hints.
+Google sign-in remains a preview; accounts/cloud portfolio saving and Groq discovery
+remain future features. Public unauthenticated experimentation stays approved.
+
+Current choices: 1W defaults with explicit saved choices retained;1W/1M/YTD/1Y/5Y,
+no Max; reported-USD cash dividend assumption for all tickers, retaining provider
+withholding and applying no extra conversion/gross-up. Operational app quotas,
+daily/cooldown lockouts and the usage monitor were removed. Keep bounded inputs,
+provider concurrency and correctness leases/fencing/revocations. Dashboard Retry
+and public error references are removed; editor Retry remains. Cards omit the
+informational Alpaca disclosure per owner decision; methodology/results assumptions
+and synthetic QA labeling remain accurate. Public display/cache rights are unresolved.
+
+Older proposals/checkpoints below are historical where superseded: initial 1Y/Max,
+blanket foreign-currency rejection, unimplemented history, DEV-only relief and usage
+warnings are not current requirements. The four Post-MVP polish items stay deferred.
+Next recommendation is Google sign-in and owner-scoped cloud saving, not authorization
+to implement or activate it.
+
 ## Owner-approved Alpaca dividend interpretation (2026-11-13)
 
 For all tickers in the personal Alpaca integration, treat the provider's reported
@@ -87,12 +110,12 @@ Core promise: build a hypothetical portfolio, explore its history, and compare a
 - Historical backtesting only: apply selected allocations to past data. No forward paper-trading ledger or prediction.
 - Editable starting amount, lump-sum investment, USD, buy-and-hold, no recurring contributions or silent rebalancing.
 - U.S.-listed stocks/ETFs and end-of-day data. Owner-approved methodology uses ex-date dividend receivables and same-asset payment-close reinvestment; see `backtest-methodology.md`.
-- Timeframes: 1W, 1M, YTD, 1Y, 5Y, maximum available, conditional on licensed data coverage.
+- Timeframes: 1W, 1M, YTD, 1Y, 5Y, conditional on actual coverage and intended-use rights. Max is removed.
 - Compared series use identical dates, starting amount, contribution assumptions, and return methodology, not each saved portfolio's individual settings.
-- Presets anchor to the latest completed New York session, subtract calendar duration, clamp nonexistent target dates to month end, then roll forward. YTD starts on/after Jan 1; Max uses earliest verified common history. Enter at first eligible close on/after requested start; end at last completed close on/before requested end. Confirmed short history blocks the whole requested period with ticker-level explanation; gaps, outages/access failures and unsupported actions stop, never silently omit holdings or use cash-until-listing.
+- Presets anchor to the latest completed New York session, subtract calendar duration, clamp nonexistent target dates to month end, then roll forward. YTD starts on/after Jan 1; Max is no longer offered. Enter at first eligible close on/after requested start; end at last completed close on/before requested end. Confirmed short history blocks the whole requested period with ticker-level explanation; gaps, outages/access failures and unsupported actions stop, never silently omit holdings or use cash-until-listing.
 - Owner update (2026-10-30): VOO is no longer mandatory; another verified ETF tracking the general S&P 500 is acceptable as the benchmark. Earlier VOO-specific defaults and references describe the original choice; they do not require retaining VOO after this decision. Owner selected SPY for the frontend demo on 2026-10-30; real-data integration is separate. Identify the actual ETF by ticker and do not label its returns as the index itself.
 - Default to percentage growth with an optional dollar-value view. Label SPY as an ETF benchmark/proxy, not the S&P 500 index itself.
-- Show actual simulation dates, data-as-of date, assumptions, and any shortened shared history.
+- Show actual simulation dates, data-as-of date, assumptions, and any coverage limitation; do not silently shorten the selected period.
 - Never silently omit a holding, fabricate pre-inception prices, or compare mismatched date ranges as equivalent.
 - Editing holdings recalculates hypothetical history; it does not imply historical ownership.
 - Each preset starts a fresh investment; verified exchange sessions define common actual boundaries as described in `backtest-methodology.md`.
@@ -131,19 +154,19 @@ Model, exact cooldown, Unicode length rules, failure/cache-hit accounting, retri
 
 ## Intended stack and data constraint
 
-Next.js, TypeScript, Tailwind CSS, shadcn/ui, Convex, Better Auth with Google, Groq, Vercel, and v0 for initial UI exploration. The frontend demo and route refactor are now merged into the actual app's main branch. Next.js 15, React 19, TypeScript 5, Tailwind CSS 4, and the existing Convex provider are retained; the UI includes Manrope, Base UI-backed component foundations, and Recharts. Better Auth, Groq, real history, and durable portfolio storage remain unimplemented. Deployment has not been verified. Browser-local persistence and generated sample series must not be presented as account-backed or real market results.
+Next.js, TypeScript, Tailwind CSS, shadcn/ui, Convex, Better Auth with Google, Groq, Vercel, and v0 for initial UI exploration. The frontend demo and route refactor are now merged into the actual app's main branch. Next.js 15, React 19, TypeScript 5, Tailwind CSS 4, and server-side Convex integration are retained; the UI includes Manrope, Base UI-backed component foundations, and Recharts. Better Auth, Groq and account-backed portfolio storage remain unimplemented. Real provisional Alpaca history and durable monthly history storage are implemented; portfolio definitions remain browser-local. Keep sample data and preview authentication labeled honestly.
 
 Market data must be free for the intended use. Free API access alone does not establish permission for public display, caching, derived analytics, or AI processing.
 
 Owner decision (2026-10-30): Tikr is strictly non-commercial for the current scope, with no planned ads or subscriptions. The licensed data path must support up to five years of daily history for assets with sufficient actual history; a shorter provider-wide history window is not an acceptable replacement. Preserve inception/common-date safeguards for younger assets. Research alternatives if the initial shortlist cannot meet free access and intended public-use permissions. This does not approve a provider or expand service/provisioning authorization. The earlier maximum-available option remains conditional on licensed coverage; support beyond five years is not required by this decision.
 
-Alpaca is the owner-selected technical candidate for personal, non-commercial use. Owner-reported account tests verified representative five-year daily raw/adjusted SIP history including SPY; this is not proof of payment-date reinvestment equivalence or public/shared licensing. Adjusted bars must not be used as a proven total-return substitute or combined with double dividend credit. The offline engine is provider-independent and is not connected to Alpaca, the UI, a cache or Convex. Public/shared rights, provider action/completed-bar evidence, measured cache/refresh costs and separately scoped integration remain open. Do not silently choose paid access.
+Alpaca is the owner-selected technical candidate for personal, non-commercial use. Owner-reported account tests verified representative five-year daily raw/adjusted SIP history including SPY; this is not proof of payment-date reinvestment equivalence or public/shared licensing. Adjusted bars must not be used as a proven total-return substitute or combined with double dividend credit. The financial engine is provider-independent; the server pipeline connects normalized Alpaca inputs, caches/Convex and the results UI. Public/shared rights, provider action/completed-bar evidence, measured cache/refresh costs and separately scoped integration remain open. Do not silently choose paid access.
 
 Cache shared history where permitted instead of refetching per card. Distinguish stale data, missing data, and failed calculations. Enforce saved-portfolio ownership server-side. Specify account deletion, retention, session expiry, and privacy/terms before launch.
 
 ## Proposed experience defaults
 
-- $10,000 starting amount and 1Y initial period.
+- $10,000 starting amount and owner-approved 1W initial period; preserve explicit saved choices.
 - Landing copy: Build a portfolio. Explore its past.
 - Optional example and deterministic localStorage-backed prototype before integrations.
 - Implemented frontend routes: `/`, `/sign-in`, `/dashboard`, `/portfolio/[id]`. The earlier `/login` proposal is superseded by `/sign-in`; guest/new portfolio handling is currently part of the local demo flow.
@@ -222,6 +245,6 @@ and future production rollout; delete owner usage monitor UI and quota overrides
 Keep financial validation, trusted revision/lease/revocation correctness and platform
 serialization bounds. Dashboard reload recovers expired work; editor Retry remains.
 Error references and retained diagnostics are backend-only. See mvp-history-readiness.md
-for exact evidence and the unresolved foreign missing-currency data blocker. Do not
+for exact evidence and the owner-approved general reported-USD dividend assumption. Do not
 claim that insufficient history is the only possible failure or that live foreign
 amounts were verified merely because their source contains prices.

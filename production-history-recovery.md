@@ -1,3 +1,20 @@
+## Current recovery status - reconciled 2026-11-14
+
+AMZN repair completed: private metadata backup, no active hosted owner, exact
+legacy guard/lease/head CAS, one AMZN 1W public refresh, then readback of complete
+monthly-v 2 content, completed lease and settled guard. Six finite AMZN/SPY points
+November 6-13 were returned; other guards/revocations preserved. Direct cost:two
+read-only Convex HTTP calls, one CAS HTTP call, one public market request. Internal
+provider/Convex counts remain unknown; private artifacts stay outside Git.
+
+PR 20 prevention hardening is merged at `7172173`; PR 19 history/dividend changes
+are also merged. Earlier pending-AMZN/DEV-only paragraphs below are pre-repair or
+pre-merge checkpoints. Original worker failure remains unknown. The general runbook
+is a proposal for future operations, not permission for another repair. Operational
+quotas and DEV relief are no longer active source policy. Preserve validation,
+leases/fencing/revisions/revocations. Verify fresh metadata and actual deployed
+versions before any separately approved recovery. No new production action here.
+
 # Production history rollout and recovery proposal
 
 Status: reviewable procedure only. Apart from the explicitly authorized metadata

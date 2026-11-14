@@ -22,11 +22,17 @@ Convex agent skills for common tasks can be installed by running
 
 Keep confirmed requirements distinct from assistant proposals. Explicit owner decisions override older documentation; reconcile the affected documents. A v0 prompt does not prove implementation exists.
 
-## Application baseline (2026-10-30)
+## Current application baseline (reconciled 2026-11-14)
 
 Correct repository: `C:\Users\JuanE\Code\React Projects\tikr`, branch `main`. This is a runnable-app source tree, not the unrelated outer repository with an unmapped gitlink.
 
-Verified source: the portfolio demo frontend and App Router refactor are merged into `main` at `06b8ef3`. Landing, dashboard, sign-in, and portfolio pages share a browser-local portfolio/draft provider. The UI includes Manrope, charts, Base UI-backed component foundations, and the wireframe globe. The existing Convex provider remains, but portfolio persistence still uses localStorage. Better Auth, Groq, licensed market history, and server-enforced portfolio ownership are not implemented. Frontend completion is not production readiness.
+Verified main source includes PR19/20 at `7172173`: real provisional Alpaca
+history/catalog search, durable normalized monthly history in Convex, fenced
+refresh recovery, browser IndexedDB hints, comparisons and bear branding.
+Portfolio definitions/drafts remain browser-local. Google sign-in is a preview;
+Better Auth, Groq and owner-scoped cloud portfolios are not implemented. Public
+market-data display/cache rights remain unresolved. See current plan.md status;
+older checkpoints are historical evidence, not current source status.
 
 Use pnpm: the manifest specifies `pnpm@10.11.0` and `pnpm-lock.yaml` is tracked. Preserve the Convex managed instructions above. Before Convex code changes, read `convex/_generated/ai/guidelines.md`. Generated files should not be edited as application source. `CLAUDE.md` contains parallel Convex guidance; it was not modified by the documentation transfer.
 
@@ -50,7 +56,7 @@ Use pnpm: the manifest specifies `pnpm@10.11.0` and `pnpm-lock.yaml` is tracked.
 - Pin portfolios, but do not add manual ordering or drag-and-drop.
 - Matte near-black surfaces, Manrope, stone-white text/charts; no pastel dashboard cards. The bright login panel is intentional.
 - Groq interprets category queries; a verified catalog supplies supported assets. No unchecked model tickers, personalized buy/sell advice, or AI forecasts.
-- Enforce input size, per-user, concurrency, and shared request/token limits server-side. Exact proposed limits in `product.md` are not yet approved.
+- Bound input sizes/provider concurrency and preserve correctness leases/fencing/revocations. The owner removed operational market rate/budget/daily/cooldown enforcement; do not restore it from historical docs. Future AI quotas/abuse policy need separate approval.
 - AI exhaustion must not block normal asset search or portfolio operations. No automatic paid fallback.
 - Alpaca is the personal/non-commercial technical candidate; public/shared data permission is separately gated. The offline engine does not validate provider finality/actions or authorize integration, paid access or secret handling.
 - Label mock data and demo authentication honestly.
@@ -80,7 +86,7 @@ Update `plan.md` with evidence-backed status and the next task. Update `product.
 
 ## Personal data integration verification
 
-For the optional personal server integration, read `market-data-integration.md`. Run the Node evidence/durable/admission tests with `--conditions=react-server --experimental-strip-types`, and `pnpm exec vitest run` for the local Convex transaction tests. Browser tests use the installed Edge and a credential-cleared loopback dev server; keep screenshots under system temp. Do not deploy or enable real market data merely because synthetic tests pass. Never delete/reset the admission ledger, abandoned refresh guards, locks or revocation markers to bypass evidence/resource gates. Main checkout remains unchanged; work stays in the isolated feature worktree.
+For the optional personal server integration, read `market-data-integration.md`. Run the Node evidence/durable/admission tests with `--conditions=react-server --experimental-strip-types`, and `pnpm exec vitest run` for the local Convex transaction tests. Browser tests use the installed Edge and a credential-cleared loopback dev server; keep screenshots under system temp. Do not deploy or enable real market data merely because synthetic tests pass. Never delete/reset the admission ledger, abandoned refresh guards, locks or revocation markers to bypass evidence/resource gates. Feature implementation stays in an isolated worktree attached to a top-level sidebar-visible T3 chat. Owner-requested project documentation reconciliation may be done in main. A separate chat/worktree means a sidebar chat, not a child agent.
 
 ## Current dividend assumption and deferred polish (owner, 2026-11-13)
 

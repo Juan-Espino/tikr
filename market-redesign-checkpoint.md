@@ -1,3 +1,19 @@
+## Status reconciliation - 2026-11-14
+
+PR 19 (history/dividend recovery) and PR 20 (guard prevention) are merged on main at
+`7172173`. [plan.md](plan.md) is the current status entry point. Earlier no-PR,
+uncommitted and DEV-only statements below describe historical checkpoints, not
+current source status. Production AMZN's approved exact repair succeeded; the
+initiating worker interruption remains unknown. Merge/PR checks do not independently
+certify post-merge production versions. No live request/deployment in this doc pass.
+
+The all-ticker reported-USD cash assumption supersedes foreign/missing-currency
+rejection. Operational app quotas/cooldowns, DEV relief and usage monitor were
+subsequently removed; counters/correctness guards remain. Do not reinstate old
+controls from examples below. Keep financial validation, leases/fencing, revocations
+and input/serialization/provider-concurrency bounds. Four Post-MVP polish items
+remain deferred. No new deployed cleanup/production mutation authorization follows.
+
 # Alpaca / Convex redesign
 
 Implementation in the dedicated history-refresh worktree, based on merged PR18

@@ -1,3 +1,14 @@
+## Current UI status - reconciled 2026-11-14
+
+PR 19/20 are merged. Keep approved bear branding, matte surfaces, Cabinet Grotesk
+titles/Manrope controls and supporting monospace treatment. SPY is the benchmark;
+older VOO references below describe superseded designs. Ranges are 1W/1M/YTD/1Y/5Y,
+with 1W defaults and explicit saved choices retained. Dashboard cards omit Retry and
+informational Alpaca disclosure; editor Retry remains. Public error references and
+owner usage banner are removed. Preserve professional limitations, chart sizing,
+keyboard/touch access and reduced motion. Sign-in is a preview; portfolios remain
+browser-local. No new visual design is approved in this documentation pass.
+
 Owner-approved operational history feedback (2026-11-11): backend, storage, budget and evidence-guard failures show concise professional unavailable/retry copy in the app; do not expose operator recovery instructions or raw technical errors. Keep technical causes in sanitized server diagnostics. Preserve specific ticker/history limitations and known retry timing, without inventing inception or prices. Provisional-source disclosure accompanies displayed results. Existing layout and approved supporting typography remain.
 
 Owner-approved naming flow (2026-11-11): new-portfolio name input starts blank with ?New portfolio? as its placeholder; preview the same label until the user enters a name. Do not show an empty-name or duplicate error on opening or while typing. Validate on Done; keep the editor open, mark the field invalid and show a suggested alternative only after a conflict is submitted. Saving stays disabled for a blank or duplicate name.
@@ -23,7 +34,7 @@ Owner-approved naming feedback (2026-11-05): show name conflicts inline beside t
 Owner update (2026-10-30): use SPY in place of VOO throughout the frontend benchmark controls, legends, difference labels and sample catalog. SPY remains an explicitly named S&P 500 ETF proxy with the existing dashed benchmark styling and tooltip rules. Historical VOO references below record the earlier design; this decision supersedes their ticker choice without changing layout or colors.
 
 
-Last reconciled: 2026-10-30. Visual direction is approved; proposed screen copy/routes remain proposals in `product.md`.
+Last reconciled: 2026-11-14 (current summary above; historical visual decisions retained). Visual direction is approved; proposed screen copy/routes remain proposals in `product.md`.
 
 ## Character
 
