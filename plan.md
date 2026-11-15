@@ -1,3 +1,21 @@
+## PR25 opened - production preparation complete, 2026-11-15
+
+Published [PR25](https://github.com/Juan-Espino/tikr/pull/25), targeting main from
+`t3/guest-examples-signin-save`. Feature commit: 45739ab7cc13f5265bc936cad335587ee1843756.
+All94 Vitest, focused Node20, guest9/cloud10 browser groups, lint/both TypeScript,
+configured-auth credential-cleared production build, changed formatting/diff and
+private-value scans pass. Final fixture build: system temp tikr-cleared-build-ruaJzn;
+guest report tikr-guest-ui-2ptTSs; cloud report tikr-cloud-ui-t9bAyJ. Recovery-race
+and browser-storage-unavailable cloud opening are covered. CI snapshot at opening:
+mergeable, Vercel preview pending, Vercel Preview Comments succeeded; no review yet.
+The GitHub connector returned404, so the existing authenticated gh CLI created PR25;
+T3 PR linking succeeded. Worktree publication contains no env files or credentials.
+
+Next: review PR/remote checks, then obtain separate approval before merge or release.
+No main edit, production service/config/data access or deployment was performed.
+Existing canonical localhost5000 review server is unchanged; synthetic harness stopped.
+Fresh real production Google/cloud smoke and real B remain explicitly unverified.
+
 ## PR readiness preparation - owner authorized 2026-11-15
 
 Final readiness evidence: configured-auth credential-cleared optimized build
