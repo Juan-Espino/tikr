@@ -47,6 +47,15 @@ const env = Object.fromEntries(
 );
 env.NEXT_TELEMETRY_DISABLED = "1";
 env.SKIP_ENV_VALIDATION = "1";
+// Exercise the same client/provider branch used by a configured production app,
+// without copying credentials or contacting a real deployment.
+if (process.argv.includes("--auth-fixture")) {
+  env.NEXT_PUBLIC_CONVEX_URL = "https://build-fixture.convex.cloud";
+  env.NEXT_PUBLIC_CONVEX_SITE_URL = "https://build-fixture.convex.site";
+  console.log(
+    "Synthetic public auth bindings enabled; no live deployment credentials.",
+  );
+}
 console.log("Credential-cleared source build: " + target);
 const child = spawn(
   process.execPath,

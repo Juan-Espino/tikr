@@ -70,6 +70,27 @@ export const portfolioSchema = z
       (p.range === "1Y" ? ("default" as const) : ("explicit" as const)),
   }));
 export type Portfolio = z.infer<typeof portfolioSchema>;
+export function hasUnsavedPortfolio(
+  draft: Portfolio | null,
+  portfolios: Portfolio[],
+) {
+  if (!draft) return false;
+  if (draft.revision === undefined) return true;
+  const saved = portfolios.find((p) => p.id === draft.id);
+  // Acknowledged cloud saves may precede their reactive list update.
+  if (!saved) return false;
+  return (
+    [
+      "name",
+      "amount",
+      "range",
+      "rangeChoice",
+      "manual",
+      "pinned",
+      "holdings",
+    ] as const
+  ).some((key) => JSON.stringify(draft[key]) !== JSON.stringify(saved[key]));
+}
 export function portfolioNameError(p: Portfolio, portfolios: Portfolio[]) {
   if (!p.name.trim()) return "Enter a portfolio name.";
   return portfolios.some(
@@ -156,7 +177,12 @@ export function examples(): Portfolio[] {
       name: "Quiet compounding",
       holdings: equalWeights(["SPY", "SCHD"]),
     },
-  ];
+  ].map((p, index) => ({
+    ...p,
+    id: `example-${index + 1}`,
+    updated: 0,
+    pinned: false,
+  }));
 }
 const end = Date.UTC(2026, 9, 22);
 const starts: Record<Range | "Max", number> = {

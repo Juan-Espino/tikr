@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { Plus } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { AccountMenu } from "~/components/account-menu";
@@ -16,7 +18,6 @@ export function StorageNotice() {
     notice,
     setNotice,
     storageBlocked,
-    resetStorage,
     cloud,
     busy,
     saveError,
@@ -25,6 +26,11 @@ export function StorageNotice() {
     retry,
     retryLabel,
   } = useDemoPortfolios();
+  useEffect(() => {
+    if (!notice) return;
+    toast(notice, { dismissible: false });
+    setNotice("");
+  }, [notice, setNotice]);
   return (
     <>
       {cloud && (
@@ -50,25 +56,11 @@ export function StorageNotice() {
           </div>
         </div>
       )}
-      {notice && (
-        <div
-          role="status"
-          className="border-border mx-auto my-4 flex max-w-6xl flex-wrap items-center gap-4 rounded-lg border p-4 text-sm"
-        >
-          <span>{notice}</span>
-          <Button
-            variant="ghost"
-            aria-label="Dismiss notification"
-            onClick={() => setNotice("")}
-          >
-            <X />
-          </Button>
-        </div>
-      )}
       {storageBlocked && (
-        <Button variant="outline" onClick={resetStorage}>
-          Reset local demo storage
-        </Button>
+        <p role="alert">
+          Temporary draft recovery is unavailable. Existing browser records are
+          preserved. Reload to retry.
+        </p>
       )}
     </>
   );
@@ -77,10 +69,12 @@ export function AppShell({
   children,
   centered = false,
   portfolio = false,
+  dashboard = false,
 }: {
   children: ReactNode;
   centered?: boolean;
   portfolio?: boolean;
+  dashboard?: boolean;
 }) {
   const router = useRouter();
   const { open, ready, cloud, busy } = useDemoPortfolios();
@@ -104,13 +98,15 @@ export function AppShell({
           <TikrLogo />
         </button>
         <span className="text-muted-foreground text-xs">
-          {cloud ? "Account cloud portfolios" : "Browser-local portfolios"}
+          {cloud ? "Account cloud portfolios" : "Temporary guest draft"}
         </span>
         <div className="flex flex-wrap items-center gap-2">
           <AccountMenu />
-          <Button variant="outline" onClick={() => router.push("/dashboard")}>
-            Experiments
-          </Button>
+          {!dashboard && (
+            <Button variant="outline" onClick={() => router.push("/dashboard")}>
+              Portfolios
+            </Button>
+          )}
           <Button disabled={busy} onClick={() => open(newPortfolio())}>
             <Plus />
             Create portfolio

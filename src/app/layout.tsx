@@ -1,4 +1,5 @@
 import "~/styles/globals.css";
+import { Toaster } from "~/components/ui/sonner";
 import { DemoPortfoliosProvider } from "~/providers/demo-portfolios-provider";
 import { AuthProvider } from "~/providers/auth-provider";
 
@@ -29,6 +30,7 @@ export default function RootLayout({
         <AuthProvider>
           <DemoPortfoliosProvider>{children}</DemoPortfoliosProvider>
         </AuthProvider>
+        <Toaster />
       </body>
     </html>
   );

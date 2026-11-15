@@ -12,7 +12,7 @@ function AppHeader({
 }) {
   return (
     <header className="flex items-center justify-between px-5 py-5 md:px-10">
-      <button onClick={onDashboard} aria-label="Go to dashboard">
+      <button onClick={onDashboard} aria-label="View portfolios">
         <TikrLogo />
       </button>
       <nav className="flex items-center gap-4 text-[12px] text-stone-400 md:flex">
@@ -125,8 +125,8 @@ export function Login({
             Tikr.
           </h1>
           <p className="supporting-copy mt-4 text-sm leading-6 text-stone-600">
-            Sign in with Google to save portfolios to your account. Existing
-            browser portfolios stay local; your draft is preserved.
+            Sign in with Google, then confirm Save to keep your draft in your
+            account. Signing in alone never saves your draft.
           </p>
           <button
             disabled={pending}

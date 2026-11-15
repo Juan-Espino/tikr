@@ -6,7 +6,13 @@ import { CandlestickGlobe } from "~/components/candlestick-globe";
 import { Button } from "~/components/ui/button";
 import { RangePicker } from "~/components/range-picker";
 
-import { DEFAULT_RANGE, examples, newPortfolio, type Range } from "~/lib/demo";
+import {
+  DEFAULT_RANGE,
+  examples,
+  newPortfolio,
+  hasUnsavedPortfolio,
+  type Range,
+} from "~/lib/demo";
 
 import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
 import { AppShell } from "~/components/app-shell";
@@ -22,7 +28,7 @@ function Disclosure() {
   );
 }
 export default function Dashboard() {
-  const { portfolios, setPortfolios, draft, open, cloud } = useDemoPortfolios();
+  const { portfolios, draft, open, cloud } = useDemoPortfolios();
   const [range, setRange] = useState<Range>(DEFAULT_RANGE);
   const [spy, setSpy] = useState(true);
   const generation = JSON.stringify({
@@ -70,7 +76,7 @@ export default function Dashboard() {
     if (complete) setPrevious(current);
   }, [current, complete]);
   return (
-    <AppShell centered>
+    <AppShell centered dashboard>
       {" "}
       <>
         <div className="flex flex-wrap items-end justify-between gap-5">
@@ -78,9 +84,11 @@ export default function Dashboard() {
             <p className="text-muted-foreground text-xs tracking-[.18em] uppercase">
               Portfolio lab
             </p>
-            <h1 className="mt-2 text-3xl tracking-tight">Your experiments</h1>
+            <h1 className="sr-only">Portfolio dashboard</h1>
             <p className="text-muted-foreground mt-3 text-sm">
-              All your portfolios in one place.
+              {cloud
+                ? "Portfolios saved to your account."
+                : "Explore examples or build your own portfolio. Sign in to save."}
             </p>
           </div>
         </div>
@@ -88,7 +96,7 @@ export default function Dashboard() {
           <div className="order-1 w-full sm:order-3 sm:w-72">
             <RangePicker alignStart value={range} onChange={setRange} />
           </div>
-          {draft && (
+          {draft && hasUnsavedPortfolio(draft, portfolios) && (
             <Button
               variant="outline"
               className="order-2 max-w-full break-words whitespace-normal sm:order-1"
@@ -110,20 +118,14 @@ export default function Dashboard() {
           <section className="border-border bg-background mt-8 flex min-h-96 flex-col items-center justify-center rounded-xl border px-5 py-10 text-center md:px-7 md:py-12">
             <CandlestickGlobe />
             <p className="text-muted-foreground mt-4 text-sm">
-              Your portfolios will appear here.
+              {cloud
+                ? "Your saved portfolios will appear here."
+                : "Build your own mix without an account."}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
               <Button onClick={() => open(newPortfolio())}>
                 Build a portfolio
               </Button>
-              {!cloud && (
-                <Button
-                  variant="outline"
-                  onClick={() => setPortfolios(examples())}
-                >
-                  Load sample experiments
-                </Button>
-              )}
             </div>
           </section>
         ) : (
@@ -158,6 +160,32 @@ export default function Dashboard() {
                 />
               ))}
           </div>
+        )}
+        {!cloud && (
+          <section className="mt-10" aria-labelledby="examples-title">
+            <h2 id="examples-title" className="text-2xl">
+              Examples
+            </h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Read-only starting points. Open one to inspect its historical
+              results.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              {examples().map((p) => (
+                <Button
+                  key={p.id}
+                  variant="outline"
+                  className="h-auto flex-col items-start p-5 text-left"
+                  onClick={() => open(p)}
+                >
+                  <span>{p.name}</span>
+                  <span className="text-muted-foreground mt-2 text-xs">
+                    {p.holdings.map((h) => h.ticker).join(" / ")}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </section>
         )}
         <div className="mt-8">
           <p className="text-muted-foreground text-xs">

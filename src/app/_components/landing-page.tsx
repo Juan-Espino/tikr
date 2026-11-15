@@ -5,13 +5,22 @@ import { useRouter } from "next/navigation";
 import { Landing } from "~/components/intro";
 import { Button } from "~/components/ui/button";
 
-import { examples, newPortfolio } from "~/lib/demo";
+import { examples, newPortfolio, hasUnsavedPortfolio } from "~/lib/demo";
 
 import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
 import { StorageNotice } from "~/components/app-shell";
 export default function LandingPage() {
   const router = useRouter();
-  const { draft, open, ready, cloud } = useDemoPortfolios();
+  const {
+    draft: activeDraft,
+    portfolios,
+    open,
+    ready,
+    cloud,
+  } = useDemoPortfolios();
+  const draft = hasUnsavedPortfolio(activeDraft, portfolios)
+    ? activeDraft
+    : null;
   if (!ready)
     return (
       <main role="status" className="p-10">
@@ -32,13 +41,13 @@ export default function LandingPage() {
           {draft
             ? cloud
               ? "Resume draft"
-              : "Resume local draft"
+              : "Resume draft"
             : "Start an empty portfolio"}
         </Button>
         <p className="text-muted-foreground mt-3 text-xs">
           {cloud
             ? "Saved portfolios sync to your account. Unsaved edits stay in this tab."
-            : "Guest portfolios stay in this browser. Sign in to save new portfolios to your account."}
+            : "Try a temporary draft without an account. Sign in, then confirm Save to keep it."}
         </p>
       </div>
     </>

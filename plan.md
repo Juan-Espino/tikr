@@ -1,3 +1,175 @@
+## PR25 opened - production preparation complete, 2026-11-15
+
+Published [PR25](https://github.com/Juan-Espino/tikr/pull/25), targeting main from
+`t3/guest-examples-signin-save`. Feature commit: 45739ab7cc13f5265bc936cad335587ee1843756.
+All94 Vitest, focused Node20, guest9/cloud10 browser groups, lint/both TypeScript,
+configured-auth credential-cleared production build, changed formatting/diff and
+private-value scans pass. Final fixture build: system temp tikr-cleared-build-ruaJzn;
+guest report tikr-guest-ui-2ptTSs; cloud report tikr-cloud-ui-t9bAyJ. Recovery-race
+and browser-storage-unavailable cloud opening are covered. CI snapshot at opening:
+mergeable, Vercel preview pending, Vercel Preview Comments succeeded; no review yet.
+The GitHub connector returned404, so the existing authenticated gh CLI created PR25;
+T3 PR linking succeeded. Worktree publication contains no env files or credentials.
+
+Next: review PR/remote checks, then obtain separate approval before merge or release.
+No main edit, production service/config/data access or deployment was performed.
+Existing canonical localhost5000 review server is unchanged; synthetic harness stopped.
+Fresh real production Google/cloud smoke and real B remain explicitly unverified.
+
+## PR readiness preparation - owner authorized 2026-11-15
+
+Final readiness evidence: configured-auth credential-cleared optimized build
+passed (`tikr-cleared-build-ruaJzn`), all94 Vitest/24files, focused Node20,
+synthetic guest9 and cloud10 scenario groups passed. Guest report/screenshots:
+system temp `tikr-guest-ui-2ptTSs`; cloud report `tikr-cloud-ui-t9bAyJ`.
+Acceptance includes no toast close/manual dismissal, destructive centered delete,
+absent dashboard nav/visible collection heading and the replacement-race refusal.
+Private exact-value scan and source/browser assets passed with zero matches; no
+env file is a publication candidate. Final check/format/diff verified before commit.
+
+Owner requests production preparation and PR publication. Commit/push/PR are now
+authorized for the existing branch; main, merge and production config/data/deploy
+remain untouched. No extra agents, chats or worktrees. Fetched origin/main remains
+b18a87d8c3bc41cd9696812ef2b35da43c0bf29b (merged PR24); no backend diff.
+
+Release review fixed one cloud replacement race: a recovery draft changed while
+its confirmation is open is now preserved and the stale replacement refused.
+Synthetic acceptance exercises that interleaving. Cloud opening also remains usable
+when browser recovery storage is unavailable; the fixture asserts that case. The synthetic mutation transport
+now mirrors existing create-retry idempotency; real server logic is unchanged.
+`build-cleared.mjs --auth-fixture` uses non-live public Convex URL fixtures to compile
+the configured production auth/provider path with credentials removed.
+
+Current evidence: pnpm check and all94 Vitest cases (24files, serial) pass; focused
+Node20 checks pass; auth-configured optimized fixture build passes. Existing cloud
+browser10 groups pass; updated guest suite includes race, dashboard navigation,
+centered destructive delete and automatic non-dismissible toast assertions. Final
+acceptance/format/private scan and PR details are recorded at completion.
+
+No production service was read or changed and no live OAuth/market-provider request was made for
+these checks. Fresh live Google/full-page production smoke and real B remain gaps;
+real second account is unavailable. Keep approved production binding/callbacks and
+release steps in cloud-portfolios.md/accounts-signin.md. No engine contracts changed,
+so broad offline engine/mutation suites were not repeated. Next: finish final checks,
+commit/push this branch, open/link PR for review; do not merge or deploy.
+
+## Dashboard navigation - owner correction 2026-11-15
+
+Hide the header Portfolios button on the dashboard itself; retain it on other
+app pages. This is explicit dashboard shell state, with no route or data changes.
+
+## Portfolio terminology and destructive delete - owner approved 2026-11-15
+
+Use Portfolios in navigation, All portfolios for the detail back link and View
+portfolios for return actions. Remove the visible dashboard collection heading;
+retain a screen-reader-only Portfolio dashboard heading. Guest copy invites users
+to build their own portfolio; signed-in empty state names saved portfolios.
+Delete and Delete portfolio use the existing destructive button variant. Centered
+confirmation actions and automatic, non-dismissible toast behavior are retained.
+No data/backend/publication changes. Focused checks recorded in the owner response.
+
+## Toast and confirmation alignment - owner correction 2026-11-15
+
+Center confirmation dialog action buttons. Remove the Sonner toast close button
+and disable user dismissal; notifications expire automatically. Dialog close/
+Cancel behavior remains unchanged. Focused formatting and TypeScript verification
+recorded in the owner response. No data, backend or publication changes.
+
+## Owner review corrections - implemented 2026-11-15
+
+Final verification: `pnpm.cmd check` (lint and both TS checks), 20 focused Node
+checks, nine Vitest checks, nine updated guest UI groups and ten existing cloud
+UI groups pass. `node scripts/build-cleared.mjs` passes, with `/legacy` absent
+from the route output. The initial production check caught an unhandled async
+Duplicate return introduced by promise-based confirmation; fixed explicitly and
+rechecked. Changed-file Prettier, git diff/newlines and exact-private scan pass
+(zero matches across 29 changed/new files and 30 production browser assets).
+Final screenshots/reports: system temp `tikr-guest-ui-SZyEW1` and
+`tikr-cloud-ui-KHsURg`; desktop delete and mobile discard screenshots inspected.
+Synthetic harness stopped; canonical localhost5000 remains running.
+
+
+Solo follow-up in the same uncommitted worktree; main unchanged. Owner approved
+removing the older-browser page/link/copy (stored bytes remain untouched), hiding
+Examples for signed-in dashboards, showing Resume only for actual unsaved work,
+shadcn Sonner notifications, aligned portfolio actions, and shared shadcn/Base UI
+confirmations for replacement/discard/delete. Current decisions supersede the
+previous compatibility/signed-in-examples behavior recorded below.
+
+Implemented shared unsaved-definition detection for dashboard and landing; no
+backend/ownership/math changes. Added only sonner2.0.8, the dependency used by
+shadcn's Sonner component, with fixed dark styling and no new theme provider.
+Transient toast notifications clear when the account/session changes. Actionable
+cloud errors/conflicts/pending feedback stays inline. Native confirm dialogs are
+replaced with the existing account-dialog composition; cancellation preserves work,
+focus returns, and replacement checks for intervening recovery changes.
+
+Verification: updated synthetic guest suite passes nine groups, existing cloud
+suite passes ten groups; Node suite now includes saved-vs-unsaved resume detection.
+Dialog delete/cancel, replacement/cancel, mobile discard/cancel/focus return,
+aligned actions, guest-only examples, absent legacy UI, and unchanged stored-byte
+hash are exercised. Integrated preview DOM checked; two screenshot timeouts
+permitted disposable synthetic browser fallback. Owner browser data/session not
+modified. Screenshots/reports under system temp (latest paths in final report).
+Final lint/both TS, focused Node/Vitest, credential-cleared build, formatting and
+private-value scans recorded in final report. Real Google flow/provider calls and
+second real Google account remain unverified in this follow-up. No extra agents,
+commit/push/PR, production action or backend deployment. Canonical localhost5000
+review server remains this worktree's existing server.
+
+## Guest/examples simplification - owner review, 2026-11-15
+
+Solo source implementation in this existing worktree:
+`C:/Users/JuanE/.t3/worktrees/tikr/t3-guest-examples-signi-4e76e6adcbee8001`, branch
+`t3/guest-examples-signin-save`, clean base `b18a87d8c3bc41cd9696812ef2b35da43c0bf29b`
+(merged PR24). Main stays unchanged. No extra agents/chats/worktrees, commit/push/
+PR/merge, production access/config/deploy, paid service or destructive cleanup.
+Earlier publication permissions below do not authorize this branch.
+
+Implemented stable read-only examples for both auth states, separate cloud-only
+account collection, central original mutation refusal, Try your own mix, one
+versioned temporary recovery draft, explicit replacement/discard, safe specific
+sign-in/cancel return, explicit post-login cloud Save, account-bound recovery after
+signed-in edits, exact acknowledgement settlement and same-ID cloud conflicts.
+Legacy `tikr-demo-v1` is never written/deleted/migrated/imported. `/legacy` provides
+read-only holdings/amount/period/results, including the older draft; existing
+compatibility interpretation changes no stored bytes. This minimal compatibility
+path intentionally adds no editing/import/export wizard. No backend or financial
+engine changes, collection-import surface, quota, Groq or deferred polish.
+
+Evidence: 19 focused Node checks and nine Vitest checks pass (including existing
+A/B+guest owner transactions). Ten existing cloud UI browser groups and nine new
+guest/example groups pass: validation, reload, second-tab recovery fencing, mocked
+explicit login/save/collision/offline/pending/retry/expiry/A-B isolation, differing
+same-ID recovery, central mutation refusal, mobile keyboard/discard/legacy access,
+and malformed legacy preservation. Legacy bytes before/after have SHA256
+`e9d519a69267f0fc9d7042221df5297930bafe7eeb6570a71e6f60c9cf9ebe7b`.
+Screenshots/reports: system temp `tikr-guest-ui-kArAho`, `tikr-cloud-ui-35xiuh`.
+Desktop/mobile screenshots were inspected. Integrated preview passed guest checks
+in an empty incognito synthetic origin; two snapshot timeouts allowed disposable
+headless Chrome fallback. No owner browser storage was read/seeded/changed.
+Harness market transport is a labeled stub, not proof of live charts/provider data.
+Changed-file formatting, diff/newline/reference checks and exact-private-value scan pass (zero matches).
+Lint/both TypeScript and credential-cleared production build pass; final repeats,
+format/diff/private scans are recorded in the owner report. Broad engine tests were
+not run because engine contracts are unchanged. pnpm10.11.0 frozen install changed
+neither manifest nor lockfile.
+
+Only three public DEV bindings copied privately from main's authorized ignored
+.env.local, verified stoic-corgi-586. No secrets, provider activation or production
+file copied. Port5000 had no listener. This checkout's loopback server runs:
+`pnpm.cmd dev --hostname localhost --port 5000`; review http://localhost:5000.
+Google callback/config unchanged. Synthetic checks can be repeated with
+`node scripts/serve-guest-qa.mjs`, then `node scripts/qa-guest-examples.mjs`.
+`node scripts/qa-cloud-portfolios.mjs` starts its own disposable server.
+
+Next: owner source/DEV review; source remains uncommitted. Real Google full-page
+cancel/return/save was not repeated in this run; historical auth evidence and mock
+checks do not prove this run's token exchange. Second real Google account remains
+unavailable; do not request it again. No real DEV cloud writes/provider calls were
+needed. Retention/privacy decisions, market rights and four deferred polish items
+remain separate. No PR until requested.
+
 ## Account cloud portfolios - PR publication authorized (2026-11-15)
 
 Owner removed browser-to-cloud collection import completely, reports testing the

@@ -88,6 +88,14 @@ export async function mutate(
   const value = args.definition!;
   if (name.endsWith(":update") && (!row || row.deleted))
     throw new ConvexError("PORTFOLIO_UNAVAILABLE");
+  if (name.endsWith(":create") && row) {
+    if (
+      row.deleted ||
+      JSON.stringify(row.definition) !== JSON.stringify(args.definition)
+    )
+      throw new ConvexError("REVISION_CONFLICT");
+    return structuredClone(row);
+  }
   if (row && row.revision !== args.revision)
     throw new ConvexError("REVISION_CONFLICT");
   if (

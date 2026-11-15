@@ -62,8 +62,8 @@ export function AccountMenu() {
         </DialogTitle>
         <p className="mt-2 text-sm break-all">{data.user.email}</p>
         <DialogDescription className="text-muted-foreground mt-4 text-sm leading-6">
-          Signed-in saves go to your account. Guest portfolios stay in this
-          browser. Unsaved edits stay in this tab.
+          Signed-in saves go to your account. Sign-in alone never saves a draft.
+          Private account edits stay in this tab.
         </DialogDescription>
         <Button
           className="mt-6 w-full"
