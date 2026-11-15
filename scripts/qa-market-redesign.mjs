@@ -85,6 +85,34 @@ export async function GET(){
 `,
   );
 }
+// Optional narrow calendar regression uses the actual personal loader + durable coordinator.
+if (process.argv.includes("--calendar")) {
+  await writeFile(
+    join(target, "src/lib/qa-fixture.ts"),
+    `
+import {calendarFixture} from '../../tests/support/calendar-fixture.mjs';
+export const symbols=['AAA','BBB','SPY'];
+export const portfolios=[{id:'calendar-a',holdings:[{symbol:'AAA',weight:'100'}]},{id:'calendar-b',holdings:[{symbol:'BBB',weight:'100'}]}];
+const state=globalThis as typeof globalThis & {calendarScenario?:string; calendarQA?:any};
+export function reset(scenario='sunday'){state.calendarScenario=scenario;state.calendarQA=undefined;}
+export function fixture(){
+ if(!state.calendarQA){
+  const holiday=state.calendarScenario==='holiday';
+  const f=calendarFixture(holiday?['2026-04-01','2026-04-02']:['2026-11-09','2026-11-12','2026-11-13'],holiday?'2026-04-05T14:00Z':'2026-11-15T15:00Z',holiday?'2026-03-01':'2026-11-01');
+  state.calendarQA={expires:()=>Date.parse('2027-01-01'),run:async(request,range)=>{await f.calendar();const job=await f.run(request,range);return {final:await job.settled,history:[]};}};
+ }
+ return state.calendarQA;
+}
+`,
+  );
+  await writeFile(
+    join(target, "src/app/qa-fixture/control/route.ts"),
+    `
+import {reset} from '~/lib/qa-fixture';
+export async function POST(request:Request){const body=await request.json();reset(body.scenario==='holiday'?'holiday':'sunday');return Response.json({synthetic:true});}
+`,
+  );
+}
 const allow = [
   "SystemRoot",
   "WINDIR",

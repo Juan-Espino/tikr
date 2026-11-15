@@ -1,10 +1,7 @@
+import { checkedCalendar } from "./market-calendar.ts";
 import { MarketFailure, marketFailure } from "./market-errors.ts";
 import "server-only";
-import {
-  createOnDemandBacktests,
-  eligibleSessions,
-  freshnessCycle,
-} from "./market-cache.ts";
+import { createOnDemandBacktests, freshnessCycle } from "./market-cache.ts";
 import type {
   BacktestRequest,
   CacheOptions,
@@ -248,19 +245,12 @@ export function createDurableBacktests(options: {
     const now = clock(),
       cycle = freshnessCycle(now),
       full = options.calendar();
-    const sessions = eligibleSessions(full.sessions, now);
-    if (
-      full.complete !== true ||
-      full.finalityVerified !== true ||
-      !full.provenance ||
-      sessions.length > 1300
-    )
-      throw new Error("CALENDAR_UNAVAILABLE");
+    const sessions = checkedCalendar(full, options.historyStart, now);
     const calendarRevision = (end: string) =>
       revision({
-        ...full,
+        from: options.historyStart,
         through: end,
-        sessions: full.sessions.filter((s) => s <= end),
+        sessions: sessions.filter((s) => s >= options.historyStart && s <= end),
       });
     const period = preset({ ...full, sessions }, range);
     const req = { ...request, ...period, end: "latest" };
@@ -867,7 +857,10 @@ export function createDurableBacktests(options: {
       const now = clock(),
         calendar = options.calendar();
       const period = preset(
-        { ...calendar, sessions: eligibleSessions(calendar.sessions, now) },
+        {
+          ...calendar,
+          sessions: checkedCalendar(calendar, options.historyStart, now),
+        },
         range,
       );
       const symbols = [

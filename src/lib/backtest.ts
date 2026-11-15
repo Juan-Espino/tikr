@@ -80,6 +80,7 @@ function date(s: string): string {
     return fail("INVALID_INPUT", `Invalid date ${s}`);
   return s;
 }
+/** Inclusive checked coverage; sessions may end earlier on closures. Flags are caller attestations. */
 export type Calendar = {
   complete: boolean;
   finalityVerified: boolean;

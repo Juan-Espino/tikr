@@ -1,3 +1,4 @@
+import { calendarBoundary, checkedCalendar } from "./market-calendar.ts";
 import { marketFailure, type MarketFailureCode } from "./market-errors.ts";
 import "server-only";
 import type { RefreshFailure } from "./market-failure-record.ts";
@@ -44,38 +45,7 @@ const date = (value: string) => {
     fail("INVALID_INPUT");
   return value;
 };
-function shift(day: string, days: number) {
-  return new Date(Date.parse(day + "T12:00:00Z") + days * 86400000)
-    .toISOString()
-    .slice(0, 10);
-}
-function local(now: Date) {
-  if (!Number.isFinite(now.valueOf())) return fail("INVALID_INPUT");
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const p = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  const today = `${p.year}-${p.month}-${p.day}`;
-  const cycle = Number(p.hour) >= 9 ? today : shift(today, -1);
-  return { cycle, eligibleThrough: shift(cycle, -1) };
-}
-export const freshnessCycle = (now: Date) => local(now).cycle;
-/** Operational eligibility, not a provider finality assertion. */
-export function eligibleSessions(sessions: string[], now: Date): string[] {
-  const { eligibleThrough } = local(now);
-  let previous = "";
-  return sessions.filter((s) => {
-    date(s);
-    if (s <= previous) fail("INVALID_INPUT");
-    previous = s;
-    return s <= eligibleThrough;
-  });
-}
+export { eligibleSessions, freshnessCycle } from "./market-calendar.ts";
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
   if (value !== null && typeof value === "object")
@@ -194,22 +164,8 @@ export function createOnDemandBacktests(options: CacheOptions) {
   }
   function context(now: Date) {
     const calendar = clone(options.calendar());
-    const { cycle, eligibleThrough } = local(now);
-    if (
-      calendar?.complete !== true ||
-      calendar.finalityVerified !== true ||
-      !calendar.provenance ||
-      date(calendar.from) > historyStart ||
-      date(calendar.through) < eligibleThrough ||
-      !Array.isArray(calendar.sessions) ||
-      calendar.sessions.length > 5000
-    )
-      return fail("CALENDAR_UNAVAILABLE");
-    const sessions = eligibleSessions(calendar.sessions, now);
-    if (
-      calendar.sessions.some((s) => s < calendar.from || s > calendar.through)
-    )
-      fail("CALENDAR_UNAVAILABLE");
+    const { cycle } = calendarBoundary(now);
+    const sessions = checkedCalendar(calendar, historyStart, now, 5000);
     const latest = sessions.at(-1);
     if (!latest) return fail("CALENDAR_UNAVAILABLE");
     const ctx = { calendar, sessions, latest, cycle };
