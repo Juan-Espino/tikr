@@ -1,3 +1,15 @@
+## Calendar checked coverage - clarification (2026-11-15)
+
+Calendar `from` and `through` are inclusive checked coverage bounds, not first/last
+trading dates. The eligible ordered `sessions` list determines the actual completed
+endpoint; coverage through a closure can end with an earlier session. Provider
+queries supply the session list, while the shared next-calendar-day 09:00 New York
+buffer filters eligibility, including DST and early closes. Absence within a valid
+queried range is provider-reported non-session status under the personal provisional
+policy, not independent proof of exhaustive provider truth. Missing required closes
+still fail, and every calculation still requires two shared completed sessions.
+No financial method or provider-finality attestation is changed by this correction.
+
 ## Owner-approved Alpaca dividend interpretation (2026-11-13)
 
 For all tickers in the personal Alpaca integration, treat the provider's reported

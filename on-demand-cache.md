@@ -1,3 +1,21 @@
+## Calendar coverage correction - 2026-11-15 (local source only)
+
+Calendar `from`/`through` describe the inclusive authoritatively queried range;
+`sessions.at(-1)` (on the eligible `sessions` list) supplies the actual endpoint.
+A Sunday coverage boundary may therefore contain Friday as its latest session.
+Eligibility remains 09:00 New York on the next calendar day, including DST;
+early closes do not accelerate it. Session selection uses provider-returned dates.
+No durable calendar cache, new evidence policy or inferred legacy coverage is added.
+
+The current-cycle process promise still coalesces requests, drops rejected promises
+and refetches after restart/cycle change. Only successfully parsed, sufficiently
+covered calendars reach calculation. Financial calendar revisions bind relevant
+sessions and the effective end, so a coverage-only extension does not churn results;
+a changed relevant session list invalidates them. Asset/root/revocation validation
+still applies independently. A valid complete HTTP body is transport/structural
+coverage evidence under the provisional policy, not proof of exhaustive provider
+truth or bar/action finality. See plan.md for tests and rollout limits.
+
 ## Status reconciliation - 2026-11-14
 
 PR 19 (history/dividend recovery) and PR 20 (guard prevention) are merged on main at

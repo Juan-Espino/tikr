@@ -1,3 +1,21 @@
+## Calendar coverage clarification - 2026-11-15 (unpublished source)
+
+The personal loader records the requested inclusive calendar bounds separately
+from its eligible returned session list. Consumers verify range coverage through
+the shared New York eligibility cutoff, then use actual sessions for the latest
+endpoint and presets. No weekend/holiday list, missing-bar substitution, legacy
+metadata expansion, schema migration or evidence-policy change is introduced.
+HTTP 200 bodies must be fully read within existing bounds and parsed as ordered,
+unique ISO dates within the request; supplied open/close times must be valid.
+Identity Content-Length mismatch, invalid UTF-8/JSON and partial HTTP status fail.
+A syntactically valid provider omission cannot independently be identified as a
+closure versus erroneous omission: acceptance remains explicitly provisional.
+
+Backend calendar rejection logs expose only an allowlisted reason and existing
+trace metadata; public professional error handling is unchanged. Deterministic
+loader/coordinator/actual streamed-route and isolated chart acceptance evidence is
+in plan.md. No live-provider/production access or rollout occurred for this fix.
+
 ## Status reconciliation - 2026-11-14
 
 PR 19 (history/dividend recovery) and PR 20 (guard prevention) are merged on main at

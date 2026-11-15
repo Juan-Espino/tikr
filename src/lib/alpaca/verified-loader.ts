@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { fetchCandidates, toEngineInput } from "./adapter.ts";
 import type { Candidates, Evidence, Config } from "./adapter.ts";
-import { eligibleSessions } from "../market-cache.ts";
+import { eligibleSessions } from "../market-calendar.ts";
 import type { AssetRefresh } from "../market-cache.ts";
 import type { Calendar } from "../backtest.ts";
 export const digest = (v: unknown) =>

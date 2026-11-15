@@ -1,3 +1,68 @@
+## Weekend/holiday calendar fix - local review ready (2026-11-15)
+
+Owner-approved narrow implementation in the dedicated calendar worktree, based on
+PR22 merged `7f6e47e93a4f3ed44add4d976d8efa66b023fadf`. Main was clean at that
+same commit before and after the work. No other worktree, port 5000, DEV auth,
+production, credentials, configuration, provider service or deployment was used.
+Owner subsequently authorized commit, feature-branch push and PR creation. Merge,
+production access/configuration and deployment remain unauthorized. Four Post-MVP
+polish items below remain deferred; durable calendar/SPY infrastructure is outside this fix.
+
+Confirmed source defect: the personal calendar loader returned its last eligible
+session as `through`, while consumers required checked calendar-day coverage.
+Thus a complete query through Sunday could incorrectly fail on Friday metadata.
+The actual hosted endpoint regression fails HTTP 503 when the original assignment
+is temporarily restored and passes with queried coverage. Production HTTP 200
+calendar logs followed by CALENDAR_UNAVAILABLE correlate with this defect; the
+original production body was not inspected, so full incident attribution remains
+unproven. This is locally verified source, not a production repair.
+
+Implementation retains `from`/`through` as inclusive checked query coverage and
+derives the latest eligible actual session from `sessions`. Shared New York
+next-calendar-day 09:00 eligibility/coverage validation is DST aware; no holiday
+list or weekend arithmetic selects trading sessions. Durable result revisions bind
+relevant sessions/effective end, without query-bound/provenance churn. Existing
+legacy metadata is never expanded or upgraded into new evidence. Strict bounded
+HTTP 200 parsing, date/order/bounds and optional session-time validation reject
+malformed/truncated/oversized input; backend-only allowlisted rejection reasons
+preserve public errors. Missing closes/actions, roots, hints, guards, leases,
+revocations, evidence policies and financial calculations remain enforced.
+
+Verification (deterministic synthetic data; no live provider calls):
+
+- 177 focused Node tests pass (calendar coverage, loader, cache, durable storage,
+  verified loader, redesign, admission, adapter, engine and demo suites).
+- 87 local Convex/hosted/auth Vitest tests pass with `--testTimeout=20000`.
+  Initial concurrent run hit one existing runtime test's default 5-second timeout;
+  the full rerun passes without changing test configuration.
+- `pnpm.cmd check` passes lint and both TypeScript projects; five financial
+  mutation probes are killed. Credential-cleared production build passes.
+- New tests cover weekend/holiday/closure, next-day cutoff, DST/leap/year boundary,
+  two-session minimum, all five approved presets, two portfolios plus SPY,
+  malformed/insufficient coverage, missing closes, stable/corrected revisions,
+  actual initial/settled endpoint, process promise reuse/rejection/restart.
+  Existing authoritative-root/stale-hint rejection suites also pass.
+- Browser acceptance: T3 preview opened, but two snapshots timed out at 15000ms;
+  allowed Edge/Playwright fallback used a fresh context and blocked external
+  requests. Two Sunday charts end November 13; two holiday charts end April 2,
+  with synthetic labels and SPY. Screenshots stay under system temp.
+
+Review file inventory: `src/lib/market-calendar.ts`, `src/lib/market-cache.ts`,
+`src/lib/durable-market.ts`, `src/lib/alpaca/personal-loader.ts`,
+`src/lib/alpaca/verified-loader.ts`, `src/lib/backtest.ts` (contract comment only);
+`tests/calendar-coverage.test.mjs`, `tests/hosted-calendar.test.ts`,
+`tests/support/calendar-fixture.mjs`; `scripts/qa-market-redesign.mjs`,
+`scripts/qa-calendar-browser.mjs`; `plan.md`, `on-demand-cache.md`,
+`market-data-integration.md`, `backtest-methodology.md`.
+
+Reproduce browser fixture: `$env:TIKR_QA_PORT='43149'; node scripts/qa-market-redesign.mjs --calendar`,
+then `node scripts/qa-calendar-browser.mjs`. Review seed URL:
+`http://127.0.0.1:43149/qa-fixture/seed` (isolated local data; last scenario holiday).
+Next task: PR review. Merge, deployment and any real-provider or production
+verification require separate owner authorization. Provider omission
+inside an otherwise valid response cannot independently prove exhaustive calendar
+truth; provisional labels and reported-USD dividend interpretation are unchanged.
+
 ## Production auth prepared - owner authorized 2026-11-14
 
 Owner authorized production preparation after PR22. Verified existing Vercel project

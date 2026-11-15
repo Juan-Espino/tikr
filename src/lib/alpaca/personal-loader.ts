@@ -5,7 +5,11 @@ import type { Config, Candidates } from "./adapter.ts";
 import type { Asset, Action, Calendar } from "../backtest.ts";
 import type { AssetRefresh } from "../market-cache.ts";
 import { EvidenceError } from "./verified-loader.ts";
-import { eligibleSessions } from "../market-cache.ts";
+import {
+  eligibleSessions,
+  isCalendarDate,
+  rejectCalendar,
+} from "../market-calendar.ts";
 import { marketFailure, type MarketFailure } from "../market-errors.ts";
 import {
   providerMeasurement,
@@ -187,6 +191,13 @@ export async function fetchPersonalCalendar(
   end: string,
   now: Date,
 ): Promise<Calendar> {
+  if (
+    !isCalendarDate(start) ||
+    !isCalendarDate(end) ||
+    start > end ||
+    !Number.isFinite(now.valueOf())
+  )
+    return rejectCalendar("malformed");
   const url = new URL("https://paper-api.alpaca.markets/v2/calendar");
   url.searchParams.set("start", start);
   url.searchParams.set("end", end);
@@ -209,7 +220,7 @@ export async function fetchPersonalCalendar(
     if (error instanceof AdmissionFailure) throw error.failure;
     throw new AlpacaError(signal.aborted ? "TIMEOUT" : "UPSTREAM");
   }
-  if (!response.ok || !response.body) {
+  if (response.status !== 200 || !response.body) {
     void response.body?.cancel().catch(() => undefined);
     throw new AlpacaError("UPSTREAM");
   }
@@ -227,30 +238,47 @@ export async function fetchPersonalCalendar(
       }
       parts.push(part.value);
     }
-    const rows: unknown = JSON.parse(Buffer.concat(parts).toString("utf8"));
-    if (!Array.isArray(rows) || !rows.length || rows.length > 1300)
+    const bytes = Buffer.concat(parts);
+    const length = response.headers.get("content-length");
+    if (
+      length !== null &&
+      (!response.headers.get("content-encoding") ||
+        response.headers.get("content-encoding") === "identity") &&
+      (!/^\d+$/.test(length) || Number(length) !== size)
+    )
       throw new Error();
+    const rows: unknown = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+    );
+    if (!Array.isArray(rows) || rows.length > 1300) throw new Error();
     let previous = "";
-    const dates = rows.map((r: { date?: unknown }) => {
-      const d = r?.date;
-      if (
-        typeof d !== "string" ||
-        !/^\d{4}-\d\d-\d\d$/.test(d) ||
-        !Number.isFinite(Date.parse(d)) ||
-        new Date(d).toISOString().slice(0, 10) !== d ||
-        d <= previous ||
-        d < start ||
-        d > end
-      )
-        throw new Error();
-      previous = d;
-      return d;
-    });
+    const dates = rows.map(
+      (r: { date?: unknown; open?: unknown; close?: unknown }) => {
+        const validTime = (v: unknown) =>
+          typeof v === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v);
+        if (
+          !r ||
+          typeof r !== "object" ||
+          Array.isArray(r) ||
+          (r.open !== undefined && !validTime(r.open)) ||
+          (r.close !== undefined && !validTime(r.close)) ||
+          (typeof r.open === "string" &&
+            typeof r.close === "string" &&
+            r.open >= r.close)
+        )
+          throw new Error();
+        const d = r?.date;
+        if (!isCalendarDate(d) || d <= previous || d < start || d > end)
+          throw new Error();
+        previous = d;
+        return d;
+      },
+    );
     const sessions = eligibleSessions(dates, now);
-    if (sessions.length < 2) throw new Error();
+    if (!sessions.length) return rejectCalendar("no_eligible_session");
     return {
       from: start,
-      through: sessions.at(-1)!,
+      through: end,
       sessions,
       complete: true,
       finalityVerified: true,
@@ -259,6 +287,14 @@ export async function fetchPersonalCalendar(
   } catch (e) {
     void reader.cancel().catch(() => undefined);
     if (e instanceof AlpacaError) throw e;
+    if (e instanceof Error && e.message === "CALENDAR_UNAVAILABLE") throw e;
+    console.error(
+      JSON.stringify({
+        event: "market_calendar_rejected",
+        reason: "malformed",
+        ...traceFields(),
+      }),
+    );
     throw new AlpacaError("MALFORMED");
   } finally {
     reader.releaseLock();
