@@ -5,7 +5,9 @@ import { marketFailureCodes } from "../src/lib/market-errors";
 import { validRefreshFailure } from "../src/lib/market-failure-record";
 import { authComponent, createAuth } from "./auth";
 const http = httpRouter();
-authComponent.registerRoutes(http, createAuth);
+// Module analysis must not instantiate auth before deployment secrets exist.
+// Keep configuration validation in createAuth, at request time.
+authComponent.registerRoutesLazy(http, createAuth);
 http.route({
   path: "/market-gateway",
   method: "POST",

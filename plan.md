@@ -1,3 +1,16 @@
+## Auth module-analysis correction - 2026-11-14
+
+Owner reported start_push failing on determined-anteater-923 because eager auth
+route registration constructed Better Auth while SITE_URL was absent/invalid.
+Use the component's documented registerRoutesLazy so module analysis registers HTTP
+routes without creating auth. Request-time validation remains strict; no fallback
+secret/origin, production env access/configuration or production deployment.
+A regression imports http.ts with all auth settings empty and confirms auth and
+market routes remain registered; existing missing-config and configured-auth tests
+pass. DEV stoic-corgi-586 push, pnpm check, all 20 focused cases and a
+credential-cleared production build pass. Production sign-in still requires
+separately approved production configuration.
+
 ## PR preparation - owner authorized 2026-11-14
 
 Owner now authorizes a commit, feature-branch push and PR for stage 1 plus the

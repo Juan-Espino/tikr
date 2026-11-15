@@ -35,6 +35,11 @@ Use the CLI's stdin or `--from-file` secret support, not secret command argument
 Verify target metadata and announce classification before each configuration/push.
 The initial DEV auth component deployment and private configuration succeeded.
 
+HTTP routes use the component's documented `registerRoutesLazy` so deployment
+module analysis succeeds before auth variables are configured. Auth initialization
+and strict configuration validation occur at request time; this does not enable
+production sign-in or supply fallback credentials.
+
 The Google DEV web client must authorize exactly:
 `http://localhost:5000/api/auth/callback/google`.
 The actual generated redirect was checked and matches. `baseURL` is the app origin,

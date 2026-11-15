@@ -15,6 +15,19 @@ beforeEach(() => {
   vi.stubEnv("GOOGLE_CLIENT_SECRET", "synthetic-secret-never-real");
 });
 afterEach(() => vi.unstubAllEnvs());
+test("HTTP module analysis succeeds without auth configuration and retains guest market route", async () => {
+  for (const name of [
+    "SITE_URL",
+    "BETTER_AUTH_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+  ])
+    vi.stubEnv(name, "");
+  vi.resetModules();
+  const { default: http } = await import("./http");
+  expect(http.lookup("/api/auth/sign-in/social", "POST")).not.toBeNull();
+  expect(http.lookup("/market-gateway", "POST")).not.toBeNull();
+});
 function setup() {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
