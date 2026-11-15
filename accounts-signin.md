@@ -1,5 +1,21 @@
 # Google sign-in configuration runbook
 
+## Current account scope - 2026-11-15
+
+Owner confirmed real production login/reload/logout/local preservation after PR22,
+and has now tested the account cloud features and authorized PR creation. Account
+saves use the verified owner's collection; guests stay local. Sign-in itself does
+not save local work. Browser-to-cloud collection import was removed by explicit
+owner decision; it is not a deferred acceptance test. See
+[cloud-portfolios.md](cloud-portfolios.md) for ownership, concurrency and rollout.
+
+Google-only Better Auth configuration and callback remain unchanged. DEV is
+stoic-corgi-586 with canonical origin http://localhost:5000; existing DEV market
+settings are connected privately. This PR does not authorize merge, production
+configuration/deployment or production data access. Use the integrated browser for
+human Google interaction; no password/token/cookie exports. Older stage 1 and
+production-preparation statements below are historical checkpoints.
+
 Stage 1 uses `@convex-dev/better-auth@0.13.0` and `better-auth@1.7.25`.
 The component declares Better Auth `>=1.7.16 <1.8.0` compatibility. Existing
 application dependencies were retained. Official references:

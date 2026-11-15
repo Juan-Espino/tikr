@@ -11,11 +11,11 @@ import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
 import { StorageNotice } from "~/components/app-shell";
 export default function LandingPage() {
   const router = useRouter();
-  const { draft, open, ready } = useDemoPortfolios();
+  const { draft, open, ready, cloud } = useDemoPortfolios();
   if (!ready)
     return (
       <main role="status" className="p-10">
-        Loading local demo...
+        {cloud ? "Loading account portfolios…" : "Loading local portfolios…"}
       </main>
     );
   return (
@@ -29,11 +29,16 @@ export default function LandingPage() {
       />
       <div className="mx-auto max-w-6xl px-5 pb-8">
         <Button onClick={() => open(draft ?? newPortfolio())}>
-          {draft ? "Resume local draft" : "Start an empty portfolio"}
+          {draft
+            ? cloud
+              ? "Resume draft"
+              : "Resume local draft"
+            : "Start an empty portfolio"}
         </Button>
         <p className="text-muted-foreground mt-3 text-xs">
-          Portfolios stay in this browser. Google sign-in does not enable cloud
-          saving.
+          {cloud
+            ? "Saved portfolios sync to your account. Unsaved edits stay in this tab."
+            : "Guest portfolios stay in this browser. Sign in to save new portfolios to your account."}
         </p>
       </div>
     </>

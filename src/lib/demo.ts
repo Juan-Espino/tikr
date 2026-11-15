@@ -49,6 +49,7 @@ const holdingSchema = z.object({
 export const portfolioSchema = z
   .object({
     id: z.string(),
+    revision: z.number().int().positive().optional(),
     name: z.string().max(80),
     holdings: z.array(holdingSchema).max(6),
     manual: z.boolean(),

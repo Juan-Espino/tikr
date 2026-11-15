@@ -7,7 +7,12 @@ import {
   useState,
   startTransition,
   type ReactNode,
+  type Dispatch,
+  type SetStateAction,
+  useRef,
 } from "react";
+import { authClient } from "~/lib/auth-client";
+import { CloudPortfoliosProvider } from "./cloud-portfolios-provider";
 import { useRouter } from "next/navigation";
 import {
   allocation,
@@ -156,6 +161,14 @@ function usePortfolioStore() {
       setNotice("Browser storage is still unavailable.");
     }
   }
+  function pin(p: Portfolio) {
+    const next = portfolios.map((row) =>
+      row.id === p.id ? { ...row, pinned: p.pinned, updated: Date.now() } : row,
+    );
+    if (!write(next, p)) return;
+    setPortfolios(next);
+    setDraft(p);
+  }
   return {
     portfolios,
     setPortfolios,
@@ -169,17 +182,102 @@ function usePortfolioStore() {
     save,
     remove,
     resetStorage,
+    pin,
+    cloud: false,
+    busy: false,
+    saveError: "",
+    conflict: false,
+    reloadDraft: () => undefined,
+    retry: () => undefined,
+    retryLabel: "Retry save",
   };
 }
-const Context = createContext<ReturnType<typeof usePortfolioStore> | null>(
-  null,
-);
-export function DemoPortfoliosProvider({ children }: { children: ReactNode }) {
+export type PortfolioStore = {
+  portfolios: Portfolio[];
+  setPortfolios: Dispatch<SetStateAction<Portfolio[]>>;
+  draft: Portfolio | null;
+  setDraft: Dispatch<SetStateAction<Portfolio | null>>;
+  ready: boolean;
+  storageBlocked: boolean;
+  notice: string;
+  setNotice: Dispatch<SetStateAction<string>>;
+  open: (p: Portfolio) => void;
+  save: (p: Portfolio) => void;
+  remove: (p: Portfolio) => boolean | Promise<boolean>;
+  resetStorage: () => void;
+  pin: (p: Portfolio) => void;
+  cloud: boolean;
+  busy: boolean;
+  saveError: string;
+  conflict: boolean;
+  reloadDraft: () => void;
+  retry: () => void;
+  retryLabel: string;
+};
+export const PortfolioContext = createContext<PortfolioStore | null>(null);
+function LocalPortfoliosProvider({ children }: { children: ReactNode }) {
   const store = usePortfolioStore();
-  return <Context.Provider value={store}>{children}</Context.Provider>;
+  return (
+    <PortfolioContext.Provider value={store}>
+      {children}
+    </PortfolioContext.Provider>
+  );
+}
+function AccountPortfoliosProvider({ children }: { children: ReactNode }) {
+  const session = authClient.useSession();
+  const lastSession = useRef(session.data);
+  if (!session.isPending && !session.error) lastSession.current = session.data;
+  const activeSession =
+    session.isPending || session.error ? lastSession.current : session.data;
+  const [, tick] = useState(0);
+  const expiry = activeSession
+    ? new Date(activeSession.session.expiresAt).getTime()
+    : 0;
+  useEffect(() => {
+    if (!expiry) return;
+    const timer = setTimeout(
+      () => tick((value) => value + 1),
+      Math.min(Math.max(0, expiry - Date.now()), 2147483647),
+    );
+    return () => clearTimeout(timer);
+  }, [expiry]);
+  if (session.isPending && !activeSession)
+    return (
+      <p role="status" className="p-10">
+        Checking session…
+      </p>
+    );
+  if (activeSession && expiry > Date.now())
+    return (
+      <CloudPortfoliosProvider
+        key={`${activeSession.user.id}:${activeSession.session.id}`}
+        sessionFence={activeSession.session.id}
+        accountId={activeSession.user.id}
+        suspended={session.isPending || !!session.error}
+      >
+        {children}
+      </CloudPortfoliosProvider>
+    );
+  if (session.error)
+    return (
+      <div className="p-10" role="alert">
+        Unable to verify your session. Private portfolios are hidden.{" "}
+        <button onClick={() => window.location.reload()}>Retry session</button>
+      </div>
+    );
+  return (
+    <LocalPortfoliosProvider key="guest">{children}</LocalPortfoliosProvider>
+  );
+}
+export function DemoPortfoliosProvider({ children }: { children: ReactNode }) {
+  return process.env.NEXT_PUBLIC_CONVEX_URL ? (
+    <AccountPortfoliosProvider>{children}</AccountPortfoliosProvider>
+  ) : (
+    <LocalPortfoliosProvider>{children}</LocalPortfoliosProvider>
+  );
 }
 export function useDemoPortfolios() {
-  const store = useContext(Context);
+  const store = useContext(PortfolioContext);
   if (!store) throw new Error("DemoPortfoliosProvider is required");
   return store;
 }

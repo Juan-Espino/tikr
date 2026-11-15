@@ -17,7 +17,11 @@ export function AccountMenu() {
   const [failed, setFailed] = useState(false);
   const router = useRouter();
   if (isPending) return <span role="status">Checking session…</span>;
-  if (!data || error)
+  if (
+    !data ||
+    error ||
+    (data.session && new Date(data.session.expiresAt).getTime() <= Date.now())
+  )
     return (
       <button
         className="min-h-11 rounded px-2 focus-visible:outline-2"
@@ -58,7 +62,8 @@ export function AccountMenu() {
         </DialogTitle>
         <p className="mt-2 text-sm break-all">{data.user.email}</p>
         <DialogDescription className="text-muted-foreground mt-4 text-sm leading-6">
-          Portfolios stay in this browser. They are not cloud saved.
+          Signed-in saves go to your account. Guest portfolios stay in this
+          browser. Unsaved edits stay in this tab.
         </DialogDescription>
         <Button
           className="mt-6 w-full"

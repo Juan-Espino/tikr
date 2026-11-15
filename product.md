@@ -1,3 +1,26 @@
+## Account cloud portfolios - approved scope (2026-11-15)
+
+Signed-in portfolio definitions save to the server-verified owner's Convex
+collection. Guests retain browser-local portfolios/drafts, search and history.
+Signing in alone never saves local work. A guest draft can be continued and saved
+only by an explicit cloud action. Existing guest portfolios remain browser-local.
+Browser-to-cloud collection import is excluded by owner decision on 2026-11-15;
+remove its UI, API, schema fields and implementation rather than deferring it.
+
+Account create/read/update/rename/duplicate/pin/delete use verified ownership,
+atomic unique names, revision/session fences and deletion receipts. Cloud errors
+retain edits in the current tab without local fallback or a persistent offline
+queue. Comparisons use the active collection and existing shared period/amount/
+financial methodology. No profile, sharing, Groq or new market policy is included.
+
+Owner reports testing the other features and authorizes commit, push and PR
+creation. Merge, production configuration/deployment/data access and paid services
+remain separate authorization. A second real Google account is unavailable;
+automated A/B + guest tests remain distinct from real cross-account verification.
+Account/auth-record and deletion-receipt retention remain open product decisions.
+Evidence and rollout notes: [cloud-portfolios.md](cloud-portfolios.md), [plan.md](plan.md).
+Older checkpoints below are historical where superseded.
+
 ## Sign-out destination - owner approved 2026-11-14
 
 Successful sign-out returns to the landing page. Local portfolios and drafts stay

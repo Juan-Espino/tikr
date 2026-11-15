@@ -51,7 +51,7 @@ test("pending sign-in disables provider action but keeps guest use available; er
   expect(loading).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*?Connecting/);
   expect(loading).toContain('role="status"');
   expect(loading).toContain("Continue as guest");
-  expect(loading).toContain("does not save them to the cloud");
+  expect(loading).toContain("browser portfolios stay local");
   const error = renderToStaticMarkup(
     createElement(Login, {
       ...props,

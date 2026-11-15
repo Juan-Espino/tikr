@@ -1,3 +1,166 @@
+## Account cloud portfolios - PR publication authorized (2026-11-15)
+
+Owner removed browser-to-cloud collection import completely, reports testing the
+other features, and authorizes commit/push/PR. Merge, production configuration/
+deployment/data access and paid services remain unauthorized. No additional agents,
+chats or worktrees. Earlier no-publication/import-scope checkpoints are historical
+where superseded by this decision.
+
+Final scope: verified-owner cloud definitions with CRUD/rename/duplicate/pin/delete,
+exact financial/name/range validation, atomic unique names, revision/session fences,
+privacy across account/session changes, scrubbed deletion receipts and truthful
+cloud pending/error/retry/conflict states. Guest portfolios/drafts stay local and
+preserved; sign-in alone never saves them. All collection-import UI/API/schema/
+index/provider logic is removed. Its manual acceptance gap is withdrawn. Automated
+checks assert the control is absent and stale transfer arguments are rejected.
+
+The existing feature branch was rebased onto merged main PR23 at416ce07, preserving
+the calendar fix and all auth/market/globe work without touching the main checkout.
+Only a plan.md prepend conflict needed resolution; both status entries and all
+historical content were preserved. The feature diff does not change main's
+financial engine, calendar/provider behavior or dependency versions.
+
+Final automated evidence on the combined source: 94 Vitest tests in24 files pass
+serially, 13 guest/name/allocation/return-path Node checks pass, and ten synthetic
+browser scenario groups pass. Seven portfolio transaction cases retain A/B+guest
+ownership, session, naming, concurrency, delete, financial/range and idempotency
+coverage. A final ID validation alignment (80 characters, reserved SPY ID refused)
+passes focused portfolio tests. Lint/both TypeScript and credential-cleared build
+pass. Focused formatting, diff/newline and exact-private-value/pattern scans pass;
+unrelated repository formatting remains outside scope. Synthetic screenshots stay
+in system temp. No new live provider probe was needed for this removal.
+
+Compatible backend validation pushed only to classified DEV stoic-corgi-586.
+Removed source-ID field/index required no deployed record cleanup; auth/market/
+portfolio records and correctness guards/counters were preserved. Existing DEV
+market connection and canonical localhost5000 auth callback are unchanged. No
+production credentials, configuration, records or deployment were accessed.
+
+Real assistant observations and owner confirmations are separate: prior DEV CRUD,
+independent same-account persistence, logout/private-ID refusal, local preservation,
+two-tab conflicts and market availability passed. Owner now confirms testing the
+other features. A second real Google account is unavailable; real cross-account
+browser verification remains a stated gap with automated A/B tests as distinct
+evidence. Do not ask the owner for another account again. Retention/privacy choices
+remain open; no account-delete/profile/sharing feature is added.
+
+Next: review the published PR and its checks, then obtain separate merge/production
+rollout authorization. The PR uses existing production auth/market configuration;
+DEV ignored environment files/secrets are excluded. Rollback and rollout notes:
+[cloud-portfolios.md](cloud-portfolios.md). Four deferred Post-MVP polish items,
+reported-USD dividend assumption and public market rights remain unchanged.
+
+## Owner follow-up: DEV market connected (2026-11-14)
+
+Owner explicitly requested connecting this feature worktree to the existing DEV
+market. Target verified as `dev:stoic-corgi-586`: both market URL and private admin
+key match that deployment. Copied only six required server-side variables from
+main's ignored DEV `.env.local`: TIKR_CONVEX_URL, TIKR_CONVEX_ADMIN_KEY,
+TIKR_PERSONAL_DATA_ENABLED, TIKR_MARKET_MODE and the existing APCA credential pair.
+Auth's three public bindings stayed unchanged. No production backup/key was read,
+no secret rotated, no hosted mode/gateway enabled, no service provisioned or backend
+deployed. The ignored file remains ignored; exact private-value scan of tracked/
+untracked source and Next browser assets found zero matches.
+
+Restarted only the verified feature checkout's hidden server on canonical
+http://localhost:5000. Existing local admission ledger and both revocation markers
+were retained; no locks/guards/counters were removed or reset. One SPY 1W route
+probe returned HTTP200/ready, personal-provisional, six points for portfolio and
+SPY, 2026-11-06 through 2026-11-13. Logs observed three provider HTTP200 responses:
+one calendar, one bars, one actions. Local admission counters moved calls4981->5002
+and io773219198->774205324; those are existing conservative control units, not an
+exact Convex HTTP/DB-operation/billing total. No full financial suite or build was
+needed for this local configuration-only connection. All feature source remains
+uncommitted, main/prod untouched. Earlier credential-free review statements below
+record the preceding authentication/cloud acceptance phase.
+
+Next: owner can reload the existing portfolio to review real DEV history together
+with cloud saving. The unavailable real second-account and fresh-profile import
+acceptance gaps remain explicit; no release/publication authorization is implied.
+
+## Stage 2 account cloud portfolios - source ready, manual acceptance gaps (2026-11-14)
+
+Owner approved stage 2 after confirming production Google login/reload/logout and
+local preservation. Work is solo in existing sidebar-visible
+`t3-account-cloud-portfolios`, starting at clean
+`7f6e47e93a4f3ed44add4d976d8efa66b023fadf` (merged PR22). Main is untouched. No
+extra agents/chats/worktrees, Git publication, production access/configuration/
+deployment, paid service or destructive cleanup. Older stage 1/preparation
+checkpoints below are historical where superseded.
+
+Implemented: additive owner-indexed definitions; verified live Better Auth
+ownership; strict server financial/name/range bounds; atomic unique names/import
+source IDs; revision/session fences; scrubbed deletion receipts; account/session/
+cache separation and server-tagged query privacy; signed-in cloud actions with
+in-tab failure/retry/conflict states; explicit selected import preserving originals.
+Pin saves only pin state, preserving other unsaved edits. Guest actions and shared
+market pipeline remain; no profile table or derived-result storage. Exact contracts,
+retention decisions, rollback and gated rollout: [cloud-portfolios.md](cloud-portfolios.md).
+
+Backend deployed only to classified/announced DEV `stoic-corgi-586`; SITE_URL remains
+`http://localhost:5000`. Three validated DEV public bindings copied into ignored
+`.env.local`; no secrets/market activation. Existing auth/market configuration,
+records/counters and installed package versions/lockfile are preserved.
+
+Final checks before the landing-copy follow-up: all 94 Vitest cases pass with `--maxWorkers 1`; the earlier parallel
+run hit the unchanged hosted-runtime 5s timeout, which passed alone and serially.
+Eight portfolio transaction cases prove two mocked component identities + guest,
+wrong-owner/impersonation/session refusal, atomic name/import races/idempotency,
+revision/delete/session fencing and financial/range bounds. 13 Node guest/name/
+allocation/auth-return cases pass. Ten synthetic browser groups pass, including
+StrictMode import/local-byte preservation, failure/offline/pending, pin-only writes,
+conflicts/deletion, failed session-refresh recovery, expiry/account/JWT transition
+privacy, mobile and focus. These mocks do not prove real cross-owner auth.
+
+`pnpm.cmd check` and the current credential-cleared build pass. The landing footer
+now distinguishes guest/local storage from account saving; its guest copy was
+verified in the integrated browser. No backend/financial behavior changed. Focused formatting and new import UI taste lint pass. Repository-
+wide `format:check` flags 99 unchanged baseline files; no unrelated formatting was
+applied. `git diff --check`, final-newline checks and changed-file credential-pattern
+scan pass. Ignored env contains only the three allowed DEV binding names. Engine
+contract unchanged, so full financial/mutation suites were not repeated.
+
+Real integrated DEV evidence: owner signed in; QA create/reload/rename/amount/pin,
+two-tab stale-write refusal and explicit conflict reload, unsaved duplicate/new
+name/save and confirmed delete pass. Fresh page shows the original QA portfolio
+and no deleted duplicate. Existing local storage hash remains unchanged. Six
+successful portfolio writes plus one refused stale update were driven; total auth,
+reactive/component/DB operations and billing were not measured. No live Alpaca
+calls or production access. History is truthfully unavailable without market
+activation; financial fixture checks are separate.
+
+Real independent-session follow-up: owner completed a fresh Google login in the
+Default integrated profile. The original QA portfolio appeared, with name, amount
+12345.67, pinned state and SPY allocation 100.00 matching the first session. After
+sign-out, navigating directly to that private ID shows Portfolio not found and no
+account avatar/private name. Default local hash remained
+`b5bbefa0367fd191d96c2b8a4630ddb6ae5e1d50d4446bc0094860f4a691d907`.
+No cloud record was written during this follow-up. The first handoff returned a
+generic OAuth error; retrying a fresh flow succeeded. Expired OAuth state is a
+possible explanation, not an established root cause. No auth configuration changed.
+
+Owner confirmed no second Google account is available. Real cross-account browser
+isolation remains unverified; do not request another account again or substitute
+mocked identities as real evidence. Two-identity + guest transaction tests prove the
+automated ownership/refusal paths; real same-account independent-session persistence
+and logout/private-state clearance passed separately.
+
+Real selected import remains a manual acceptance gap: available integrated profiles
+contain existing local state, so no originals were seeded/replaced to manufacture
+import evidence. Synthetic UI and transaction import/idempotency/race checks pass.
+The rejected native Edge helper is removed; human login uses the integrated browser.
+Source is ready for owner review with these explicit acceptance gaps. Everything
+stays uncommitted; production rollout and any new verification setup need separate
+scope/authorization where applicable.
+
+Review server: http://localhost:5000, launched from this feature checkout only.
+Command: `pnpm.cmd dev --hostname localhost --port 5000`. A hidden detached instance
+of the equivalent Next command keeps the canonical callback available at handoff;
+its output is under system temp. Do not kill a stage 1/other checkout server blindly.
+
+Account/auth/receipt retention decisions remain open. Reported-USD dividends,
+public market rights and the four deferred Post-MVP polish items remain unchanged.
+
 ## Weekend/holiday calendar fix - local review ready (2026-11-15)
 
 Owner-approved narrow implementation in the dedicated calendar worktree, based on

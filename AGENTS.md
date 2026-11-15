@@ -26,13 +26,14 @@ Keep confirmed requirements distinct from assistant proposals. Explicit owner de
 
 Correct repository: `C:\Users\JuanE\Code\React Projects\tikr`, branch `main`. This is a runnable-app source tree, not the unrelated outer repository with an unmapped gitlink.
 
-Verified main source includes PR19/20 at `7172173`: real provisional Alpaca
-history/catalog search, durable normalized monthly history in Convex, fenced
-refresh recovery, browser IndexedDB hints, comparisons and bear branding.
-Portfolio definitions/drafts remain browser-local. Google sign-in is a preview;
-Better Auth, Groq and owner-scoped cloud portfolios are not implemented. Public
-market-data display/cache rights remain unresolved. See current plan.md status;
-older checkpoints are historical evidence, not current source status.
+This feature worktree starts at merged PR22, `7f6e47e`, preserving PR19/20 market
+history/recovery, PR21 globe and stage 1 Google-only Better Auth. Owner confirmed
+production login/reload/logout/local preservation and approved stage 2 cloud
+definitions. Browser-to-cloud import is removed by owner decision on 2026-11-15.
+Signed-in definitions now use server-enforced ownership;
+guests retain browser-local portfolios/drafts. Owner reports testing the other features;
+see plan.md and cloud-portfolios.md for evidence/gaps and PR authorization; production actions remain separate.
+No Groq/profile/sharing feature or public market-data rights are established.
 
 Use pnpm: the manifest specifies `pnpm@10.11.0` and `pnpm-lock.yaml` is tracked. Preserve the Convex managed instructions above. Before Convex code changes, read `convex/_generated/ai/guidelines.md`. Generated files should not be edited as application source. `CLAUDE.md` contains parallel Convex guidance; it was not modified by the documentation transfer.
 
@@ -52,7 +53,7 @@ Use pnpm: the manifest specifies `pnpm@10.11.0` and `pnpm-lock.yaml` is tracked.
 - SPY is the explicitly named ETF benchmark, replacing VOO by owner decision on 2026-10-30. Compared series share dates, starting amount, and methodology.
 - Equal weights by default; manual weights must be positive and total exactly 100% before finalization/backtesting. Handle rounding deterministically.
 - Never omit missing holdings/history silently or invent earlier prices. Statistics must agree with charts.
-- Open unauthenticated access for the hosted release (owner decision 2026-11-06); portfolio definitions and drafts remain browser-local. Future cloud persistence requires server-enforced ownership.
+- Open unauthenticated guest access remains. Stage 2 signed-in definitions use verified server ownership; guest portfolios/drafts stay local. Sign-in alone never imports or saves guest work. Browser-to-cloud collection import is excluded. Preserve guest originals and never fall back silently from failed cloud saves to local storage.
 - Pin portfolios, but do not add manual ordering or drag-and-drop.
 - Matte near-black surfaces, Manrope, stone-white text/charts; no pastel dashboard cards. The bright login panel is intentional.
 - Groq interprets category queries; a verified catalog supplies supported assets. No unchecked model tickers, personalized buy/sell advice, or AI forecasts.
