@@ -1,3 +1,41 @@
+## App-wide button motion - owner approved 2026-11-14
+
+All enabled app buttons (native and shared Button, including landing actions,
+timeframes, dialog controls and clickable portfolio cards) use the same 5% scale /
+1px hover or keyboard-focus lift over 180ms and 97% click compression over 90ms.
+Disabled controls do not animate. Reduced motion disables these transforms.
+Only the profile avatar shimmers; its existing motion is not doubled. Use individual
+CSS translate/scale properties to preserve any existing transform-based positioning.
+
+## Profile hover feedback - owner approved 2026-11-14
+
+The profile avatar shows a stone outline and one 900ms white shimmer sweep on
+hover or keyboard focus. Reduced motion retains the outline without animation.
+The shimmer is clipped to the photo and does not intercept pointer events.
+Owner-approved gentle lift adds 5% scale and a 1px rise over 180ms on hover/focus,
+with a 97% press over 90ms. Reduced motion disables these transforms.
+
+## Account avatar and dialog - owner approved 2026-11-14
+
+Replace the header account name with the signed-in Google profile image using the
+shadcn Base UI Avatar composition, with initials only when the image is missing or
+fails. A keyboard-accessible avatar trigger opens the shared Base UI Dialog with
+account name/email, the browser-local storage disclosure and the existing app Button
+for Sign out. Keep the matte app styling, focus trapping, Escape/close behavior and
+focus return. No profile editing or cloud portfolio scope is added.
+
+## Stage 1 sign-in states - 2026-11-14
+
+Retain the approved bright login panel, typography, bear branding and PR21 globe.
+Replace the disconnected preview control with Continue with Google, pending/session
+feedback, retryable error text and Continue as guest. Say explicitly that portfolios
+and drafts stay in this browser and sign-in does not enable cloud saving. The shared
+header exposes the authenticated name with a keyboard-operable account disclosure,
+email, local-storage explanation and sign-out. Hide private identity during session
+loading/errors. No page redesign or new animation is part of this stage. Historical
+preview-only status below is superseded in this feature implementation; see
+`plan.md` for DEV verification and production limitations.
+
 ## Landing globe connections - owner approved 2026-11-14
 
 Extend the existing wireframe globe with thin elevated city-to-city arcs in its

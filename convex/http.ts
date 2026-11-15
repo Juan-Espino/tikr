@@ -3,7 +3,9 @@ import { httpAction } from "./_generated/server";
 import { ConvexError, type Value } from "convex/values";
 import { marketFailureCodes } from "../src/lib/market-errors";
 import { validRefreshFailure } from "../src/lib/market-failure-record";
+import { authComponent, createAuth } from "./auth";
 const http = httpRouter();
+authComponent.registerRoutes(http, createAuth);
 http.route({
   path: "/market-gateway",
   method: "POST",

@@ -157,7 +157,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push("/sign-in")}>
-              Sign-in preview
+              Sign in
             </Button>
             <Button disabled={!valid} onClick={() => save(draft)}>
               Save locally

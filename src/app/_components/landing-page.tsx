@@ -32,8 +32,8 @@ export default function LandingPage() {
           {draft ? "Resume local draft" : "Start an empty portfolio"}
         </Button>
         <p className="text-muted-foreground mt-3 text-xs">
-          Local demo only · No real authentication, market data or AI
-          connection.
+          Portfolios stay in this browser. Google sign-in does not enable cloud
+          saving.
         </p>
       </div>
     </>

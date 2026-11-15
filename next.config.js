@@ -5,6 +5,9 @@
 import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  // OAuth callback query strings contain short-lived authorization codes.
+  logging: { incomingRequests: { ignore: [/\/api\/auth(?:\/|\?)/] } },
+};
 
 export default config;

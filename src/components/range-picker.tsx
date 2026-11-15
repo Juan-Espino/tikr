@@ -87,7 +87,7 @@ export function RangePicker({
           aria-label="Choose timeframe"
           aria-hidden={!open}
           inert={!open}
-          className={`flex overflow-hidden transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none ${open ? "w-[176px] opacity-100" : "w-0 opacity-0"}`}
+          className={`-my-1 flex overflow-hidden py-1 transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none ${open ? "w-[184px] px-1 opacity-100" : "w-0 opacity-0"}`}
         >
           {ranges
             .filter(
