@@ -1,4 +1,4 @@
-# Google sign-in DEV runbook
+# Google sign-in configuration runbook
 
 Stage 1 uses `@convex-dev/better-auth@0.13.0` and `better-auth@1.7.25`.
 The component declares Better Auth `>=1.7.16 <1.8.0` compatibility. Existing
@@ -49,9 +49,41 @@ origin/CSRF checks remain enabled and external callbacks are rejected. Provider
 scopes are only openid/profile/email with explicit account selection. No passwords,
 passkeys, Workspace restriction or Google API permissions are configured.
 
-Production client configuration/credentials, production env changes and production
-deployment are outside this stage's authorization. Do not automatically deploy this
-feature to production. No native cap, quota or deployment target was created.
+## Production preparation - owner authorized 2026-11-14
+
+Production configuration is now prepared. The existing successful Vercel production
+build and the Convex project's production selector both identify
+`warmhearted-tapir-205`; do not infer production from a failed preview build's host.
+Vercel project is `juan-espinos-projects/tikr`, production branch `main`, canonical
+origin `https://tikr-lovat.vercel.app`.
+
+Configured and privately read back on Convex production:
+
+- `SITE_URL=https://tikr-lovat.vercel.app`
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: owner-supplied production client,
+  validated distinct from DEV.
+- `BETTER_AUTH_SECRET`: separately generated strong production secret.
+
+A private backup is in ignored `.env.auth-production.local`; do not load it into the
+localhost DEV server or commit it. Existing market/provider variables are untouched.
+
+Configured in **Vercel Production only**:
+
+- `NEXT_PUBLIC_CONVEX_URL=https://warmhearted-tapir-205.convex.cloud`
+- `NEXT_PUBLIC_CONVEX_SITE_URL=https://warmhearted-tapir-205.convex.site`
+
+The existing Vercel build command deploys Convex and injects the cloud URL into the
+Next build. Google production callback must exactly match
+`https://tikr-lovat.vercel.app/api/auth/callback/google` (owner reported creating this
+client). A synthetic production-origin regression confirms this generated callback
+and rejection of the localhost origin. Google Console callback/publishing/test-user
+settings and actual production token exchange remain to be verified at release.
+
+Preparation does not merge PR22 or publish a production deployment. Current production
+still serves pre-auth code. After separately authorized release, verify real login,
+reload, logout-to-landing, safe local draft return and a second Google account.
+Keep preview environments separate: production trusted origins do not include preview
+URLs or localhost. No native cap, quota, paid service or deployment target was created.
 
 ## Identity and local data
 

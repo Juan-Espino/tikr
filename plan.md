@@ -1,3 +1,23 @@
+## Production auth prepared - owner authorized 2026-11-14
+
+Owner authorized production preparation after PR22. Verified existing Vercel project
+juan-espinos-projects/tikr and canonical tikr-lovat.vercel.app. Latest successful
+production build logs and Convex production selector agree on warmhearted-tapir-205;
+the earlier failed build's determined-anteater-923 host is not used as production.
+Set SITE_URL and owner-supplied production Google credentials plus a new independent
+BETTER_AUTH_SECRET on warmhearted-tapir-205, with private readback matching. Values
+remain out of source/logs; ignored .env.auth-production.local is a private backup.
+Added NEXT_PUBLIC_CONVEX_URL and NEXT_PUBLIC_CONVEX_SITE_URL to Vercel Production
+only. Existing production market settings and all DEV settings remain unchanged.
+
+A production-origin regression confirms the exact HTTPS app proxy callback and
+rejects localhost. All 21 focused cases pass. No merge or production deployment was
+performed: Vercel production currently remains at pre-auth base 4f81e3a. After release,
+verify Google Console publishing/callback settings and real production login/reload/
+logout/draft return/two-user behavior. Earlier production-not-authorized statements
+below describe their historical checkpoints; preparation is now authorized, release
+remains separate. See accounts-signin.md for exact nonsecret bindings.
+
 ## Auth module-analysis correction - 2026-11-14
 
 Owner reported start_push failing on determined-anteater-923 because eager auth

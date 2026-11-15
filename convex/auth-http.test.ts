@@ -66,6 +66,23 @@ test("Google generated redirect is exact app proxy callback and basic scopes onl
   expect(url.searchParams.get("prompt")).toBe("select_account");
   expect(response.headers.get("set-cookie")).toContain("HttpOnly");
 });
+
+test("production origin generates the exact production Google proxy callback", async () => {
+  vi.stubEnv("SITE_URL", "https://tikr-lovat.vercel.app");
+  const response = await social(
+    setup(),
+    "/dashboard",
+    "https://tikr-lovat.vercel.app",
+  );
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as { url: string };
+  expect(new URL(body.url).searchParams.get("redirect_uri")).toBe(
+    "https://tikr-lovat.vercel.app/api/auth/callback/google",
+  );
+  expect(
+    (await social(setup(), "/dashboard", "http://localhost:5000")).status,
+  ).toBe(403);
+});
 test("untrusted callback and origin are rejected by backend even bypassing client", async () => {
   expect((await social(setup(), "https://evil.example/steal")).status).toBe(
     403,
