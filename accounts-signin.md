@@ -1,3 +1,87 @@
+## Guest/examples release preparation - approved 2026-11-15
+
+Owner now authorizes production readiness preparation plus commit/push/PR for this
+feature. Merge, production access/configuration/deployment and paid services remain
+separate. This supersedes earlier no-publication checkpoints below.
+
+Final behavior: guest read-only examples and one temporary recovery draft; explicit
+Sign in to save, safe OAuth return, then explicit account Save. Signed-in dashboards
+show only account portfolios, omit Examples and the redundant Portfolios nav button,
+and have no visible collection heading. Resume appears only for actual unsaved
+work. Navigation uses Portfolios / All portfolios / View portfolios. Centered shared
+dialogs confirm replace/discard/delete; deletion uses destructive buttons. Sonner
+notifications expire without a close or manual-dismiss control. Existing browser
+collection bytes are preserved but have no legacy/import UI. Private cloud edits
+never become guest recovery content; account-bound recovery is isolated in the UI.
+
+No Convex/schema, auth route/config, market engine/provider, calendar, production
+binding, quota or deferred-polish change is included. Only Sonner is added to the
+locked frontend dependencies. Current source is based on merged PR24 at b18a87d.
+Production rollout reuses existing auth/cloud CRUD and existing production public
+cloud/site bindings; no new secret/env/provider activation is required. Never copy
+DEV ignored configuration into a release. The configured Vercel build already has
+a Convex-deploy step; its eventual execution is part of the separately approved
+release, not this preparation. Backend definitions are unchanged by this PR.
+
+Release checks include all local Vitest cases, focused guest/name/auth-return/trial
+Node checks, both synthetic browser suites, lint/both TS, changed-file formatting,
+diff/newlines/private scans, and an optimized credential-cleared build with synthetic
+public auth bindings (`node scripts/build-cleared.mjs --auth-fixture`). The fixture
+build compiles the configured auth/provider path without real deployment access.
+It does not prove live OAuth exchange, production cloud availability or market rights.
+No real second Google account is available; mocked A/B coverage is distinct.
+
+After an approved release: smoke-test guest example/reload, draft->Google safe
+return->explicit Save, save/reload, name collision, logout/private-ID refusal and
+unchanged existing account definitions. Production smoke verification is outstanding
+until that release is authorized. Roll back frontend source if needed while keeping
+cloud rows/deletion receipts and both browser keys intact; no data reset/migration.
+A rollback to older frontend code does not understand the temporary trial key.
+
+## Owner review corrections - approved 2026-11-15
+
+Supersedes the earlier compatibility UI and signed-in example visibility decisions
+below: remove the older-browser entry, route and user-facing old-workflow copy.
+Leave all existing browser data bytes untouched; no migration/deletion/import.
+Examples are displayed to guests only. Account dashboards show only account work.
+Resume draft appears only for a new unsaved draft or changed saved definition,
+never an acknowledged unchanged save. Landing resume uses the same rule.
+
+Use shadcn Sonner for transient notifications, retaining actionable inline save
+errors/conflicts/pending states. Use the existing shadcn/Base UI account-dialog
+composition for discard, replacement and deletion confirmations: title, explanation,
+Cancel and explicit action, keyboard dismissal/focus return. Portfolio action
+buttons share one aligned row with consistent spacing. No backend/financial changes,
+production access/deploy or Git publication are authorized by these corrections.
+
+## Simplified examples and temporary drafts - owner approved 2026-11-15
+
+This decision supersedes older editable-example, persistent guest-library and
+single-draft handoff restrictions below. Collection import remains excluded.
+Examples are stable read-only originals available to guests and signed-in users,
+separate from the authenticated cloud collection. Try your own mix creates a new
+unsaved copy; examples never become saved originals. Guest results/search remain
+open, with Sign in to save followed by an explicit cloud Save after login.
+
+One bounded versioned temporary trial uses `tikr-trial-v1` as a reload/OAuth recovery
+bridge, not a library or cloud sync. Replacement/discard is explicit. Once edited
+in a signed-in session its recovery is bound to that account; guest/other-account
+sessions cannot restore it. Private saved cloud definitions/edits stay in memory.
+The legacy `tikr-demo-v1` collection is never written, migrated, deleted or imported.
+Older browser portfolios provides separate read-only inspection, including its old
+draft, using existing compatibility interpretation without changing stored bytes.
+Malformed records fail visibly without overwrite. This minimal compatibility path
+adds no export wizard or import API/schema/index.
+
+Cloud ownership, atomic names, client-ID idempotency, session/revision fences and
+deletion receipts remain unchanged. Same-ID recovery with different cloud contents
+retains edits and requires explicit conflict resolution. No backend change/deploy,
+financial-engine change, operational quota, Groq feature or deferred polish is added.
+Source is in the isolated guest/examples worktree at merged PR24 base
+`b18a87d8c3bc41cd9696812ef2b35da43c0bf29b`; no commit/push/PR/merge or production
+access/configuration/deployment is authorized for this task. Earlier publication
+permissions below describe previous work and do not authorize this branch.
+
 # Google sign-in configuration runbook
 
 ## Current account scope - 2026-11-15

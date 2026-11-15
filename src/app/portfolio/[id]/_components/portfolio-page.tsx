@@ -1,4 +1,5 @@
 "use client";
+import { useConfirmation } from "~/components/confirmation-dialog";
 import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
@@ -8,6 +9,8 @@ import { Button } from "~/components/ui/button";
 import { RangePicker } from "~/components/range-picker";
 import { MarketPerformance } from "~/components/market-performance";
 import {
+  examples,
+  newPortfolio,
   allocation,
   validAmount,
   portfolioNameError,
@@ -36,9 +39,10 @@ export default function PortfolioPage({ id }: { id: string }) {
       </main>
     );
   const selected =
-    store.draft?.id === id
+    examples().find((p) => p.id === id) ??
+    (store.draft?.id === id
       ? store.draft
-      : store.portfolios.find((p) => p.id === id);
+      : store.portfolios.find((p) => p.id === id));
   if (!selected)
     return (
       <main className="p-10">
@@ -48,7 +52,7 @@ export default function PortfolioPage({ id }: { id: string }) {
           This portfolio is not available in the active collection.
         </p>
         <Button className="mt-5" onClick={() => router.push("/dashboard")}>
-          Go to dashboard
+          View portfolios
         </Button>
       </main>
     );
@@ -65,11 +69,14 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     open,
     cloud,
     busy,
+    storageBlocked,
     pin,
     saveError,
     conflict,
     draft: storedDraft,
   } = useDemoPortfolios();
+  const { confirm, dialog } = useConfirmation();
+  const readOnly = initial.id.startsWith("example-");
   const [draft, updateDraft] = useState(initial);
   useEffect(() => {
     if (storedDraft?.id === initial.id && storedDraft.revision !== undefined)
@@ -87,10 +94,10 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
   const [nameValidationAttempted, setNameValidationAttempted] = useState(false);
   function setDraft(p: Portfolio) {
     updateDraft(p);
-    persistDraft(p);
+    if (!readOnly) persistDraft(p);
   }
   const [editorOpen, setEditorOpen] = useState(
-    !initial.name.trim() || initialNameConflict,
+    !readOnly && (!initial.name.trim() || initialNameConflict),
   );
   const [rejectedName, setRejectedName] = useState<string | null>(null);
   useEffect(() => {
@@ -121,11 +128,6 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
       ? { ...initial, holdings: initial.holdings.map((h) => ({ ...h })) }
       : null,
   );
-  const valid =
-    draft &&
-    allocation(draft.holdings).valid &&
-    validAmount(draft.amount) &&
-    !saveNameError;
   function finishEditing() {
     if (portfolioNameError(draft, portfolios)) {
       setNameValidationAttempted(true);
@@ -139,11 +141,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     setDraft(p);
     if (!p.holdings.length) {
       setResult(null);
-    } else if (
-      allocation(p.holdings).valid &&
-      validAmount(p.amount) &&
-      p.name.trim()
-    ) {
+    } else if (allocation(p.holdings).valid && validAmount(p.amount)) {
       setResult({
         ...p,
         holdings: p.holdings.map((holding) => ({ ...holding })),
@@ -159,19 +157,23 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
       JSON.stringify(result.holdings) !== JSON.stringify(draft.holdings));
   return (
     <AppShell portfolio>
-      {" "}
+      {dialog}{" "}
       <>
         <button
           className="text-muted-foreground mb-5 text-sm"
           onClick={() => router.push("/dashboard")}
         >
           <ArrowLeft className="mr-2 inline size-4" />
-          All experiments
+          All portfolios
         </button>
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="max-w-full min-w-0">
             <p className="text-muted-foreground text-xs tracking-[.18em] uppercase">
-              Portfolio editor
+              {readOnly
+                ? "Example"
+                : draft.revision === undefined
+                  ? "Unsaved draft"
+                  : "Account portfolio"}
             </p>
             <h1 className="mt-2 text-3xl break-words">
               {draft.name.trim() || "New portfolio"}
@@ -179,36 +181,59 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             <p className="text-muted-foreground mt-2 text-sm">
               {draft.holdings.length}{" "}
               {draft.holdings.length === 1 ? "asset" : "assets"} ·{" "}
-              {cloud
-                ? "account portfolio · save to sync edits"
-                : "browser-local portfolio"}
+              {readOnly
+                ? "Read-only original"
+                : cloud
+                  ? "Save to sync edits to your account"
+                  : "Temporary draft - sign in to save"}
             </p>
+            {readOnly && (
+              <p className="text-muted-foreground mt-3 text-sm">
+                {draft.holdings
+                  .map((h) => `${h.ticker} ${h.weight}%`)
+                  .join(" / ")}
+                <br />
+                Starting amount: ${draft.amount} USD
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
-            {!cloud && (
+            {readOnly ? (
               <Button
-                variant="outline"
                 onClick={() =>
-                  router.push(
-                    `/sign-in?returnTo=${encodeURIComponent(window.location.pathname)}`,
-                  )
+                  open({
+                    ...draft,
+                    ...newPortfolio(),
+                    holdings: draft.holdings.map((h) => ({ ...h })),
+                    amount: draft.amount,
+                    range: draft.range,
+                    rangeChoice: draft.rangeChoice,
+                  })
                 }
               >
-                Sign in
+                Try your own mix
+              </Button>
+            ) : (
+              <Button
+                disabled={
+                  busy ||
+                  storageBlocked ||
+                  conflict ||
+                  !allocation(draft.holdings).valid ||
+                  !validAmount(draft.amount)
+                }
+                onClick={() => {
+                  if (cloud && saveNameError) {
+                    setNameValidationAttempted(true);
+                    setEditorOpen(true);
+                    return;
+                  }
+                  save(draft);
+                }}
+              >
+                {busy ? "Saving…" : cloud ? "Save to cloud" : "Sign in to save"}
               </Button>
             )}
-            <Button
-              disabled={!valid || busy || conflict}
-              onClick={() => {
-                if (saveError.startsWith("A portfolio with this name")) {
-                  setNameValidationAttempted(true);
-                  setEditorOpen(true);
-                }
-                save(draft);
-              }}
-            >
-              {busy ? "Saving…" : cloud ? "Save to cloud" : "Save locally"}
-            </Button>
           </div>
         </div>
         {nameError && (
@@ -218,75 +243,113 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             before saving.
           </p>
         )}
-        <div className="mb-6">
-          <div
-            className="mt-3 flex flex-wrap gap-2"
-            aria-label="Portfolio actions"
-          >
-            <Button
-              variant="outline"
-              disabled={busy || conflict}
-              onClick={() => {
-                const pinned = !draft.pinned;
-                setDraft({ ...draft, pinned });
-                pin({ ...draft, pinned });
-              }}
+        {!readOnly && (
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            {draft.revision === undefined && (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: "Discard this draft?",
+                      description:
+                        "Your unsaved holdings, weights and settings will be removed. Save the draft to your account if you want to keep it. This cannot be undone.",
+                      action: "Discard draft",
+                    })
+                  ) {
+                    persistDraft(null);
+                    router.push("/dashboard");
+                  }
+                }}
+              >
+                Discard draft
+              </Button>
+            )}
+            <div
+              className="flex flex-wrap items-center gap-2"
+              aria-label="Portfolio actions"
             >
-              <Pin className={draft.pinned ? "fill-stone-200" : ""} />
-              {draft.pinned ? "Unpin" : "Pin"}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => setEditorOpen(true)}
-            >
-              <Pencil />
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              disabled={
-                busy ||
-                (!conflict && !portfolios.some((p) => p.id === draft.id))
-              }
-              onClick={() => {
-                if (!cloud && portfolios.length >= 100) {
-                  setNotice("Local demo limit: 100 portfolios.");
-                  return;
-                }
-                const original = conflict
-                  ? draft
-                  : portfolios.find((p) => p.id === draft.id)!;
-                open({
-                  ...original,
-                  id: crypto.randomUUID(),
-                  revision: undefined,
-                  pinned: false,
-                  updated: Date.now(),
-                });
-                setNotice("Choose a unique name, then save the duplicate.");
-              }}
-            >
-              <Copy />
-              Duplicate
-            </Button>
-            <Button
-              variant="outline"
-              disabled={busy || !portfolios.some((p) => p.id === draft.id)}
-              onClick={() => {
-                const original = portfolios.find((p) => p.id === draft.id);
-                if (!original || !window.confirm(`Delete ${original.name}?`))
-                  return;
-                void remove(draft);
-              }}
-            >
-              <Trash2 />
-              Delete
-            </Button>
+              {cloud && draft.revision !== undefined && (
+                <Button
+                  variant="outline"
+                  disabled={
+                    busy || conflict || !cloud || draft.revision === undefined
+                  }
+                  onClick={() => {
+                    const pinned = !draft.pinned;
+                    setDraft({ ...draft, pinned });
+                    pin({ ...draft, pinned });
+                  }}
+                >
+                  <Pin className={draft.pinned ? "fill-stone-200" : ""} />
+                  {draft.pinned ? "Unpin" : "Pin"}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => setEditorOpen(true)}
+              >
+                <Pencil />
+                Edit
+              </Button>
+              {cloud &&
+                (conflict || portfolios.some((p) => p.id === draft.id)) && (
+                  <Button
+                    variant="outline"
+                    disabled={
+                      busy ||
+                      (!conflict && !portfolios.some((p) => p.id === draft.id))
+                    }
+                    onClick={() => {
+                      const original = conflict
+                        ? draft
+                        : portfolios.find((p) => p.id === draft.id)!;
+                      void open({
+                        ...original,
+                        id: crypto.randomUUID(),
+                        revision: undefined,
+                        pinned: false,
+                        updated: Date.now(),
+                      });
+                      setNotice(
+                        "Choose a unique name, then save the duplicate.",
+                      );
+                    }}
+                  >
+                    <Copy />
+                    Duplicate
+                  </Button>
+                )}
+              {cloud && portfolios.some((p) => p.id === draft.id) && (
+                <Button
+                  variant="destructive"
+                  disabled={busy || !portfolios.some((p) => p.id === draft.id)}
+                  onClick={async () => {
+                    const original = portfolios.find((p) => p.id === draft.id);
+                    if (
+                      !original ||
+                      !(await confirm({
+                        title: "Delete this portfolio?",
+                        description: `Delete "${original.name}" from your account? This cannot be undone.`,
+                        action: "Delete portfolio",
+                        destructive: true,
+                      }))
+                    )
+                      return;
+                    void remove(draft);
+                  }}
+                >
+                  <Trash2 />
+                  Delete
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex flex-col gap-4">
-          <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+          <Dialog open={!readOnly && editorOpen} onOpenChange={setEditorOpen}>
             <DialogContent>
               <PortfolioEditor
                 portfolio={draft}

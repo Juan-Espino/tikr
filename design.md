@@ -1,3 +1,55 @@
+## Dashboard navigation - owner correction 2026-11-15
+
+Hide the header Portfolios button on the dashboard itself; retain it on other
+app pages. This is explicit dashboard shell state, with no route or data changes.
+
+## Portfolio terminology and destructive delete - owner approved 2026-11-15
+
+Use Portfolios in navigation, All portfolios for the detail back link and View
+portfolios for return actions. Remove the visible dashboard collection heading;
+retain a screen-reader-only Portfolio dashboard heading. Guest copy invites users
+to build their own portfolio; signed-in empty state names saved portfolios.
+Delete and Delete portfolio use the existing destructive button variant. Centered
+confirmation actions and automatic, non-dismissible toast behavior are retained.
+No data/backend/publication changes. Focused checks recorded in the owner response.
+
+## Toast and confirmation alignment - owner correction 2026-11-15
+
+Center confirmation dialog action buttons. Remove the Sonner toast close button
+and disable user dismissal; notifications expire automatically. Dialog close/
+Cancel behavior remains unchanged. Focused formatting and TypeScript verification
+recorded in the owner response. No data, backend or publication changes.
+
+## Owner review corrections - approved 2026-11-15
+
+Supersedes the earlier compatibility UI and signed-in example visibility decisions
+below: remove the older-browser entry, route and user-facing old-workflow copy.
+Leave all existing browser data bytes untouched; no migration/deletion/import.
+Examples are displayed to guests only. Account dashboards show only account work.
+Resume draft appears only for a new unsaved draft or changed saved definition,
+never an acknowledged unchanged save. Landing resume uses the same rule.
+
+Use shadcn Sonner for transient notifications, retaining actionable inline save
+errors/conflicts/pending states. Use the existing shadcn/Base UI account-dialog
+composition for discard, replacement and deletion confirmations: title, explanation,
+Cancel and explicit action, keyboard dismissal/focus return. Portfolio action
+buttons share one aligned row with consistent spacing. No backend/financial changes,
+production access/deploy or Git publication are authorized by these corrections.
+
+## Examples and draft states - owner approved 2026-11-15
+
+Keep the approved matte surfaces, Manrope/Cabinet type, monochrome charts, bear,
+globe, bright login panel, avatar/dialog and reduced-motion behavior. No new visual
+system. Examples has its own dashboard section for both auth states; detail says
+Example / Read-only original and offers Try your own mix. The copy says Unsaved
+draft and Sign in to save for guest work, with explicit cloud Save after login.
+Guest mutation controls are reduced to Edit and Discard draft; cloud CRUD retains
+its existing controls. Replacement/discard uses explicit confirmation. Legacy
+records have a separate read-only route and concise browser-only explanation.
+Pending/error/conflict states retain truthful existing cloud feedback. Names are
+validated on submission; suggestions never apply themselves. Valid charts do not
+require a name or login. These rules supersede older guest/local-save copy below.
+
 ## Account cloud states - approved scope (2026-11-15)
 
 Preserve the matte app, typography, bear/globe, bright login panel, avatar, Base UI

@@ -19,6 +19,7 @@ const server = await createServer({
   },
   resolve: {
     alias: [
+      { find: "next/image", replacement: join(fixture, "image.tsx") },
       { find: "~/lib/auth-client", replacement: join(fixture, "auth.ts") },
       { find: "convex/react", replacement: join(fixture, "convex.ts") },
       { find: "next/navigation", replacement: join(fixture, "navigation.ts") },
@@ -84,10 +85,13 @@ try {
       rangeChoice: "default",
     },
   };
-  await page.evaluate(
-    (value) => localStorage.setItem("tikr-demo-v1", JSON.stringify(value)),
-    local,
-  );
+  await page.evaluate((value) => {
+    localStorage.setItem("tikr-demo-v1", JSON.stringify(value));
+    localStorage.setItem(
+      "tikr-trial-v1",
+      JSON.stringify({ version: 1, owner: null, draft: value.draft }),
+    );
+  }, local);
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Resume draft: Guest draft" }),
@@ -108,7 +112,10 @@ try {
     .getByRole("button", { name: "Save to cloud", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Your experiments" }),
+    page.getByRole("heading", {
+      name: "Portfolio dashboard",
+      includeHidden: true,
+    }),
   ).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("tikr-demo-v1"))).toBe(
     original,
@@ -172,7 +179,10 @@ try {
   ).toBeDisabled();
   await page.evaluate(() => window.__cloudQA.release());
   await expect(
-    page.getByRole("heading", { name: "Your experiments" }),
+    page.getByRole("heading", {
+      name: "Portfolio dashboard",
+      includeHidden: true,
+    }),
   ).toBeVisible();
   passed.push("pending save stays pending until acknowledgment");
   await page
@@ -231,7 +241,10 @@ try {
     .getByRole("button", { name: "Save to cloud", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Your experiments" }),
+    page.getByRole("heading", {
+      name: "Portfolio dashboard",
+      includeHidden: true,
+    }),
   ).toBeVisible();
   passed.push(
     "remote deletion cannot resurrect; explicit duplicate saves a new definition",
@@ -262,7 +275,7 @@ try {
   ).toBeVisible();
   await page.evaluate(() => window.__cloudQA.expiresAt(Date.now() + 150));
   await expect(
-    page.getByText("Browser-local portfolios", { exact: true }),
+    page.getByText("Temporary guest draft", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Open Recovered edits/ }),
@@ -272,11 +285,11 @@ try {
   );
   await page.evaluate(() => window.__cloudQA.account(""));
   await expect(
-    page.getByText("Browser-local portfolios", { exact: true }),
+    page.getByText("Temporary guest draft", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Open Legacy same name/ }),
-  ).toHaveCount(2);
+  ).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("tikr-demo-v1"))).toBe(
     original,
   );

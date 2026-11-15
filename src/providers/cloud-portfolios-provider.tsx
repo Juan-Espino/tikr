@@ -8,10 +8,18 @@ import {
   useConvexConnectionState,
 } from "convex/react";
 import { ConvexError } from "convex/values";
+import { useConfirmation } from "~/components/confirmation-dialog";
+import {
+  isExample,
+  readTrial,
+  settleTrial,
+  writeTrial,
+  TRIAL_KEY,
+} from "~/lib/trial";
 import { authClient } from "~/lib/auth-client";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
-import { storageSchema, portfolioNameError, type Portfolio } from "~/lib/demo";
+import { portfolioNameError, type Portfolio } from "~/lib/demo";
 import {
   PortfolioContext,
   type PortfolioStore,
@@ -75,6 +83,7 @@ export function CloudPortfoliosProvider({
   suspended?: boolean;
 }) {
   const router = useRouter();
+  const { confirm, dialog } = useConfirmation();
   const auth = useConvexAuth();
   const connection = useConvexConnectionState();
   const [sessionKey] = useState(() => crypto.randomUUID());
@@ -107,33 +116,45 @@ export function CloudPortfoliosProvider({
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    // Read the guest draft once. Cloud actions never write this browser key.
+    // Recover only the separate temporary trial, never a legacy collection or private cloud record.
     try {
-      const raw = localStorage.getItem("tikr-demo-v1");
-      if (raw) {
-        const local = storageSchema.parse(JSON.parse(raw));
-        if (local.draft) setDraft({ ...local.draft, revision: undefined });
-      }
+      setDraft(readTrial(localStorage, accountId));
     } catch {
       setNotice(
-        "Browser portfolios could not be read. The originals have not been changed.",
+        "The recovery draft could not be read. Stored data has not been changed.",
       );
     }
     setLocalReady(true);
     return () => {
       mounted.current = false;
     };
-  }, []);
+  }, [accountId]);
   const portfolios = auth.isAuthenticated
     ? accountResults.map(cloudPortfolio)
     : [];
   useEffect(() => {
     if (!localReady || status !== "Exhausted" || adoptedGuest.current) return;
     adoptedGuest.current = true;
-    // After a cloud save/reload the matching cloud record wins over the untouched guest draft.
     const saved = accountResults.find((row) => row.clientId === draft?.id);
-    if (saved) setDraft(cloudPortfolio(saved));
-  }, [localReady, status, accountResults, draft?.id]);
+    if (saved && draft) {
+      if (
+        JSON.stringify(cloudDefinition(cloudPortfolio(saved))) ===
+        JSON.stringify(cloudDefinition({ ...draft, name: draft.name.trim() }))
+      ) {
+        try {
+          settleTrial(localStorage, draft, accountId);
+        } catch {
+          /* Preserve newer recovery state. */
+        }
+        setDraft(cloudPortfolio(saved));
+      } else {
+        setConflict(true);
+        setSaveError(
+          "This draft was saved differently in another tab. Your recovery edits are still here. Load the cloud version or duplicate your edits with a new name.",
+        );
+      }
+    }
+  }, [localReady, status, accountResults, draft, accountId]);
   const available =
     !suspended && auth.isAuthenticated && connection.isWebSocketConnected;
   const ready = localReady && status === "Exhausted";
@@ -180,6 +201,7 @@ export function CloudPortfoliosProvider({
     }
   }
   async function persist(p: Portfolio, navigate: boolean) {
+    if (isExample(p.id)) return;
     const nameError = portfolioNameError(p, portfolios);
     if (nameError) {
       setSaveError(nameError);
@@ -200,27 +222,97 @@ export function CloudPortfoliosProvider({
               sessionFence,
             });
       if (!mounted.current) return;
+      try {
+        settleTrial(localStorage, p, accountId);
+      } catch {
+        /* Preserve unreadable or newer recovery state. */
+      }
       setDraft(cloudPortfolio(row));
       setNotice("Saved to your account.");
       if (navigate) router.push("/dashboard");
     });
   }
   const store: PortfolioStore = {
+    confirmationDialog: dialog,
     portfolios,
     draft: auth.isAuthenticated ? draft : null,
-    setDraft,
+    setDraft: (value) => {
+      const next = typeof value === "function" ? value(draft) : value;
+      if (next && isExample(next.id)) return;
+      // Only a guest-origin bridge is recoverable. Private cloud definitions never enter browser draft storage.
+      try {
+        const bridge = readTrial(localStorage, accountId);
+        if (
+          bridge &&
+          (next?.id === bridge.id || next === null) &&
+          next?.revision === undefined
+        )
+          writeTrial(
+            localStorage,
+            next,
+            draft?.id === bridge.id ? draft : bridge,
+            accountId,
+          );
+      } catch {
+        setNotice(
+          "Draft recovery could not be updated. Keep this tab open; existing browser data is preserved.",
+        );
+      }
+      setDraft(next);
+    },
     setPortfolios: () =>
       setNotice("Create a portfolio and choose Save to cloud."),
     ready,
     storageBlocked: false,
     notice,
     setNotice,
-    open: (p) => {
+    open: async (p) => {
+      if (isExample(p.id)) {
+        router.push(`/portfolio/${p.id}`);
+        return;
+      }
+      let recoveryBefore: string | null | undefined;
+      try {
+        recoveryBefore = localStorage.getItem(TRIAL_KEY);
+      } catch {
+        /* Cloud portfolios remain usable when browser recovery storage is unavailable. */
+      }
+      if (
+        draft &&
+        draft.id !== p.id &&
+        draft.revision === undefined &&
+        !(await confirm({
+          title: "Replace your unsaved draft?",
+          description:
+            "Opening another portfolio will discard the current unsaved draft. Save it first to keep your mix. This cannot be undone.",
+          action: "Replace draft",
+        }))
+      )
+        return;
+      if (!mounted.current) return;
       if (lock.current) {
         setNotice(
           "Wait for the current cloud save to finish before opening another portfolio.",
         );
         return;
+      }
+      try {
+        if (
+          recoveryBefore !== undefined &&
+          localStorage.getItem(TRIAL_KEY) !== recoveryBefore
+        ) {
+          setNotice(
+            "The recovery draft changed in another tab. It has been preserved. Reopen the portfolio to continue.",
+          );
+          return;
+        }
+        const bridge = readTrial(localStorage, accountId);
+        if (bridge && bridge.id !== p.id)
+          writeTrial(localStorage, null, bridge, accountId);
+      } catch {
+        setNotice(
+          "The previous recovery draft was preserved because it could not be settled.",
+        );
       }
       setDraft(p);
       setSaveError("");
@@ -231,6 +323,7 @@ export function CloudPortfoliosProvider({
       void persist(p, true);
     },
     pin: (p) => {
+      if (isExample(p.id)) return;
       setDraft(p);
       const saved = portfolios.find((row) => row.id === p.id);
       if (!saved || p.revision === undefined) return;
@@ -260,7 +353,7 @@ export function CloudPortfoliosProvider({
     },
     remove: (p) =>
       run(async () => {
-        if (p.revision === undefined) return;
+        if (isExample(p.id) || p.revision === undefined) return;
         await deletePortfolio({
           clientId: p.id,
           revision: p.revision,
@@ -279,6 +372,13 @@ export function CloudPortfoliosProvider({
     reloadDraft: () => {
       const latest = portfolios.find((p) => p.id === draft?.id);
       if (latest) {
+        try {
+          const bridge = readTrial(localStorage, accountId);
+          if (bridge?.id === draft?.id)
+            writeTrial(localStorage, null, draft, accountId);
+        } catch {
+          setNotice("A newer recovery draft was preserved.");
+        }
         setDraft(latest);
         setSaveError("");
         setConflict(false);
@@ -319,6 +419,7 @@ export function CloudPortfoliosProvider({
       ) : (
         children
       )}
+      {!suspended && dialog}
     </PortfolioContext.Provider>
   );
 }
