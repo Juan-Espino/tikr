@@ -1,3 +1,25 @@
+## Sign-out destination - owner approved 2026-11-14
+
+Successful sign-out returns to the landing page. Local portfolios and drafts stay
+in the browser. A failed sign-out keeps the account dialog open with retry feedback.
+
+## Owner-approved stage 1 accounts - 2026-11-14
+
+Google-only Better Auth + Convex sign-in is approved in this isolated feature
+worktree from merged base `4f81e3a`. Authentication does not gate ordinary portfolio,
+search or history use. Definitions and drafts remain browser-local; sign-in returns
+to a validated internal path/current draft without importing, deleting or rewriting
+local records. Sign-out retains local portfolios. Browser-local records are shared
+by people using that browser profile; they are not private cloud records.
+
+Stage 1 includes an account name/email menu, logout and session/loading/error states.
+Only basic Google openid/profile/email access is requested. Component-owned auth
+records are necessary; no app profile feature, cloud portfolios, local-to-cloud
+import or Groq is included. Future cloud saving requires separate scope approval
+and server-enforced ownership. DEV-only configuration and verification are
+authorized; production setup/publication remain unauthorized. See `plan.md` and
+`accounts-signin.md`; older preview-auth statements below are historical.
+
 ## Current product status - reconciled 2026-11-14
 
 PR 19/20 are merged on main at `7172173`; see plan.md for evidence and next milestone.

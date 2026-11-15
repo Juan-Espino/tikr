@@ -131,7 +131,7 @@ function usePortfolioStore() {
     if (!write(next, saved)) return;
     setPortfolios(next);
     setDraft(saved);
-    setNotice("Saved on this browser only. No account or cloud storage.");
+    setNotice("Saved on this browser only. No cloud copy.");
     router.push("/dashboard");
   }
   function remove(p: Portfolio) {

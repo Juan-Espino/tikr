@@ -1,3 +1,146 @@
+## Production auth prepared - owner authorized 2026-11-14
+
+Owner authorized production preparation after PR22. Verified existing Vercel project
+juan-espinos-projects/tikr and canonical tikr-lovat.vercel.app. Latest successful
+production build logs and Convex production selector agree on warmhearted-tapir-205;
+the earlier failed build's determined-anteater-923 host is not used as production.
+Set SITE_URL and owner-supplied production Google credentials plus a new independent
+BETTER_AUTH_SECRET on warmhearted-tapir-205, with private readback matching. Values
+remain out of source/logs; ignored .env.auth-production.local is a private backup.
+Added NEXT_PUBLIC_CONVEX_URL and NEXT_PUBLIC_CONVEX_SITE_URL to Vercel Production
+only. Existing production market settings and all DEV settings remain unchanged.
+
+A production-origin regression confirms the exact HTTPS app proxy callback and
+rejects localhost. All 21 focused cases pass. No merge or production deployment was
+performed: Vercel production currently remains at pre-auth base 4f81e3a. After release,
+verify Google Console publishing/callback settings and real production login/reload/
+logout/draft return/two-user behavior. Earlier production-not-authorized statements
+below describe their historical checkpoints; preparation is now authorized, release
+remains separate. See accounts-signin.md for exact nonsecret bindings.
+
+## Auth module-analysis correction - 2026-11-14
+
+Owner reported start_push failing on determined-anteater-923 because eager auth
+route registration constructed Better Auth while SITE_URL was absent/invalid.
+Use the component's documented registerRoutesLazy so module analysis registers HTTP
+routes without creating auth. Request-time validation remains strict; no fallback
+secret/origin, production env access/configuration or production deployment.
+A regression imports http.ts with all auth settings empty and confirms auth and
+market routes remain registered; existing missing-config and configured-auth tests
+pass. DEV stoic-corgi-586 push, pnpm check, all 20 focused cases and a
+credential-cleared production build pass. Production sign-in still requires
+separately approved production configuration.
+
+## PR preparation - owner authorized 2026-11-14
+
+Owner now authorizes a commit, feature-branch push and PR for stage 1 plus the
+approved avatar/dialog/button-motion/sign-out refinements. This supersedes the
+prior no-commit/no-PR constraint below; merge and production configuration/deploy
+remain unauthorized. Main remains unchanged at base `4f81e3a`.
+
+Real Google DEV login succeeded in Chrome (owner confirmation) and the integrated
+browser (authenticated session/avatar checked directly). Actual profile image,
+account dialog, keyboard focus return and mobile fit were verified. Signed-cookie
+reload/logout/revocation and two-user isolation pass synthetic tests. A real second
+Google account, full real-session reload/logout-to-landing and local-draft roundtrip
+remain manual verification gaps; do not infer them from synthetic tests.
+
+Before public auth rollout: separately configure/verify production OAuth + Convex
+auth, resolve privacy/terms and account-retention/deletion decisions. Cloud portfolios
+and explicit local import remain a later stage, not missing stage 1 implementation.
+Market rights and explicitly deferred reliability polish are unchanged.
+Final PR checks: pnpm check, 19 focused Vitest cases, two Node return-path cases,
+credential-cleared production build and staged whitespace/secret checks pass.
+The staged patch contains no private auth-secret matches; .env.local stays ignored. Found and
+removed remaining preview-era editor/save labels during final review.
+
+### Sign-out landing return - 2026-11-14
+
+Successful Better Auth sign-out now replaces the current browser location with `/`,
+returning to the landing page and discarding in-memory authenticated state. Local
+portfolio/draft storage is untouched. Failure keeps the existing retry behavior.
+Focused UI/proxy checks and lint verify this small frontend change; no backend push.
+
+### App-wide button lift - 2026-11-14
+
+Applied owner-approved lift/click compression centrally to native/shared app buttons,
+including the annotated landing actions. Removed the shared Button's conflicting
+old active translation. Profile-specific lift stays single; shimmer stays exclusive
+to the profile. Disabled and reduced-motion controls are excluded. Timeframe options
+have extra clipping clearance. Browser confirms both marked landing buttons use
+1.05 scale / -1px translate without shimmer. Lint/both TypeScript and whitespace
+checks recorded for this CSS/UI change; no auth/backend/deploy change.
+
+### Profile gentle lift - 2026-11-14
+
+Added owner-approved hover/focus lift (5% scale, 1px rise) and brief click compression.
+The existing shimmer remains; reduced motion keeps static feedback. CSS formatting
+and diff whitespace checks pass. No auth/backend changes or deployment.
+
+### Profile shimmer - 2026-11-14
+
+Added owner-requested avatar hover shimmer, matching keyboard focus feedback and
+a static reduced-motion outline. CSS-only feedback; no auth/session/backend change.
+Prettier and lint checked. No new browser verification claimed for this small edit.
+
+### Account UI customization - 2026-11-14
+
+Owner requested the shadcn Base UI avatar and dialog: header avatar uses the verified
+Google session image, with a fallback for missing/failed images. Clicking it opens
+an account dialog with the existing app-styled Sign out button. Shared portfolio
+editor dialog defaults are preserved. No dependency/backend changes or deployment.
+Six focused UI/proxy tests and lint/both TypeScript checks pass. In the isolated
+authenticated DEV browser, the loaded avatar URL matches the verified Google session
+image. The dialog opens, Tab reaches the shared Sign out button, and Escape returns
+focus to the avatar after dismissal. Mobile fit is checked at 390px. Real sign-out
+is left for owner review so this customization does not end their session.
+
+## Stage 1 Google sign-in — feature implementation 2026-11-14
+
+Owner-approved scope: Google-only Better Auth authentication with Convex, while
+all ordinary guest operations and browser-local portfolios/drafts remain available.
+This feature worktree starts at `4f81e3a`, including merged PR21 globe connections
+and the earlier history/fencing fixes. Main is unchanged. No commit, push, PR,
+production configuration or production deployment is authorized or performed.
+
+Implemented: Better Auth 1.7.25 with @convex-dev/better-auth 0.13.0, component-owned
+auth records, Next.js same-origin proxy, exact app callback, explicit trusted origin,
+verified-session account identity, Google account selection, session/loading/error
+states and sign-out. No app profile or cloud portfolio table, import, Groq or market
+policy change. Local definitions stay local across sign-in/sign-out; no cloud-save claim.
+
+DEV target `stoic-corgi-586` was verified against the main ignored DEV binding and
+public connection hosts before private credential transfer. Auth variables were set
+only on that DEV deployment; the component deployment succeeded. No market secrets
+were copied or live Alpaca requests made. Actual Google authorization was opened in
+an isolated preview and reached Google's Tikr login with the exact localhost:5000
+callback. The owner completed real DEV Google login in Chrome and confirmed
+the account menu with name/email and local-only disclosure. Integrated-browser
+login/reload/logout verification is in progress; a second real account is not yet
+verified. No personal account values are included in this record.
+
+Evidence: 19 focused Vitest cases and two Node return-path cases pass.
+Auth HTTP/session tests cover exact redirect/basic scopes,
+untrusted origins/external callbacks, missing configuration, signed-session repeated
+requests, tampered cookies, logout/revocation, two synthetic accounts and denied
+callback draft return. Mocked Convex tests reject guest identity and client userId
+impersonation and require a live session. Focused guest market route tests pass.
+Final DEV push, credential-cleared production build and lint/both TypeScript
+projects pass. Private source/public-asset scan found zero auth-secret matches.
+UI tests also cover hidden cached identity during loading/errors and accessible
+pending/error/guest states. Mobile error view fits 390px. No broad financial suite rerun.
+
+Integrated-browser regression found during owner retry: adding no-store directly
+mutated immutable upstream OAuth headers and converted success to 503. The Next
+proxy now copies headers into a new response. An immutable-response regression test
+passes, the actual DEV social endpoint returns 200 with a Google authorization URL,
+and clicking Continue in the integrated browser reaches Google again. No backend
+configuration or deployment was needed for this proxy fix.
+
+Next: finish real Google owner handoff, reload/sign-out and account-switch review;
+see `accounts-signin.md`. Cloud saving/import remains a separately approved future
+stage. Existing deferred post-MVP reliability polish remains deferred.
+
 ## Current project status - reconciled 2026-11-14
 
 This summary supersedes historical uncommitted/no-PR/DEV-only checkpoints below.

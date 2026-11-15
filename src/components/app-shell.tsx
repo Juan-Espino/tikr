@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
+import { AccountMenu } from "~/components/account-menu";
 import { TikrLogo } from "~/components/tikr-logo";
 
 import { newPortfolio } from "~/lib/demo";
@@ -67,9 +68,10 @@ export function AppShell({
           <TikrLogo />
         </button>
         <span className="text-muted-foreground text-xs">
-          Browser-local portfolios · sign-in preview
+          Browser-local portfolios
         </span>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <AccountMenu />
           <Button variant="outline" onClick={() => router.push("/dashboard")}>
             Experiments
           </Button>

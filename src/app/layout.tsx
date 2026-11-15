@@ -1,5 +1,6 @@
 import "~/styles/globals.css";
 import { DemoPortfoliosProvider } from "~/providers/demo-portfolios-provider";
+import { AuthProvider } from "~/providers/auth-provider";
 
 import { type Metadata } from "next";
 import { Manrope } from "next/font/google";
@@ -25,7 +26,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${manrope.variable}`}>
       <body>
-        <DemoPortfoliosProvider>{children}</DemoPortfoliosProvider>
+        <AuthProvider>
+          <DemoPortfoliosProvider>{children}</DemoPortfoliosProvider>
+        </AuthProvider>
       </body>
     </html>
   );

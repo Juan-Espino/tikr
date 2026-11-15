@@ -202,6 +202,93 @@ select {
   letter-spacing: 0.035em;
 }
 
+.account-avatar-trigger:hover .account-avatar-image,
+.account-avatar-trigger:focus-visible .account-avatar-image {
+  outline: 2px solid #d6d3d1;
+  outline-offset: 2px;
+}
+
+.account-avatar-image::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 35%,
+    rgb(255 255 255 / 55%) 50%,
+    transparent 65%
+  );
+  transform: translateX(-100%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :where(button, [role="button"]):not(.account-avatar-trigger):not(
+      :disabled
+    ):not([aria-disabled="true"]):not([data-disabled]) {
+    transition-property:
+      color, background-color, border-color, box-shadow, opacity, translate,
+      scale;
+    transition-duration: 180ms;
+    transition-timing-function: ease-out;
+  }
+
+  :where(button, [role="button"]):not(.account-avatar-trigger):not(
+      :disabled
+    ):not([aria-disabled="true"]):not([data-disabled]):is(
+      :hover,
+      :focus-visible
+    ) {
+    translate: 0 -1px;
+    scale: 1.05;
+  }
+
+  :where(button, [role="button"]):not(.account-avatar-trigger):not(
+      :disabled
+    ):not([aria-disabled="true"]):not([data-disabled]):active {
+    translate: 0;
+    scale: 0.97;
+    transition-duration: 90ms;
+  }
+
+  .account-avatar-trigger .account-avatar-image {
+    transition: transform 180ms ease-out;
+  }
+
+  .account-avatar-trigger:hover .account-avatar-image,
+  .account-avatar-trigger:focus-visible .account-avatar-image {
+    transform: translateY(-1px) scale(1.05);
+  }
+
+  .account-avatar-trigger:active .account-avatar-image {
+    transform: scale(0.97);
+    transition-duration: 90ms;
+  }
+
+  .account-avatar-trigger:hover .account-avatar-image::after,
+  .account-avatar-trigger:focus-visible .account-avatar-image::after {
+    animation: account-avatar-shimmer 900ms ease-out;
+  }
+}
+
+@keyframes account-avatar-shimmer {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .dialog-popup {
     opacity: 1;

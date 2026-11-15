@@ -3,7 +3,11 @@ import { httpAction } from "./_generated/server";
 import { ConvexError, type Value } from "convex/values";
 import { marketFailureCodes } from "../src/lib/market-errors";
 import { validRefreshFailure } from "../src/lib/market-failure-record";
+import { authComponent, createAuth } from "./auth";
 const http = httpRouter();
+// Module analysis must not instantiate auth before deployment secrets exist.
+// Keep configuration validation in createAuth, at request time.
+authComponent.registerRoutesLazy(http, createAuth);
 http.route({
   path: "/market-gateway",
   method: "POST",

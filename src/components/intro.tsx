@@ -2,9 +2,9 @@
 import { ArrowRight } from "lucide-react";
 import { WireframeGlobe } from "./wireframe-globe";
 import { TikrLogo } from "./tikr-logo";
+import { AccountMenu } from "./account-menu";
 
 function AppHeader({
-  onLogin,
   onDashboard,
 }: {
   onLogin: () => void;
@@ -20,9 +20,7 @@ function AppHeader({
           Explore
         </button>
         <a href="#method">Methodology</a>
-        <button onClick={onLogin} className="text-stone-200 hover:text-white">
-          Sign in <ArrowRight className="ml-1 inline size-3" />
-        </button>
+        <AccountMenu />
       </nav>
     </header>
   );
@@ -97,9 +95,15 @@ export function Landing({
 export function Login({
   onDashboard,
   onLanding,
+  onGoogle,
+  pending,
+  error,
 }: {
   onDashboard: () => void;
   onLanding: () => void;
+  onGoogle: () => void;
+  pending: boolean;
+  error: string;
 }) {
   return (
     <main className="grid min-h-screen bg-[#f5f5f4] text-[#191918] md:grid-cols-2">
@@ -116,32 +120,43 @@ export function Login({
             Your workspace
           </p>
           <h1 className="text-4xl tracking-[-.06em]">
-            Sign in to save
+            Welcome to
             <br />
-            your portfolio.
+            Tikr.
           </h1>
           <p className="supporting-copy mt-4 text-sm leading-6 text-stone-600">
-            This prototype stores experiments on this browser only. Google
-            authentication is not connected.
+            Sign in with Google. Portfolios and drafts stay in this browser;
+            signing in does not save them to the cloud.
           </p>
           <button
-            disabled
+            disabled={pending}
+            onClick={onGoogle}
             className="mt-9 flex w-full items-center justify-center gap-3 rounded-md border border-stone-300 bg-white py-3 text-sm font-medium shadow-sm hover:bg-stone-50"
           >
-            <span className="font-bold text-[#4285f4]">G</span> Google sign-in -
-            not connected
+            <span className="font-bold text-[#4285f4]">G</span>{" "}
+            {pending ? "Connecting…" : "Continue with Google"}
           </button>
+          {pending && (
+            <p role="status" className="mt-3 text-sm">
+              Checking your session or opening Google…
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-red-800">
+              {error}
+            </p>
+          )}
           <button
             onClick={onDashboard}
-            className="mt-3 w-full py-3 text-xs text-stone-600 underline underline-offset-4"
+            className="mt-3 min-h-11 w-full py-3 text-xs text-stone-600 underline underline-offset-4"
           >
-            Explore demo instead
+            Continue as guest
           </button>
         </div>
         <p className="supporting-copy max-w-xs text-[10px] leading-5 text-stone-600">
-          Demo only. No account is created. Terms and Privacy policies are
-          pending before launch. Hypothetical results only. Past performance
-          does not guarantee future returns.
+          Google sign-in creates an account and session. Terms and Privacy
+          policies are pending before launch. Hypothetical results only. Past
+          performance does not guarantee future returns.
         </p>
       </section>
       <section className="relative hidden overflow-hidden bg-[#0b0b0b] md:flex md:items-center md:justify-center">
