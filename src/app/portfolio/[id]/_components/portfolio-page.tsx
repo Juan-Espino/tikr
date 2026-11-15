@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Copy, Pencil, Pin, Trash2 } from "lucide-react";
@@ -30,7 +30,9 @@ export default function PortfolioPage({ id }: { id: string }) {
   if (!store.ready)
     return (
       <main role="status" className="p-10">
-        Loading local demo...
+        {store.cloud
+          ? "Loading account portfolios…"
+          : "Loading local portfolios…"}
       </main>
     );
   const selected =
@@ -43,7 +45,7 @@ export default function PortfolioPage({ id }: { id: string }) {
         <StorageNotice />
         <h1 className="text-2xl">Portfolio not found</h1>
         <p className="mt-4">
-          This local demo portfolio is not available in this browser.
+          This portfolio is not available in the active collection.
         </p>
         <Button className="mt-5" onClick={() => router.push("/dashboard")}>
           Go to dashboard
@@ -56,14 +58,26 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
   const router = useRouter();
   const {
     portfolios,
-    setPortfolios,
     setNotice,
     save,
     remove,
     setDraft: persistDraft,
     open,
+    cloud,
+    busy,
+    pin,
+    saveError,
+    conflict,
+    draft: storedDraft,
   } = useDemoPortfolios();
   const [draft, updateDraft] = useState(initial);
+  useEffect(() => {
+    if (storedDraft?.id === initial.id && storedDraft.revision !== undefined)
+      updateDraft(storedDraft);
+    // Only an explicit cloud save or conflict reload changes this draft's revision.
+    // Reactive remote changes must not replace unsaved edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedDraft?.revision, initial.id]);
   const initialNameConflict = portfolios.some(
     (other) =>
       other.id !== initial.id &&
@@ -78,9 +92,22 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
   const [editorOpen, setEditorOpen] = useState(
     !initial.name.trim() || initialNameConflict,
   );
-  const nameError = nameValidationAttempted
-    ? portfolioNameError(draft, portfolios)
-    : "";
+  const [rejectedName, setRejectedName] = useState<string | null>(null);
+  useEffect(() => {
+    if (saveError.startsWith("A portfolio with this name")) {
+      setRejectedName(draft.name);
+      setEditorOpen(true);
+    }
+    // Capture the submitted name once; typing a replacement must clear its inline error.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveError]);
+  const nameError =
+    rejectedName === draft.name &&
+    saveError.startsWith("A portfolio with this name")
+      ? saveError
+      : nameValidationAttempted
+        ? portfolioNameError(draft, portfolios)
+        : "";
   const saveNameError = portfolioNameError(draft, portfolios);
   const suggestedName =
     nameError && draft.name.trim()
@@ -151,16 +178,36 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
               {draft.holdings.length}{" "}
-              {draft.holdings.length === 1 ? "asset" : "assets"} · saved in this
-              browser
+              {draft.holdings.length === 1 ? "asset" : "assets"} ·{" "}
+              {cloud
+                ? "account portfolio · save to sync edits"
+                : "browser-local portfolio"}
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push("/sign-in")}>
-              Sign in
-            </Button>
-            <Button disabled={!valid} onClick={() => save(draft)}>
-              Save locally
+            {!cloud && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  router.push(
+                    `/sign-in?returnTo=${encodeURIComponent(window.location.pathname)}`,
+                  )
+                }
+              >
+                Sign in
+              </Button>
+            )}
+            <Button
+              disabled={!valid || busy || conflict}
+              onClick={() => {
+                if (saveError.startsWith("A portfolio with this name")) {
+                  setNameValidationAttempted(true);
+                  setEditorOpen(true);
+                }
+                save(draft);
+              }}
+            >
+              {busy ? "Saving…" : cloud ? "Save to cloud" : "Save locally"}
             </Button>
           </div>
         </div>
@@ -178,37 +225,42 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
           >
             <Button
               variant="outline"
+              disabled={busy || conflict}
               onClick={() => {
                 const pinned = !draft.pinned;
                 setDraft({ ...draft, pinned });
-                setPortfolios((old) =>
-                  old.map((p) =>
-                    p.id === draft.id
-                      ? { ...p, pinned, updated: Date.now() }
-                      : p,
-                  ),
-                );
+                pin({ ...draft, pinned });
               }}
             >
               <Pin className={draft.pinned ? "fill-stone-200" : ""} />
               {draft.pinned ? "Unpin" : "Pin"}
             </Button>
-            <Button variant="outline" onClick={() => setEditorOpen(true)}>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => setEditorOpen(true)}
+            >
               <Pencil />
               Edit
             </Button>
             <Button
               variant="outline"
-              disabled={!portfolios.some((p) => p.id === draft.id)}
+              disabled={
+                busy ||
+                (!conflict && !portfolios.some((p) => p.id === draft.id))
+              }
               onClick={() => {
-                if (portfolios.length >= 100) {
+                if (!cloud && portfolios.length >= 100) {
                   setNotice("Local demo limit: 100 portfolios.");
                   return;
                 }
-                const original = portfolios.find((p) => p.id === draft.id)!;
+                const original = conflict
+                  ? draft
+                  : portfolios.find((p) => p.id === draft.id)!;
                 open({
                   ...original,
                   id: crypto.randomUUID(),
+                  revision: undefined,
                   pinned: false,
                   updated: Date.now(),
                 });
@@ -220,12 +272,12 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             </Button>
             <Button
               variant="outline"
-              disabled={!portfolios.some((p) => p.id === draft.id)}
+              disabled={busy || !portfolios.some((p) => p.id === draft.id)}
               onClick={() => {
                 const original = portfolios.find((p) => p.id === draft.id);
                 if (!original || !window.confirm(`Delete ${original.name}?`))
                   return;
-                remove(original);
+                void remove(draft);
               }}
             >
               <Trash2 />
@@ -288,7 +340,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
               >
                 Dollar value
               </Button>
-              <div className="w-full sm:w-72">
+              <fieldset disabled={busy} className="w-full sm:w-72">
                 <RangePicker
                   alignStart
                   value={draft.range}
@@ -299,7 +351,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                     );
                   }}
                 />
-              </div>
+              </fieldset>
             </div>
             {result ? (
               <MarketPerformance

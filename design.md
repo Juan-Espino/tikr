@@ -1,3 +1,18 @@
+## Account cloud states - approved scope (2026-11-15)
+
+Preserve the matte app, typography, bear/globe, bright login panel, avatar, Base UI
+dialogs, motion and reduced-motion behavior. Distinguish account/cloud and guest/
+local storage; Save to cloud has pending/error/retry feedback and explicit conflict
+recovery. Browser-to-cloud import is removed completely by owner decision, including
+its account-dialog action and related copy. The account dialog contains identity,
+storage explanation and Sign out, with the existing keyboard/focus/mobile behavior.
+
+Private views hide during session errors/transitions and clear on confirmed
+logout/account change/expiry. In-tab edits survive connection/session-check failure;
+pending/offline work is never labeled synced. No redesign or new visual system.
+Evidence: [cloud-portfolios.md](cloud-portfolios.md). Older stage 1/local-only copy
+below records historical scope.
+
 ## App-wide button motion - owner approved 2026-11-14
 
 All enabled app buttons (native and shared Button, including landing actions,

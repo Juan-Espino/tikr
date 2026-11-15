@@ -1,8 +1,17 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { PERSONAL_SOURCE_POLICY } from "../src/lib/market-policy";
+import { portfolioFields } from "./portfolioFields";
 
 export default defineSchema({
+  portfolios: defineTable(portfolioFields)
+    .index("by_ownerId_and_deleted", ["ownerId", "deleted"])
+    .index("by_ownerId_and_clientId", ["ownerId", "clientId"])
+    .index("by_ownerId_and_deleted_and_normalizedName", [
+      "ownerId",
+      "deleted",
+      "normalizedName",
+    ]),
   marketEntries: defineTable({
     key: v.string(),
     payload: v.string(),

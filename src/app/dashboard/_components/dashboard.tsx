@@ -22,7 +22,7 @@ function Disclosure() {
   );
 }
 export default function Dashboard() {
-  const { portfolios, setPortfolios, draft, open } = useDemoPortfolios();
+  const { portfolios, setPortfolios, draft, open, cloud } = useDemoPortfolios();
   const [range, setRange] = useState<Range>(DEFAULT_RANGE);
   const [spy, setSpy] = useState(true);
   const generation = JSON.stringify({
@@ -116,12 +116,14 @@ export default function Dashboard() {
               <Button onClick={() => open(newPortfolio())}>
                 Build a portfolio
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => setPortfolios(examples())}
-              >
-                Load sample experiments
-              </Button>
+              {!cloud && (
+                <Button
+                  variant="outline"
+                  onClick={() => setPortfolios(examples())}
+                >
+                  Load sample experiments
+                </Button>
+              )}
             </div>
           </section>
         ) : (

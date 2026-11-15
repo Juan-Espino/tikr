@@ -12,10 +12,44 @@ import { newPortfolio } from "~/lib/demo";
 import type { ReactNode } from "react";
 import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
 export function StorageNotice() {
-  const { notice, setNotice, storageBlocked, resetStorage } =
-    useDemoPortfolios();
+  const {
+    notice,
+    setNotice,
+    storageBlocked,
+    resetStorage,
+    cloud,
+    busy,
+    saveError,
+    conflict,
+    reloadDraft,
+    retry,
+    retryLabel,
+  } = useDemoPortfolios();
   return (
     <>
+      {cloud && (
+        <p role="status" className="my-3 text-sm text-stone-300">
+          {busy
+            ? "Saving to cloud… Keep this tab open."
+            : "Account portfolios · changes save only when confirmed"}
+        </p>
+      )}
+      {saveError && (
+        <div role="alert" className="my-4 rounded-lg bg-stone-900 p-4 text-sm">
+          <p>{saveError}</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {conflict ? (
+              <Button variant="outline" onClick={reloadDraft}>
+                Load cloud version
+              </Button>
+            ) : (
+              <Button variant="outline" disabled={busy} onClick={retry}>
+                {retryLabel}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       {notice && (
         <div
           role="status"
@@ -49,11 +83,13 @@ export function AppShell({
   portfolio?: boolean;
 }) {
   const router = useRouter();
-  const { open, ready } = useDemoPortfolios();
+  const { open, ready, cloud, busy } = useDemoPortfolios();
   if (!ready)
     return (
       <main role="status" className="p-10">
-        Loading local demo...
+        {cloud
+          ? "Loading account portfolios… Check your connection if this continues."
+          : "Loading local portfolios…"}
       </main>
     );
   return (
@@ -68,14 +104,14 @@ export function AppShell({
           <TikrLogo />
         </button>
         <span className="text-muted-foreground text-xs">
-          Browser-local portfolios
+          {cloud ? "Account cloud portfolios" : "Browser-local portfolios"}
         </span>
         <div className="flex flex-wrap items-center gap-2">
           <AccountMenu />
           <Button variant="outline" onClick={() => router.push("/dashboard")}>
             Experiments
           </Button>
-          <Button onClick={() => open(newPortfolio())}>
+          <Button disabled={busy} onClick={() => open(newPortfolio())}>
             <Plus />
             Create portfolio
           </Button>

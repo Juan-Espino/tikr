@@ -125,8 +125,8 @@ export function Login({
             Tikr.
           </h1>
           <p className="supporting-copy mt-4 text-sm leading-6 text-stone-600">
-            Sign in with Google. Portfolios and drafts stay in this browser;
-            signing in does not save them to the cloud.
+            Sign in with Google to save portfolios to your account. Existing
+            browser portfolios stay local; your draft is preserved.
           </p>
           <button
             disabled={pending}

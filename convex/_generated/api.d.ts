@@ -13,6 +13,8 @@ import type * as hosted from "../hosted.js";
 import type * as http from "../http.js";
 import type * as market from "../market.js";
 import type * as market_limits from "../market_limits.js";
+import type * as portfolioFields from "../portfolioFields.js";
+import type * as portfolios from "../portfolios.js";
 import type * as tasks from "../tasks.js";
 
 import type {
@@ -27,6 +29,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   market: typeof market;
   market_limits: typeof market_limits;
+  portfolioFields: typeof portfolioFields;
+  portfolios: typeof portfolios;
   tasks: typeof tasks;
 }>;
 
