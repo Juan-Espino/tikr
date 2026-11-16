@@ -8,7 +8,17 @@
  * @module
  */
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
 import type * as auth from "../auth.js";
+import type * as discovery from "../discovery.js";
+import type * as discoveryCatalog from "../discoveryCatalog.js";
+import type * as discoveryFields from "../discoveryFields.js";
+import type * as discoveryIdentity from "../discoveryIdentity.js";
+import type * as discoveryQuota from "../discoveryQuota.js";
 import type * as hosted from "../hosted.js";
 import type * as http from "../http.js";
 import type * as market from "../market.js";
@@ -17,14 +27,21 @@ import type * as portfolioFields from "../portfolioFields.js";
 import type * as portfolios from "../portfolios.js";
 import type * as tasks from "../tasks.js";
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
-
+/**
+ * A utility for referencing Convex functions in your app's API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  discovery: typeof discovery;
+  discoveryCatalog: typeof discoveryCatalog;
+  discoveryFields: typeof discoveryFields;
+  discoveryIdentity: typeof discoveryIdentity;
+  discoveryQuota: typeof discoveryQuota;
   hosted: typeof hosted;
   http: typeof http;
   market: typeof market;
@@ -33,28 +50,10 @@ declare const fullApi: ApiFromModules<{
   portfolios: typeof portfolios;
   tasks: typeof tasks;
 }>;
-
-/**
- * A utility for referencing Convex functions in your app's public API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = api.myModule.myFunction;
- * ```
- */
 export declare const api: FilterApi<
   typeof fullApi,
   FunctionReference<any, "public">
 >;
-
-/**
- * A utility for referencing Convex functions in your app's internal API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = internal.myModule.myFunction;
- * ```
- */
 export declare const internal: FilterApi<
   typeof fullApi,
   FunctionReference<any, "internal">

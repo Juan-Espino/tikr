@@ -1,3 +1,84 @@
+## Backend adapter and allowance - approved integration 2026-11-15
+
+Preserve the completed search/toggle/motion UI. When enabled and signed in, the
+production adapter displays remaining AI allowance and the UTC reset formatted in
+local time. Live-adapter copy says Finding assets and AI-suggested matches; it does
+not display fixture/sample claims. Synthetic harnesses remain explicitly separate.
+Existing inline unavailable/error/limit/clarification states retain ordinary search.
+Account/session changes suppress late results and allowance from the previous scope.
+No additional layout redesign is included. See ai-discovery.md for mocked evidence.
+
+## Signed-in AI toggle - owner decision 2026-11-15
+
+Guest AI-toggle clicks show Sonner toast "You must be signed in." using existing
+automatic expiry/non-dismissible styling. Keep the normal field, query, focus and
+draft unchanged. Keep one deduplicated sign-in-required toast for repeated clicks.
+Signed-in toggle retains approved appearance, fades and electric entrance/exit.
+No additional login dialog, switch-back control or automatic navigation.
+
+## Text and submit fades - owner revision 2026-11-15
+
+Crossfade the ticker and AI text layers over 240ms when toggling modes; the submit
+button fades in and out on the same timing. Keep layers mounted and positioned
+within the shared fixed field, with opacity/visibility transitions that reverse
+smoothly when interrupted. Inactive layers are inert and hidden from assistive
+technology immediately; delayed visual hiding allows the outgoing fade. Reduced
+motion removes the transition. Existing 850ms electric ring motion is retained.
+
+## Smooth mode switch - owner correction 2026-11-15
+
+Use one persistent 104px field and one persistent toggle in both modes. Hide the
+inactive text control without replacing the field. Remove empty result-block
+spacing so idle mode switching preserves the content-sized modal bounds. The
+ordinary white outline belongs only to a focused ticker input, never toggle focus.
+Keep the electric SVG mounted: its normalized stroke offset transitions 100 to 0
+on entry and 0 to 100 on exit over 850ms, with matching opacity fade. Interruptions
+reverse from the current position. Reduced motion switches immediately. No fixed
+modal height. Actual result/fixture content can still grow the dialog naturally.
+
+## Search field geometry and electric entrance - owner revision 2026-11-15
+
+Both modes use exactly the same 104px full-width outer box, border sizing and
+10px text inset. The editor dialog uses its original content-driven height and
+existing maximum-height limit; no fixed modal height is added. The ticker placeholder is inside the
+upper-left of the search field. On AI entry, both red SVG strokes draw once around
+the perimeter over 850ms; displacement animates the revealed portion throughout.
+The completed electric ring stays visible and animated. Reduced motion shows the
+complete static rim immediately. This replaces earlier instantaneous-ring behavior.
+
+Owner search copy refinement: remove the visible idle status paragraph and use
+?Enter a ticker or company name.? as the ticker search placeholder. Remove the
+magnifying glass and align the placeholder at the upper-left. Keep changing search
+feedback in a screen-reader-only live status.
+
+Owner field refinement: AI mode keeps the app?s #080808 black field ground. Normal
+search focus is expressed on the full 104px field with a thicker white outline;
+the inner input has no separate outline. Search icon and placeholder sit near the
+field?s upper-left corner.
+
+## AI discovery interaction prototype - pending owner visual approval 2026-11-15
+
+Scoped to the portfolio editor search area; existing matte surfaces, Cabinet titles,
+Manrope controls, supporting mono and shared buttons remain. AI has a visible label,
+sparkle and pressed state beside the same field. Inline results retain the allocation
+editor and use Add/Added rather than chat bubbles. Phone controls wrap within the
+existing scrollable dialog. Owner clarification: keep the selected AI toggle surface/border state and tint its icon and label coral to match the animated field. The toggle itself switches modes; no separate ?Use ticker search? button.
+
+Owner layout correction: in AI mode the field spans the full available width and contains two vertically stacked right-side controls: AI toggle above submit. Both are fixed at 58 ? 36px. In normal mode the AI toggle stays beside ordinary search.
+
+Owner default-field revision: ordinary ticker search is also a 104px full-width field without the electric border. Keep instant ticker search and place the toggle inside its upper-right corner. AI mode retains its toggle above submit with 16px vertical breathing room; both controls match at 58 ? 36px.
+
+Owner reference revision: replace the traveling silver dashes with the electric
+edge from [Balint Ferenczy's reference](https://codepen.io/BalintFerenczy/pen/KwdoyEN).
+A border-only SVG turbulence/displacement filter animates the existing #a84943 red
+outline (6s idle, 3s processing), with no disturbance of text or controls. Reduced
+motion hides the displaced layer and retains a static red outline.
+CSS variables make
+these easy to revise; reduced motion is static. Final visual approval is outstanding.
+Fixture copy explicitly identifies sample results and no AI request. Unavailable,
+error, no-match and limit demonstrations retain ordinary-search fallback. The limit
+fixture is not product policy. No broader app redesign is included.
+
 ## Dashboard navigation - owner correction 2026-11-15
 
 Hide the header Portfolios button on the dashboard itself; retain it on other
@@ -148,9 +229,7 @@ Owner decision (2026-11-05): portfolio name errors use a visible destructive-col
 
 Owner-approved naming feedback (2026-11-05): show name conflicts inline beside the name field, mark the field invalid and disable save until resolved. Suggestions remain text until the user enters their choice. Dashboard cards include holding tickers beside asset counts to distinguish portfolios, including older records with identical names.
 
-
 Owner update (2026-10-30): use SPY in place of VOO throughout the frontend benchmark controls, legends, difference labels and sample catalog. SPY remains an explicitly named S&P 500 ETF proxy with the existing dashed benchmark styling and tooltip rules. Historical VOO references below record the earlier design; this decision supersedes their ticker choice without changing layout or colors.
-
 
 Last reconciled: 2026-11-14 (current summary above; historical visual decisions retained). Visual direction is approved; proposed screen copy/routes remain proposals in `product.md`.
 
@@ -162,18 +241,18 @@ The owner replaced the initial pastel-card interpretation with dark stone cards.
 
 ## Approved palette
 
-| Role | Hex | Usage |
-| --- | --- | --- |
-| Ink black | `#080808` | App/landing background |
-| Stone black | `#111111` | Cards and primary surfaces |
-| Soft charcoal | `#1C1C1A` | Hover/elevated surfaces |
-| Warm graphite | `#2B2B28` | Subtle borders |
-| Stone white | `#E7E5E4` | Text, titles, primary portfolio line |
-| Warm gray | `#A8A29E` | Supporting text |
-| Muted stone | `#78716C` | Dashed VOO line, not default body text |
-| Chalk white | `#F5F5F4` | Bright login panel |
-| Globe red | `#F87171` | Sparse glowing pixels |
-| Globe green | `#4ADE80` | Sparse glowing pixels |
+| Role          | Hex       | Usage                                  |
+| ------------- | --------- | -------------------------------------- |
+| Ink black     | `#080808` | App/landing background                 |
+| Stone black   | `#111111` | Cards and primary surfaces             |
+| Soft charcoal | `#1C1C1A` | Hover/elevated surfaces                |
+| Warm graphite | `#2B2B28` | Subtle borders                         |
+| Stone white   | `#E7E5E4` | Text, titles, primary portfolio line   |
+| Warm gray     | `#A8A29E` | Supporting text                        |
+| Muted stone   | `#78716C` | Dashed VOO line, not default body text |
+| Chalk white   | `#F5F5F4` | Bright login panel                     |
+| Globe red     | `#F87171` | Sparse glowing pixels                  |
+| Globe green   | `#4ADE80` | Sparse glowing pixels                  |
 
 - Flat fills, minimal shadows, restrained rounding; no glossy gradients, bevels, or glassmorphism.
 - Card variation stays within subtle charcoal/stone shifts.
@@ -237,12 +316,12 @@ The owner replaced the initial pastel-card interpretation with dark stone cards.
 
 Screenshots were supplied in this conversation; originals are not checked into the repository. IDs below identify attachments, not local project files.
 
-| Reference | Conversation image ID | Interpretation |
-| --- | --- | --- |
-| Pixel globe | `image_dec39a94-9a76-40f6-ac47-49864e49eb64` | Texture/contrast; add sparse red/green accents |
-| Rounded cards | `image_1aac5196-f96f-417b-b599-8dc21aca011d` | Proportions/rounding, not pastel fills or bars |
-| Exchange chart | `image_625cf91a-e193-4316-8329-80dd15af7497` | Restrained lines and compact period controls |
-| Split login | `image_7a8900ae-8335-4e9a-9d59-34676a98b8e6` | Composition, not photo/testimonial/extra auth |
+| Reference      | Conversation image ID                        | Interpretation                                 |
+| -------------- | -------------------------------------------- | ---------------------------------------------- |
+| Pixel globe    | `image_dec39a94-9a76-40f6-ac47-49864e49eb64` | Texture/contrast; add sparse red/green accents |
+| Rounded cards  | `image_1aac5196-f96f-417b-b599-8dc21aca011d` | Proportions/rounding, not pastel fills or bars |
+| Exchange chart | `image_625cf91a-e193-4316-8329-80dd15af7497` | Restrained lines and compact period controls   |
+| Split login    | `image_7a8900ae-8335-4e9a-9d59-34676a98b8e6` | Composition, not photo/testimonial/extra auth  |
 
 If attachments are unavailable, follow written rules and request repository-owned assets when visual comparison is needed. Do not claim to have seen unavailable references.
 
@@ -293,6 +372,7 @@ Desktop/mobile, keyboard/focus, contrast, touch charts, reduced motion, long nam
 - Dashboard desktop control order: Resume draft, Show VOO, then the left-aligned timeframe picker. Mobile keeps the picker on its own row first.
 
 ## Bear mascot (2026-10-29)
+
 Owner selected a relaxed, slightly grinning bear on a vintage cruiser longboard, riding a gently descending graph. Full-scene and transparent rider assets live in public/brand. A simplified SVG bear-head derivative and raster icon sizes are prepared for owner review. The empty dashboard now uses a continuous sideways skating loop with pause and a static reduced-motion fallback, replacing the briefcase there.
 
 - Owner approved the bear-head preview with black aviator frames, amber lenses and a slimmer grin. Use the approved raster mark with the Tikr wordmark on landing, sign-in and app headers, and for favicon exports.
@@ -311,24 +391,19 @@ Owner selected a relaxed, slightly grinning bear on a vintage cruiser longboard,
 
 - Empty portfolio now uses the same rotating wireframe globe as the dashboard, overlaid with three outlined holdings tiles. The decorative charts are green rising, neutral, and red falling. Tiles gently float; reduced motion displays a static arrangement. Existing guidance remains.
 
-
 ## Verified-result states (2026-11-04)
 
 Retain existing Manrope, near-black/stone surfaces and chart conventions. Dashboard cards remain square native buttons across their full surface, with a textual performance/status description for assistive technology. Keep sign-in explicitly a preview and portfolio definitions labeled browser-local until ownership/authentication is implemented.
 
 A cold result shows loading; a failed/unconfigured verification shows unavailable history without fabricated numbers or demo graphs. A refresh may show a dated previously verified result; known-invalidated or expired evidence removes it. Display actual common dates, as-of/check times and ticker-level blocking history explanations. Server decimal formatting controls metrics/tooltips, while Number conversion serves plot geometry. The detail view includes an accessible daily-value table and same-period asset returns. Retry intent belongs to one explicit request and never carries into edits. Dashboard assumptions describe actual buy-and-hold/payment-date reinvestment and each portfolio's own starting amount, superseding earlier synthetic-demo footer copy.
 
-
 ## Dashboard and comparison review (2026-11-04)
 
 Dashboard cards prioritize a larger chart with percentage and date axes while retaining their padding. Omit routine provider details on cards; keep meaningful freshness, availability, and blocking history notices. In the portfolio view, comparison controls sit below the chart and before asset returns. The visible daily-values disclosure is removed; the chart retains a screen-reader-accessible data table. During timeframe or comparison updates, keep the previous dated result visible with an updating indicator until the replacement is available; never retain expired or blocked results.
 
-
 Dashboard updates pulse only changing values and charts, with cards switching together after a bounded wait. Portfolio comparisons use consistent assigned colors and animate out on removal when their dates still align. Reduced-motion preferences disable these animations.
 
-
 Keep the last complete dated snapshot unchanged while a new selection loads; swap only once a complete final response arrives. Start comparison exit on deselection and retain the old chart through its animation. For the explicitly marked synthetic review only, recently completed selection results may be reused briefly in memory. Live or unmarked results still require server-side validity checks.
-
 
 Personal provisional disclosure (2026-11-05): retain existing typography and status layout; show "Personal provisional Alpaca data; subject to corrections" and the action-completeness limitation on both workspace and compact dashboard results. This copy implements the owner's provisional-data decision without changing approved visual rules.
 
@@ -342,7 +417,6 @@ the cache redesign. Synthetic QA responses have an explicit non-market-data disc
 The QA follow-up retains fractional percent-axis labels and enough axis room to
 avoid clipping, including compact cards. Palette, typography and layout rules
 remain unchanged. Final evidence is in `market-browser-acceptance.md`.
-
 
 ## November13 operational feedback
 

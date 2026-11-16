@@ -1,6 +1,10 @@
 import { useSyncExternalStore } from "react";
 import { mutate, state, subscribe, version } from "./state";
 import type { FunctionReference } from "convex/server";
+import { discoveryClient } from "./discovery-client";
+export function useConvex() {
+  return discoveryClient;
+}
 function useSnapshot() {
   useSyncExternalStore(subscribe, version, version);
 }

@@ -56,6 +56,10 @@ if (process.argv.includes("--auth-fixture")) {
     "Synthetic public auth bindings enabled; no live deployment credentials.",
   );
 }
+if (process.argv.includes("--ai-fixture")) {
+  env.NEXT_PUBLIC_AI_DISCOVERY_ENABLED = "true";
+  // Intentionally no server enable flag or Groq key: compile only, no activation.
+}
 console.log("Credential-cleared source build: " + target);
 const child = spawn(
   process.execPath,

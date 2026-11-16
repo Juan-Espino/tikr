@@ -1,3 +1,258 @@
+Final mocked-backend review: changed-file Prettier, final newlines and git diff --check passed. Credential-pattern scan found no matches in the 29 changed/untracked files; cleared client static bundles contained no Groq endpoint/key markers. No live request, deployment or Git publication was performed.
+
+## AI backend mocked milestone complete - 2026-11-15
+
+Implemented authenticated Convex discovery action, own-account usage query, private
+atomic reserve/finish/retire mutations, 2-day metadata-only receipts, cached catalog
+validation and the production client adapter. GPT-OSS20B/low,1024 completion tokens,
+15s provider deadline;20 completed searches/account/UTC day,500 UTF-16-unit prompt
+bound. One pending30s lease/account/day, date-prefixed idempotency IDs, server session
+fences before admission/completion. No prompt/result/reasoning persistence/logging.
+
+All112 Vitest cases passed (18 new discovery cases); Node20 passed; AI browser suite
+including production client adapter against synthetic RPC passed. Guest9/cloud10
+browser groups passed. pnpm check passed lint/both TS. Credential-cleared configured
+AI/auth optimized build passed (temp tikr-cleared-build-PkBvjH). Browser artifacts:
+AI tikr-ai-ui-jukjfP; guest tikr-guest-ui-NjjIaA; cloud tikr-cloud-ui-EMNm6L.
+An initial motion assertion sampled after a240ms fade had ended under concurrent
+checks; intermediate sampling moved earlier, then the full suite passed. Guest
+suite now accepts TIKR_QA_URL so it can use the owned5010 review server instead of
+requiring5177. Existing stored bytes, cloud security and all market contracts remain.
+
+Generated API declarations refreshed offline through installed Convex template via
+scripts/codegen-offline.mjs. No live deployment/codegen/config/credential access.
+Full deployment validation is outstanding by the owner's mocked-first boundary.
+New functionality is disabled by default; no live provider, production or paid
+service actions. No commit/push/PR. Existing UI edits and main remain untouched.
+
+Review runbook: ai-discovery.md. Next: owner code review, then separately approve
+identified development deployment/configuration and bounded live Groq trial with
+secure key entry. No backend deployment or live quality/capacity claim is made.
+
+Model recommendation revised after owner raised size/usage concerns: propose
+GPT-OSS20B with low reasoning effort and bounded completion tokens for initial
+evaluation, replacing the earlier120B suggestion. Neither model is approved yet.
+Current public Groq rate-limit table gives20B and120B identical free-tier request
+and token allowances; parameter count alone does not determine quota consumption.
+Reasoning tokens are part of model output; user prompt length is not a bound on
+total request tokens. Actual ticker accuracy, latency and token use remain
+unmeasured; no authenticated inference or credential access performed.
+Sources: https://console.groq.com/docs/rate-limits
+https://console.groq.com/docs/reasoning
+https://console.groq.com/docs/model/openai/gpt-oss-20b
+
+## AI usage accepted; model selection next - 2026-11-15
+
+Owner accepted proposed defaults: 500-character prompts, 20 completed searches per
+account per UTC day, local-time reset display, remaining count; completed
+clarification/no-match/refinement responses count, failures/invalid inputs/toggles
+do not. product.md records this scope; daily accounting remains unimplemented.
+
+Public Groq documentation reviewed for the next model choice:
+https://console.groq.com/docs/models
+https://console.groq.com/docs/structured-outputs
+Both GPT-OSS20B and120B are listed production models supporting strict JSON Schema.
+GPT-OSS120B is a proposed initial candidate, not an owner-selected model or a
+measured ticker-accuracy result. Strict output shape does not establish ticker
+existence or thematic correctness; catalog validation remains required. No live
+inference, credentials or account-specific entitlement check performed.
+Next: agree model, then scope authenticated backend and quota integration.
+
+Sign-in gate verification: pnpm check passed (lint and both TS projects). Updated
+isolated Edge suite passed at temp tikr-ai-ui-aArQrF: guest toggle shows exact toast,
+keeps aria-pressed=false, query and draft unchanged; mocked account A enables AI
+and all prior submit/selection/cancellation/motion/mobile checks pass. Default
+signed-in unavailable behavior remains fixture-tested. Formatting/diff checks pass.
+
+## Signed-in AI gate - owner-approved UI implementation, 2026-11-15
+
+AI discovery is signed-in only. PortfolioEditor passes existing account collection
+state to AiAssetSearch; no additional auth request/route/config. Guest entry and
+submission checks show exactly "You must be signed in." via existing Sonner toast
+with deduplicated ID and no manual-dismiss control. Guest click keeps mode/query/
+draft. Account loss aborts pending fixture completion and exits AI. The future
+backend must verify server authentication; client gating is not API authorization.
+No backend/credentials/live AI/provider/publication changes were made.
+
+Next product choices: usage limits and Groq model, before separately scoped backend
+implementation. Guest access is now settled; earlier unapproved-access notes below
+are historical. Full browser fixture uses simulated account A for signed-in AI
+and explicitly verifies guest toast/refusal/query+draft preservation.
+
+## AI discovery approach settled - next product decision, 2026-11-15
+
+Owner finished UI iteration and approved AI-generated candidate tickers followed by
+validation against the existing supported catalog. No separate sector/industry/theme
+metadata source is required for this MVP. Results must distinguish AI-suggested
+relevance from supported catalog membership; canonical identity comes from catalog.
+Unknown/unsupported/duplicate candidates are removed. Historical checks and user-led
+Add/save behavior remain. product.md records the superseding scope decision.
+
+Next: settle who may submit AI prompts (guest access versus signed-in only), then
+model/request-budget decisions and explicitly scoped backend implementation. No
+quota values or access gate selected. No Groq credential, live provider request,
+backend/configuration/deployment, paid service or publication action performed.
+Earlier alternative-metadata research next steps below are superseded by this choice.
+
+## AI metadata research - Alpaca public documentation, 2026-11-15
+
+Owner requests research first, assuming "backup subscription" means Alpaca. No
+backend implementation, credentials, account dashboard or authenticated provider
+request used. Repository does not establish the current account's exact tier.
+
+Finding: no documented general sector/industry/theme classification or company
+business-description service in the standard Basic/Algo Trader Plus offerings.
+Current subscription comparison covers feed breadth, stream symbols, history and
+request limits; it does not list company classification metadata:
+https://docs.alpaca.markets/us/docs/about-market-data-api
+Current official Asset model includes identifiers, name/exchange/class and trading
+capabilities, but no sector/industry/theme/business description:
+https://alpaca.markets/sdks/python/api_reference/trading/models.html#asset
+Asset master list reference:
+https://docs.alpaca.markets/us/reference/get-v2-assets-1
+Cross-checked through Context7's Alpaca US documentation and public docs index.
+
+Historical corroboration only: Alpaca's June 2022 comparison explicitly excludes
+fundamentals from its free and premium plans; staff reiterated this in July 2023:
+https://alpaca.markets/learn/the-top-3-differences-between-polygon-and-alpaca-data-plans
+https://forum.alpaca.markets/t/how-to-get-daily-fundamental-indicators-like-pe-roe-for-each-stock/12667
+These older statements alone are not current entitlement evidence. Current docs
+and model support treating metadata as a separate unresolved dependency. A custom
+contract/add-on cannot be ruled out without account-specific confirmation.
+
+Next discussion: separately sourced, evidenced classification/descriptions or a
+bounded curated set; provider choice, terms and implementation remain unapproved.
+No metadata enrichment, service signup, paid action or code change performed.
+
+Placeholder/submit fade revision: persistent ticker and AI text layers crossfade
+at 240ms; persistent submit wrapper fades on the same timing. Inactive layers use
+inert/aria-hidden immediately, preserve separate query/prompt state, and cannot
+receive focus or clicks. Geometry stays fixed and reduced motion is immediate.
+pnpm check passed; isolated Edge suite passed (temp tikr-ai-ui-l6F48N), including
+new intermediate submit-opacity checks on entry/exit and inactive-layer inert
+checks on desktop and mobile, plus prior geometry/reverse-ring/focus/selection
+coverage. Formatting and diff checks pass. No backend/publication actions.
+
+Smooth mode-switch correction: persistent shared field/toggle, empty normal grid
+and empty AI status wrapper removed, input-only full-field focus cue (no toggle
+flash), reversible 850ms electric perimeter/fade. Modal remains content-sized.
+Verification: pnpm check passed; full isolated Edge suite passed at temp
+ tikr-ai-ui-eS7pXW. Added meaningful desktop 1280x1000/mobile390x844 regression
+checks: identical idle field/dialog bounds before/after toggle in both directions,
+entry/retraction offsets strictly between endpoints while active, partial opacity
+during exit, and no white container outline after switching off. Existing reduced
+motion, ordinary search, IME, selection, manual/max-six, cancellation and privacy
+fixture checks also pass. Default-unavailable check now submits explicitly, matching
+owner removal of the initial note. Formatting and git diff --check pass.
+
+Owner correction: removed the assistant-added fixed 90dvh editor height. The modal
+returns to its original content-driven sizing and existing max-height constraint.
+Both search fields retain identical 104px full-width geometry; no extra modal space
+is reserved to compensate for mode changes. Earlier fixed-height geometry evidence
+below is historical and does not describe the final modal sizing.
+
+Search geometry/entrance revision verification: pnpm check passed. Fresh isolated
+Edge measurement: both modes 622x104, dialog 672x765 at the identical x/y (1280x850
+viewport). Stroke reveal advanced from 62.0341 to 0 dash offset, confirming a single
+perimeter draw followed by the complete electric ring. Placeholder inset is 10px.
+Review server restarted detached on loopback 5010 so it survives shell completion.
+No backend/publication action. Owner visual review remains next.
+
+Default search field update: ordinary ticker search now uses the same 104px full-width
+geometry, plain border and embedded AI toggle. Instant search results remain below.
+AI mode is 104px and has the same 58x36px toggle/submit controls with 16px vertical
+gap. `node scripts/qa-ai-discovery.mjs` passes desktop/mobile and existing interaction
+coverage (temp tikr-ai-ui-Yej5i4); pnpm check, formatting and diff checks pass.
+
+AI field control layout revision: AI mode uses the full available field width with
+AI toggle above submit inside the right edge. Both controls are fixed 58x36px.
+Normal search keeps AI toggle alongside the search input. Mode switch focuses the
+textarea. Isolated browser suite passes after layout change (temp tikr-ai-ui-XLuIoX).
+
+Electric revision checks: pnpm check passed; isolated Edge interaction suite
+passed (temp tikr-ai-ui-BH9EOn), including static reduced motion. Separate real
+browser check confirmed animated SVG offset values change over time. Screenshot
+reviewed at temp tikr-electric-border.png. Small 2px red halo is field-local.
+
+## Electric border reference revision - 2026-11-15
+
+Owner replaced the two-shimmer direction with Balint Ferenczy's electric border:
+https://codepen.io/BalintFerenczy/pen/KwdoyEN
+Adapted border-only SVG turbulence, animated offsets and displacement to the same
+#a84943 red field. Native SVG, three noise octaves, no dependency or JS frame loop.
+Text/control geometry remains stable. Reduced motion uses only the static red rim.
+No backend/publication change; visual approval remains pending.
+
+## AI rim animation owner revision - 2026-11-15
+
+Replaced the wide coral sweep with two short silver reflective dashes, half a
+perimeter apart on one SVG path. Red remains #a84943; rim and shimmer are both
+2px on the same centerline. Silver shading is local to strokes, no panel glow.
+Reduced motion stays static. Idle/processing speeds remain 9s/1.6s. Owner review
+pending; frontend prototype only, no backend/publication scope change.
+
+Standalone review follow-up: the test-only harness intercepts ordinary /api/assets
+search with the existing six labeled local sample symbols when ?ai-preview is set.
+No production source/API behavior changes. ?network-qa lets the Playwright script
+exercise the original request contract with its isolated response stubs instead.
+
+### Stage 1 verification and visual review
+
+Final pnpm check passed (lint, app TS, Convex TS); optimized credential-cleared
+configured-auth build passed at temp tikr-cleared-build-5E4s6c. Changed-file Prettier
+and git diff --check pass. New component/fixture contain no fetch, endpoint, storage,
+environment access or prompt logs. No secrets/config were read or copied.
+
+scripts/qa-ai-discovery.mjs passes real isolated Edge interaction checks: ordinary
+instant search, no typing/chip auto-submit, blank disabled, Enter/Shift+Enter/IME,
+mode text preservation/focus, Add/Added retention, manual weight preservation with
+new zero weight, six-holding refusal, read-only examples, all fixture states,
+clarification refinement, stale results, supersession, cancellation/mode fencing,
+reduced-motion static outline, mobile touch/focus and no horizontal overflow.
+Screenshots under system temp tikr-ai-ui-yhjFiw (later runs create new temp paths).
+Desktop/mobile screenshots were opened and reviewed. Final UI keeps results in the
+existing scrollable dialog; phone requires scrolling to reach rows/allocation.
+
+Design-taste lint: zero failures/warnings. Shell inspector at 1440/768/390:
+zero failures, three warnings (development server, existing dashboard empty space
+and below-fold blocks). Inspector measures the initial shell, not the opened editor;
+interactive editor checks/screenshots supply scoped evidence. Existing shell layout
+is outside scope. Critique: clear shared-field mode and Add actions, consistent
+matte palette, bounded coral emphasis; fixed cramped Choose assets header. Motion
+and fixture copy still require owner review. No final visual approval claimed.
+The harness omits Next font loading; production compiles existing Manrope setup.
+No live OAuth, semantic AI correctness, verified metadata or provider evidence.
+Backend stage remains blocked on owner UI approval, not automatically authorized.
+
+## AI discovery interaction prototype - 2026-11-15
+
+Uncommitted stage 1 frontend only in dedicated t3/ai-asset-discovery at merged PR25
+2279d49f4967bdf75db106058873702c0421d5df. Main unchanged. No publication,
+credentials, backend, deployment, live AI or market-provider access authorized.
+
+Contract: DiscoveryAdapter receives {prompt, signal}, returns typed results
+(summary + ticker/name/illustrative why), clarification (question + answers),
+empty/error/unavailable/limit. No account/portfolio payload or raw prompt logging.
+UI owns loading, submitted-prompt snapshot, AbortController fencing on edit/mode/
+unmount, stale-results labels, explicit refinement submission and Add/Added.
+Default adapter is absent. Only tests/cloud-ui supplies deterministic fixtures
+outside app routes. Backend not implemented; metadata/auth policy/quotas unapproved.
+
+Review command: $env:TIKR_QA_PORT='5010'; node scripts/serve-guest-qa.mjs
+Review URL: http://127.0.0.1:5010/?ai-preview in a fresh isolated browser profile.
+Open example, Try your own mix, AI. Prompt energy gives clarification; error,
+no match, unavailable and limit preview their named states. slow uses 1800ms;
+other fixtures use 650ms. Other prompts show the same illustrative sample rows,
+not semantic interpretation or catalog verification. Existing synthetic auth/cloud/
+market substitutes prevent provider calls. No production route or configuration.
+
+pnpm 10.11.0 frozen install, pnpm check and credential-cleared configured-auth
+optimized build passed (temp tikr-cleared-build-Y262Jn). T3 preview opened the URL
+but two snapshots failed: Preview automation snapshot timed out after 15000ms.
+Fresh Edge Playwright context used instead; browser/final evidence follows.
+Next: owner reviews UI; backend stage waits for explicit owner UI approval.
+Historical evidence/deferred polish below is preserved.
+
 ## PR25 opened - production preparation complete, 2026-11-15
 
 Published [PR25](https://github.com/Juan-Espino/tikr/pull/25), targeting main from
