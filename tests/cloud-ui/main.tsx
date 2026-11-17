@@ -1,4 +1,7 @@
 import "./guest-scenarios";
+import { HistoryChart } from "../../src/components/history-chart";
+import LandingPage from "../../src/app/_components/landing-page";
+import { LandingSurface } from "../../src/components/landing-surface";
 import { assets } from "../../src/lib/demo";
 import { searchCatalog } from "../../src/lib/asset-catalog";
 // Standalone review has no API server. Keep normal search usable with explicitly
@@ -61,13 +64,36 @@ declare global {
 }
 function App() {
   useSyncExternalStore(subscribe, version, version);
+  if (new URLSearchParams(location.search).has("chart-qa")) {
+    const lines = [
+      {
+        name: "Synthetic portfolio",
+        id: "synthetic-chart",
+        points: [
+          { date: "2026-11-10", value: 10000 },
+          { date: "2026-11-11", value: 10100 },
+          { date: "2026-11-12", value: 10050 },
+          { date: "2026-11-13", value: 10200 },
+        ],
+      },
+    ];
+    return (
+      <>
+        <HistoryChart lines={lines} amount={10000} compact />
+        <HistoryChart lines={lines} amount={10000} />
+      </>
+    );
+  }
   const id = location.pathname.startsWith("/portfolio/")
     ? location.pathname.split("/")[2]
     : null;
   return (
     <DemoPortfoliosProvider>
       <Probe />
-      {id ? (
+      {new URLSearchParams(location.search).has("landing-qa") &&
+      location.pathname === "/" ? (
+        <LandingPage />
+      ) : id ? (
         <PortfolioPage id={id} />
       ) : location.pathname === "/sign-in" ? (
         <SignInPage />
@@ -77,23 +103,28 @@ function App() {
     </DemoPortfoliosProvider>
   );
 }
+const Surface = new URLSearchParams(location.search).has("landing-qa")
+  ? LandingSurface
+  : ({ children }: { children: React.ReactNode }) => <>{children}</>;
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <DiscoveryPreview.Provider
-      value={
-        new URLSearchParams(location.search).has("ai-preview")
-          ? discoveryFixture
-          : null
-      }
-    >
-      {new URLSearchParams(location.search).has("ai-backend") ? (
-        <DiscoveryProvider>
+    <Surface>
+      <DiscoveryPreview.Provider
+        value={
+          new URLSearchParams(location.search).has("ai-preview")
+            ? discoveryFixture
+            : null
+        }
+      >
+        {new URLSearchParams(location.search).has("ai-backend") ? (
+          <DiscoveryProvider>
+            <App />
+          </DiscoveryProvider>
+        ) : (
           <App />
-        </DiscoveryProvider>
-      ) : (
-        <App />
-      )}
-    </DiscoveryPreview.Provider>
-    <Toaster />
+        )}
+      </DiscoveryPreview.Provider>
+      <Toaster />
+    </Surface>
   </StrictMode>,
 );

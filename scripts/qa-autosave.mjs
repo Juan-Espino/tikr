@@ -37,12 +37,9 @@ try {
     }),
   );
   expect(await page.evaluate(() => window.__cloudQA.rows().length)).toBe(0);
-  await page
-    .getByRole("button", { name: "Create in account", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Open Autosave QA, 1 assets" })
-    .click();
+  await page.waitForFunction(() =>
+    window.__cloudQA.rows().some((r) => r.clientId === "autosave-qa"),
+  );
   const row = () =>
     page.evaluate(() =>
       window.__cloudQA.rows().find((r) => r.clientId === "autosave-qa"),
@@ -196,7 +193,7 @@ try {
   await page.screenshot({ path: join(artifacts, "account-b-mobile.png") });
   expect(errors).toEqual([]);
   console.log(
-    `PASS: explicit creation; autosave rename/add/remove; in-flight latest edits; offline reconnect; lost ack; invalid manual weights; conflict/reload; session fencing; mobile. ${artifacts}`,
+    `PASS: automatic creation; autosave rename/add/remove; in-flight latest edits; offline reconnect; lost ack; invalid manual weights; conflict/reload; session fencing; mobile. ${artifacts}`,
   );
 } finally {
   await browser.close();

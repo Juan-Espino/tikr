@@ -28,7 +28,9 @@ export function StorageNotice() {
   } = useDemoPortfolios();
   useEffect(() => {
     if (!notice) return;
-    toast(notice, { dismissible: false });
+    // A notice can be observed by both sides of a route transition, and mount
+    // effects are replayed in Strict Mode. Reuse its ID instead of appending it.
+    toast(notice, { id: `portfolio-notice:${notice}`, dismissible: false });
     setNotice("");
   }, [notice, setNotice]);
   return (
@@ -70,7 +72,7 @@ export function AppShell({
   dashboard?: boolean;
 }) {
   const router = useRouter();
-  const { open, ready, cloud, busy } = useDemoPortfolios();
+  const { open, ready, busy } = useDemoPortfolios();
   if (!ready)
     return <PageSkeleton variant={portfolio ? "portfolio" : "dashboard"} />;
   return (
@@ -84,9 +86,6 @@ export function AppShell({
         >
           <TikrLogo />
         </button>
-        <span className="text-muted-foreground text-xs">
-          {cloud ? "Account cloud portfolios" : "Temporary guest draft"}
-        </span>
         <div className="flex flex-wrap items-center gap-2">
           <AccountMenu />
           {!dashboard && (

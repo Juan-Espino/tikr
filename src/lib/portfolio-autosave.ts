@@ -23,6 +23,7 @@ export class PortfolioAutosave<T extends Versioned> {
       validate: (p: T) => string;
       available: () => boolean;
       write: (p: T, revision: number) => Promise<T>;
+      create?: (p: T) => Promise<T>;
       read: (id: string) => Promise<T>;
       classify: (error: unknown) => "conflict" | "invalid" | "retry";
       message: (error: unknown) => string;
@@ -34,13 +35,15 @@ export class PortfolioAutosave<T extends Versioned> {
     return this.options.fingerprint(a) === this.options.fingerprint(b);
   }
   track(p: T) {
-    if (this.disposed || p.revision === undefined) return;
+    if (this.disposed || (p.revision === undefined && !this.options.create))
+      return;
     const existing = this.entries.get(p.id);
     if (existing) {
       if (
         !existing.flight &&
         !existing.uncertain &&
         this.equal(existing.latest, existing.base) &&
+        p.revision !== undefined &&
         p.revision > existing.base.revision!
       )
         this.entries.delete(p.id);
@@ -56,10 +59,11 @@ export class PortfolioAutosave<T extends Versioned> {
     });
   }
   stage(p: T, baseline?: T) {
-    if (this.disposed || p.revision === undefined) return;
+    if (this.disposed || (p.revision === undefined && !this.options.create))
+      return;
     if (!this.entries.has(p.id)) this.track(baseline ?? p);
     const e = this.entries.get(p.id)!;
-    e.latest = structuredClone(p);
+    e.latest = { ...structuredClone(p), revision: e.base.revision };
     clearTimeout(e.timer);
     if (e.deleting) {
       this.options.changed();
@@ -80,11 +84,17 @@ export class PortfolioAutosave<T extends Versioned> {
     if (this.disposed) return;
     clearTimeout(e.timer);
     if (e.paused || e.deleting) return;
-    if (!e.uncertain && this.equal(e.latest, e.base)) {
+    if (
+      e.base.revision !== undefined &&
+      !e.uncertain &&
+      this.equal(e.latest, e.base)
+    ) {
       e.state = "saved";
       e.message = "";
     } else {
-      const invalid = this.options.validate(e.latest);
+      // Settle an uncertain earlier write even when newer edits are invalid.
+      // Only the attempted snapshot is reconciled; invalid work is never sent.
+      const invalid = e.uncertain ? "" : this.options.validate(e.latest);
       if (invalid) {
         e.state = "invalid";
         e.message = invalid;
@@ -108,13 +118,21 @@ export class PortfolioAutosave<T extends Versioned> {
   }
   dirty() {
     return [...this.entries.values()].some(
-      (e) => !!e.flight || !!e.uncertain || !this.equal(e.latest, e.base),
+      (e) =>
+        e.base.revision === undefined ||
+        !!e.flight ||
+        !!e.uncertain ||
+        !this.equal(e.latest, e.base),
     );
   }
   dirtyId(id: string) {
     const e = this.entries.get(id);
     return (
-      !!e && (!!e.flight || !!e.uncertain || !this.equal(e.latest, e.base))
+      !!e &&
+      (e.base.revision === undefined ||
+        !!e.flight ||
+        !!e.uncertain ||
+        !this.equal(e.latest, e.base))
     );
   }
   resume() {
@@ -141,6 +159,10 @@ export class PortfolioAutosave<T extends Versioned> {
     clearTimeout(e?.timer);
     this.entries.delete(id);
     this.options.changed();
+  }
+  canDiscardUncreated(id: string) {
+    const e = this.entries.get(id);
+    return !e || (e.base.revision === undefined && !e.flight && !e.uncertain);
   }
   reset(p: T) {
     this.discard(p.id);
@@ -201,8 +223,10 @@ export class PortfolioAutosave<T extends Versioned> {
     if (
       e.paused ||
       !this.options.available() ||
-      this.options.validate(e.latest) ||
-      (!e.uncertain && this.equal(e.latest, e.base))
+      (!e.uncertain && this.options.validate(e.latest)) ||
+      (e.base.revision !== undefined &&
+        !e.uncertain &&
+        this.equal(e.latest, e.base))
     ) {
       this.schedule(e, 0);
       return;
@@ -213,10 +237,16 @@ export class PortfolioAutosave<T extends Versioned> {
       let sent: T | undefined;
       try {
         if (e.uncertain) {
-          const remote = await this.options.read(id);
+          // Re-submit the exact original creation, never a newer definition.
+          // The server's client-ID idempotency acknowledges a lost response or
+          // rejects different/deleted contents without recreating them.
+          const creating = e.base.revision === undefined;
+          const remote = creating
+            ? await this.options.create!(e.uncertain)
+            : await this.options.read(id);
           if (this.disposed || this.entries.get(id) !== e) return;
           if (
-            remote.revision === (e.base.revision ?? 0) + 1 &&
+            (creating || remote.revision === (e.base.revision ?? 0) + 1) &&
             this.equal(remote, e.uncertain)
           ) {
             e.base = remote;
@@ -237,11 +267,14 @@ export class PortfolioAutosave<T extends Versioned> {
         if (
           !this.options.available() ||
           this.options.validate(e.latest) ||
-          this.equal(e.latest, e.base)
+          (e.base.revision !== undefined && this.equal(e.latest, e.base))
         )
           return;
         sent = structuredClone(e.latest);
-        const saved = await this.options.write(sent, e.base.revision!);
+        const saved =
+          e.base.revision === undefined
+            ? await this.options.create!(sent)
+            : await this.options.write(sent, e.base.revision);
         if (this.disposed || this.entries.get(id) !== e) return;
         e.base = saved;
         e.latest = { ...e.latest, revision: saved.revision };

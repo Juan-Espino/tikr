@@ -1,3 +1,44 @@
+## Follow-up PR preparation authorized - 2026-11-16
+
+Owner now requests a PR for the local automatic-creation/UX changes and the
+duplicate deletion-toast fix. This supersedes earlier local-only/no-publication
+notes for commit, push and review PR only. No merge, production configuration or
+deployment is authorized. Source branch is based on merged PR26 on origin/main.
+
+Deletion regression reproduced two toasts before correction. StorageNotice mount
+effects replay during Strict Mode/navigation; shared notices now use a stable
+Sonner ID, updating the same toast rather than appending it. The four mobile
+deletion scenarios assert exactly one success toast, including failure -> Retry.
+
+Final release Ready: dpl_JhggkEBeeskcMPmrJm8H5c83EBDC,
+https://tikr-bb1qy820b-juan-espinos-projects.vercel.app, aliased to
+https://tikr-lovat.vercel.app. Fresh isolated Edge repeated all three public-page
+checks against the final alias successfully, zero page errors.
+
+Rollout verification: production client flag re-read as exact true after removing
+a trailing newline from CLI input. Anonymous discovery attempts were rejected with
+a generic server error; this is not proof of signed-in behavior or failure cause.
+Temporary private environment verification files were removed.
+
+## Production rollout - 2026-11-16 Pacific
+
+Owner requested completion of the remaining rollout. PR26 merged as
+78e557846864e4b50cc8fed32f73bd9fc866b8b4. Production Convex warmhearted-tapir-205
+server AI flag is explicit; Vercel tikr production client AI flag is true.
+Read-only catalog validation passed all 32 shards, same revision, 13,181 assets
+including SPY; checked 2026-11-11T04:06:23.594Z, approximately six days old,
+within the existing seven-day limit. No catalog refresh or provider request.
+Existing production URLs point to this deployment. Vercel main build deploys
+Convex then Next.js. First release Ready; follow-up rebuild corrects a trailing
+newline in the public AI flag. Final deployment evidence follows when available.
+Fresh isolated headless Edge verified landing, methodology and sign-in HTTP200,
+visible headings and zero page errors. Market API routes were intercepted for QA.
+Shared preview snapshot failed twice because the browser produced no screenshot
+frames; test tab closed. No owner portfolio mutation or live AI inference performed.
+Real signed-in discovery/quota/autosave/conflict smoke and service capacity remain
+unverified; Google login requires owner participation. Prior disabled/draft notes
+below are historical and superseded by this rollout.
+
 # Asset discovery and portfolio UX: PR review
 
 Owner requested PR preparation on 2026-11-16. This authorizes publishing the

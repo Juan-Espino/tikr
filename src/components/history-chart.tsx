@@ -105,7 +105,11 @@ export function HistoryChart({
       className={`history-chart w-full min-w-0 ${compact ? "flex h-full min-h-0 flex-col" : ""}`}
     >
       <div
-        className={compact ? "h-44 min-h-44 w-full shrink-0" : "h-72 w-full"}
+        className={
+          compact
+            ? "pointer-events-none h-44 min-h-44 w-full shrink-0"
+            : "h-72 w-full"
+        }
       >
         <ResponsiveContainer
           width="100%"
@@ -113,6 +117,7 @@ export function HistoryChart({
           minWidth={0}
         >
           <LineChart
+            tabIndex={compact ? -1 : undefined}
             accessibilityLayer={!compact}
             data={data}
             margin={
@@ -237,7 +242,7 @@ export function HistoryChart({
                 strokeDasharray={l.kind === "benchmark" ? "5 5" : undefined}
                 strokeWidth={l.kind ? 1.5 : 2}
                 dot={false}
-                activeDot={i === 0 ? undefined : false}
+                activeDot={!compact && i === 0 ? undefined : false}
                 isAnimationActive={false}
               />
             ))}

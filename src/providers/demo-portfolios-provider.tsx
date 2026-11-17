@@ -1,7 +1,6 @@
 ﻿"use client";
 import { usePathname } from "next/navigation";
 import type { SaveState } from "~/lib/portfolio-autosave";
-import { PendingLanding } from "~/components/intro";
 import { PageSkeleton } from "~/components/loading-skeletons";
 
 import {
@@ -203,9 +202,7 @@ function AccountPortfoliosProvider({ children }: { children: ReactNode }) {
   }, [notificationScope]);
   if (pathname === "/methodology" && !activeSession) return children;
   if (session.isPending && !activeSession)
-    return pathname === "/" ? (
-      <PendingLanding />
-    ) : (
+    return pathname === "/" ? null : (
       <PageSkeleton label="Checking session..." />
     );
   if (activeSession && expiry > Date.now())

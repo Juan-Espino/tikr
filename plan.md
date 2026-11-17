@@ -1,3 +1,123 @@
+PR follow-up verification: duplicate deletion toast reproduced before the fix;
+all four deletion races now assert exactly one success toast. Final 142 Vitest
+cases/27 files, 20 focused Node checks, pnpm check, formatting/private/newline/diff
+checks and credential-cleared optimized build passed (tikr-cleared-build-VFych3).
+Cloud ten groups (tikr-cloud-ui-AEHPhC) and automatic creation/recovery browser
+checks (tikr-autocreate-7jXEub) passed, including Base UI console-error capture.
+Local DEV review remains localhost:5000; actual owner Google sign-in smoke is
+still distinct from synthetic coverage. Main checkout is clean; no backend source,
+dependency, production configuration or deployment change in this follow-up.
+
+## Follow-up PR preparation authorized - 2026-11-16
+
+Owner now requests a PR for the local automatic-creation/UX changes and the
+duplicate deletion-toast fix. This supersedes earlier local-only/no-publication
+notes for commit, push and review PR only. No merge, production configuration or
+deployment is authorized. Source branch is based on merged PR26 on origin/main.
+
+Deletion regression reproduced two toasts before correction. StorageNotice mount
+effects replay during Strict Mode/navigation; shared notices now use a stable
+Sonner ID, updating the same toast rather than appending it. The four mobile
+deletion scenarios assert exactly one success toast, including failure -> Retry.
+
+## Methodology link console warning fixed - 2026-11-16
+
+The header rendered a Next Link through Base UI Button while nativeButton
+defaulted to true, producing a development console error. Methodology now keeps
+its native anchor semantics and shares the normalized ghost/small button variants,
+36px height and existing press feedback. Browser checks now capture Base UI
+console errors as well as page exceptions; prior exception-only checks missed it.
+No production or publication change in this correction.
+
+Verification completed for local review (2026-11-16 Pacific): 142 Vitest cases
+across 27 files passed, including 10 new creation coordinator cases. Focused
+Node demo/name/auth-return/trial checks recorded separately. pnpm check (lint and
+both TypeScript projects), changed-file Prettier, diff/newlines/private-pattern
+checks and optimized credential-cleared auth/AI build passed (Pj9scO under temp).
+
+Browser evidence: qa-autocreate passes desktop/mobile name-only refusal,
+automatic creation, leaving before Done while creation is held, sign-in recovery,
+newer recovery retained until latest acknowledgement, rapid edits, lost ack,
+offline reconnect, name conflict, conflict Duplicate, cross-account fences,
+unchanged hero DOM across auth updates, header typography and compact/full chart
+interaction (temp tikr-autocreate-m0rbK8). Guest nine groups (tikr-guest-ui-uD4gU6),
+cloud ten groups (tikr-cloud-ui-hxLRVY), autosave (tikr-autosave-EQxBw4), four mobile
+delete races, search motion (tikr-search-motion-7xFgqy), AI interaction
+(tikr-ai-ui-PbLXYJ) passed. One subsequent Edge launch crashed in its disposable
+profile before a test ran; the standalone autosave rerun passed.
+
+Optimized-build delayed-auth browser proof: each hero word and globe entrance
+starts once, headline/canvas nodes remain identical, header font metrics match,
+and desktop/mobile have no horizontal overflow (tikr-landing-production-nxHlF9).
+Screenshots visually inspected at mobile width. Shared preview failed twice with
+"The browser is not producing screenshot frames"; its own tab was closed and
+isolated headless Edge used. No owner profile/storage reset. The two isolated
+optimized QA servers were stopped; real localhost:5000 remains running.
+
+Real DEV guest browser proof: build -> name -> real SPY catalog selection -> Done
+-> Sign in to save -> Google entry screen passed, zero page errors in a fresh
+context. Actual Google exchange and signed-in automatic cloud creation still need
+owner testing; synthetic A/B coverage is distinct. No real AI prompt submitted in
+this round. No commit/push/PR/merge or production mutation in this round.
+
+## Automatic portfolio creation and realistic DEV review - 2026-11-16
+
+Owner approved the ten-step plan plus production-only landing replay investigation.
+Implemented automatic named/valid creation, guest-to-account recovery, editable
+pending creation, shared retry/reconciliation queue and removal of Create in account.
+No backend source/API/schema changes. Same-ID differing recovery stays conflicted;
+example originals and legacy browser bytes remain protected. Header typography and
+Methodology press feedback aligned; dashboard collection label removed, heading
+renamed, compact scrubbing disabled with full-portfolio tooltips preserved.
+
+Cause found for hero replay: separate PendingLanding instances at auth readiness,
+portfolio readiness and route fallback were replaced by ready content, remounting
+the CSS entrance and globe. Stable LandingSurface above those switches removes
+those replacements. Synthetic auth transitions preserve the exact DOM nodes;
+optimized production build with delayed session response starts each word/globe
+entrance exactly once on desktop/mobile. No landing skeleton introduced.
+
+Restored ignored local DEV market configuration from canonical ignored DEV file,
+validated stoic-corgi-586 target; canonical checkout and production bindings unchanged.
+http://localhost:5000 is the real Next DEV review, with existing DEV Google auth,
+cloud and AI. Real local catalog POST returned personal source, HTTP200; one bounded
+SPY 1W request returned refreshing -> ready, personal-provisional history. No owner
+portfolio mutated or browser storage reset. Synthetic failure QA stays separate
+at 127.0.0.1:5010; never substitute it for the owner's normal review environment.
+
+Verification recorded below after final checks. Existing rollout notes below are
+historical; this task has no further production publication/activation authorization.
+Next: owner tests the actual localhost workflow and approves any further release.
+
+Final release Ready: dpl_JhggkEBeeskcMPmrJm8H5c83EBDC,
+https://tikr-bb1qy820b-juan-espinos-projects.vercel.app, aliased to
+https://tikr-lovat.vercel.app. Fresh isolated Edge repeated all three public-page
+checks against the final alias successfully, zero page errors.
+
+Rollout verification: production client flag re-read as exact true after removing
+a trailing newline from CLI input. Anonymous discovery attempts were rejected with
+a generic server error; this is not proof of signed-in behavior or failure cause.
+Temporary private environment verification files were removed.
+
+## Production rollout - 2026-11-16 Pacific
+
+Owner requested completion of the remaining rollout. PR26 merged as
+78e557846864e4b50cc8fed32f73bd9fc866b8b4. Production Convex warmhearted-tapir-205
+server AI flag is explicit; Vercel tikr production client AI flag is true.
+Read-only catalog validation passed all 32 shards, same revision, 13,181 assets
+including SPY; checked 2026-11-11T04:06:23.594Z, approximately six days old,
+within the existing seven-day limit. No catalog refresh or provider request.
+Existing production URLs point to this deployment. Vercel main build deploys
+Convex then Next.js. First release Ready; follow-up rebuild corrects a trailing
+newline in the public AI flag. Final deployment evidence follows when available.
+Fresh isolated headless Edge verified landing, methodology and sign-in HTTP200,
+visible headings and zero page errors. Market API routes were intercepted for QA.
+Shared preview snapshot failed twice because the browser produced no screenshot
+frames; test tab closed. No owner portfolio mutation or live AI inference performed.
+Real signed-in discovery/quota/autosave/conflict smoke and service capacity remain
+unverified; Google login requires owner participation. Prior disabled/draft notes
+below are historical and superseded by this rollout.
+
 ## Production backend preparation completed - 2026-11-16
 
 Owner explicitly approved deploying PR26's backend to production Convex

@@ -14,6 +14,7 @@ export const state = {
   hold: false,
   responseAccount: "",
   sessionFailure: false,
+  sessionPending: false,
   expiresAt: Date.now() + 3600000,
   rows: [] as Doc<"portfolios">[],
   release: null as null | (() => void),
@@ -47,7 +48,7 @@ export function session() {
             },
           }
         : null,
-    isPending: false,
+    isPending: state.sessionPending,
     error: state.sessionFailure
       ? new Error("Synthetic session check failure")
       : null,
@@ -140,9 +141,17 @@ export async function mutate(
   } as Doc<"portfolios">;
   state.rows.push(created);
   emit();
+  if (state.failAfterCommit) {
+    state.failAfterCommit = false;
+    throw Error("LOST_ACK");
+  }
   return structuredClone(created);
 }
 export const qa = {
+  pending: (value: boolean) => {
+    state.sessionPending = value;
+    emit();
+  },
   account: (value: string) => {
     state.account = value;
     state.expiresAt = Date.now() + 3600000;

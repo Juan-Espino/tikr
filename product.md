@@ -1,3 +1,21 @@
+## Automatic creation and local review - owner approved 2026-11-16
+
+Supersedes earlier explicit Create in account / sign-in-never-saves requirements.
+A signed-in portfolio with a nonblank valid name, at least one holding, valid
+allocation and amount is created automatically after 500ms; name-only/empty work
+remains temporary. The active guest/example-copy draft recovers through sign-in
+and saves automatically to that account when valid. Originals remain read-only.
+No legacy collection import or cross-account recovery is added. Creation and
+updates share one serialized coordinator, stable client ID, revision fences,
+bounded retries, and exact idempotent replay of uncertain creates. Newer edits
+remain editable during creation. No cloud save acknowledgement is implied by login.
+Name conflicts require correction; invalid edits keep the last valid cloud state.
+Private account work remains in memory; temporary guest recovery is account-bound
+before creation and settled only after acknowledgement without deleting newer work.
+Normal route navigation retains the provider queue; forced closure/crash recovery
+of private unsent edits is not guaranteed. This round is local owner review only:
+no new commit, push, PR, merge, production deployment or production configuration.
+
 ## PR preparation authorized - 2026-11-16
 
 Owner requested a review PR and production-readiness assessment after editor hover/status corrections. Branch publication is authorized; merge and production deployment/configuration remain separate. Existing cloud autosave is quiet after acknowledgement: no routine Saved label, with pending/error feedback retained. release-readiness.md distinguishes source verification from unverified live-AI production activation and service capacity.

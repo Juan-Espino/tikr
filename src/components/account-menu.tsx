@@ -15,7 +15,8 @@ import {
 } from "~/components/ui/dialog";
 export function AccountMenu({
   quietPending = false,
-}: { quietPending?: boolean } = {}) {
+  prepareToLeave,
+}: { quietPending?: boolean; prepareToLeave?: () => Promise<boolean> } = {}) {
   const { data, isPending, error } = authClient.useSession();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -24,7 +25,7 @@ export function AccountMenu({
   if (isPending && quietPending)
     return (
       <span
-        className="inline-flex size-11"
+        className="inline-flex h-9 w-14"
         role="status"
         aria-label="Checking session"
       />
@@ -41,8 +42,9 @@ export function AccountMenu({
     (data.session && new Date(data.session.expiresAt).getTime() <= Date.now())
   )
     return (
-      <button
-        className="min-h-11 rounded px-2 focus-visible:outline-2"
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() =>
           router.push(
             `/sign-in?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`,
@@ -50,7 +52,7 @@ export function AccountMenu({
         }
       >
         Sign in
-      </button>
+      </Button>
     );
   const initials = (data.user.name || data.user.email)
     .trim()
@@ -80,8 +82,8 @@ export function AccountMenu({
         </DialogTitle>
         <p className="mt-2 text-sm break-all">{data.user.email}</p>
         <DialogDescription className="text-muted-foreground mt-4 text-sm leading-6">
-          Signed-in saves go to your account. Sign-in alone never saves a draft.
-          Private account edits stay in this tab.
+          Named portfolios with a valid allocation save automatically to your
+          account. Private account edits stay in this tab.
         </DialogDescription>
         <Button
           className="mt-6 w-full"
@@ -90,10 +92,8 @@ export function AccountMenu({
             setBusy(true);
             setFailed(false);
             try {
-              if (
-                portfolios?.prepareToLeave &&
-                !(await portfolios.prepareToLeave())
-              ) {
+              const leave = prepareToLeave ?? portfolios?.prepareToLeave;
+              if (leave && !(await leave())) {
                 setBusy(false);
                 return;
               }

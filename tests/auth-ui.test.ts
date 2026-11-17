@@ -51,7 +51,7 @@ test("pending sign-in disables provider action but keeps guest use available; er
   expect(loading).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*?Connecting/);
   expect(loading).toContain('role="status"');
   expect(loading).toContain("Continue as guest");
-  expect(loading).toContain("Signing in alone never saves your draft");
+  expect(loading).toContain("save your named draft automatically");
   const error = renderToStaticMarkup(
     createElement(Login, {
       ...props,

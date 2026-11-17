@@ -1,7 +1,7 @@
 "use client";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
+import { cn } from "~/lib/utils";
 import { ArrowRight } from "lucide-react";
 import { WireframeGlobe } from "./wireframe-globe";
 import { TikrLogo } from "./tikr-logo";
@@ -9,9 +9,11 @@ import { AccountMenu } from "./account-menu";
 
 function AppHeader({
   onDashboard,
+  prepareToLeave,
 }: {
   onLogin: () => void;
   onDashboard: () => void;
+  prepareToLeave?: () => Promise<boolean>;
 }) {
   return (
     <header className="flex items-center justify-between px-5 py-5 md:px-10">
@@ -24,45 +26,43 @@ function AppHeader({
         </Button>
         <Link
           href="/methodology"
-          className="hover:bg-muted hover:text-foreground rounded-lg px-2.5 py-2 text-sm focus-visible:outline-2"
+          data-slot="button"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "min-h-9",
+          )}
         >
           Methodology
         </Link>
-        <AccountMenu quietPending />
+        <AccountMenu quietPending prepareToLeave={prepareToLeave} />
       </nav>
     </header>
   );
 }
 
-export function PendingLanding() {
-  const router = useRouter();
-  return (
-    <Landing
-      pending
-      onLogin={() => router.push("/sign-in")}
-      onDashboard={() => router.push("/dashboard")}
-      onBuild={() => undefined}
-      onExample={() => undefined}
-    />
-  );
-}
 export function Landing({
   onLogin,
   onDashboard,
   onBuild,
   onExample,
   pending = false,
+  prepareToLeave,
 }: {
   onLogin: () => void;
   onDashboard: () => void;
   onBuild: () => void;
   onExample: () => void;
   pending?: boolean;
+  prepareToLeave?: () => Promise<boolean>;
 }) {
   return (
     <main className="min-h-screen overflow-x-clip bg-[#080808] text-stone-200">
       <div className="flex min-h-screen flex-col">
-        <AppHeader onLogin={onLogin} onDashboard={onDashboard} />
+        <AppHeader
+          onLogin={onLogin}
+          onDashboard={onDashboard}
+          prepareToLeave={prepareToLeave}
+        />
         <section className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 px-5 py-12 md:grid-cols-[1.05fr_.95fr] md:px-10 md:py-16">
           <div className="relative z-10">
             <h1 className="max-w-xl text-[clamp(3rem,5.5vw,4.5rem)] leading-[.92] font-bold tracking-[-0.07em] text-stone-100">
@@ -136,8 +136,8 @@ export function Login({
             Tikr.
           </h1>
           <p className="supporting-copy mt-4 text-sm leading-6 text-stone-600">
-            Sign in with Google, then choose Create in account to keep your
-            draft in your account. Signing in alone never saves your draft.
+            Sign in with Google to save your named draft automatically once it
+            has a valid allocation.
           </p>
           <button
             disabled={pending}
