@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { MarketSkeleton } from "~/components/loading-skeletons";
 import { marketErrorMessage } from "~/lib/market-errors";
 import { validRefreshFailure } from "~/lib/market-failure-record";
 import type { MarketRequest, MarketResponse } from "~/lib/market-contract";
@@ -452,30 +453,7 @@ export function MarketPerformanceView({
       )}
       {!main &&
         (view.status === "refreshing" ? (
-          <div
-            role="status"
-            className={
-              compact
-                ? "mt-6 flex min-h-56 flex-1 flex-col"
-                : "mt-4 min-h-[440px]"
-            }
-          >
-            <span className="sr-only">Loading history…</span>
-            <div
-              aria-hidden="true"
-              className="market-pulse flex h-full flex-1 flex-col gap-5"
-            >
-              <div className="bg-muted h-6 w-24 rounded" />
-              <div
-                className={
-                  compact
-                    ? "border-border min-h-44 flex-1 rounded border"
-                    : "border-border h-72 rounded border"
-                }
-              />
-              <div className="bg-muted h-4 w-32 rounded" />
-            </div>
-          </div>
+          <MarketSkeleton compact={compact} />
         ) : (
           <div
             className={`text-muted-foreground grid place-items-center text-center text-sm ${compact ? "min-h-56 flex-1" : "min-h-[440px]"}`}

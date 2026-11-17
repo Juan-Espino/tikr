@@ -8,6 +8,12 @@ import {
   useState,
 } from "react";
 import { ArrowUp, Sparkles } from "lucide-react";
+import {
+  AnimatedSearchRows,
+  SearchResultsViewport,
+} from "~/components/animated-search-results";
+import { Skeleton } from "~/components/ui/skeleton";
+import { SearchRowsSkeleton } from "~/components/loading-skeletons";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
@@ -20,6 +26,7 @@ export type { DiscoveryAdapter, DiscoveryResult } from "~/lib/ai-discovery";
 // Default remains unavailable. Production injects an authenticated adapter only
 // when explicitly enabled; the separate test harness supplies its own fixture.
 export const DiscoveryPreview = createContext<DiscoveryAdapter | null>(null);
+export const DiscoveryAllowancePending = createContext(false);
 export const DiscoveryAllowance = createContext<DiscoveryUsage | null>(null);
 export const DiscoveryPreviewMode = createContext(true);
 export function AiAssetSearch({
@@ -37,6 +44,7 @@ export function AiAssetSearch({
 }) {
   const adapter = useContext(DiscoveryPreview);
   const allowance = useContext(DiscoveryAllowance);
+  const allowancePending = useContext(DiscoveryAllowancePending);
   const preview = useContext(DiscoveryPreviewMode);
   const shimmerId = useId();
   const [ai, setAi] = useState(false);
@@ -73,9 +81,7 @@ export function AiAssetSearch({
     cancel();
     const controller = new AbortController();
     active.current = controller;
-    setSubmitted(prompt);
     setBusy(true);
-    setResult(null);
     try {
       const next = adapter
         ? await adapter({ prompt: prompt.trim(), signal: controller.signal })
@@ -84,8 +90,10 @@ export function AiAssetSearch({
             message:
               "AI discovery is not available yet. Use ticker or company search.",
           };
-      if (!controller.signal.aborted && active.current === controller)
+      if (!controller.signal.aborted && active.current === controller) {
+        setSubmitted(prompt);
         setResult(next);
+      }
     } catch {
       if (!controller.signal.aborted && active.current === controller)
         setResult({
@@ -102,9 +110,16 @@ export function AiAssetSearch({
   return (
     <div data-ui className="mt-3">
       <div
-        className="asset-search-field ai-discovery-field relative h-[104px] w-full rounded-lg border"
+        className="asset-search-field ai-discovery-field relative h-[104px] w-full cursor-text rounded-lg border"
         data-ai={ai}
         data-busy={busy}
+        onClick={(event) => {
+          // Keep controls and native text selection independent of field clicks.
+          if ((event.target as Element).closest("button, input, textarea"))
+            return;
+          if (ai) input.current?.focus();
+          else event.currentTarget.querySelector("input")?.focus();
+        }}
       >
         <div
           aria-hidden={ai}
@@ -247,118 +262,139 @@ export function AiAssetSearch({
           </div>
         </div>
       </div>
-      {!ai && normalResults}
-      {ai &&
-        (adapter !== null || busy || result !== null || allowance !== null) && (
-          <div className="mt-3 space-y-3 text-sm">
-            {allowance && (
-              <p role="status" className="text-muted-foreground">
-                {allowance.remaining} of {allowance.limit} AI searches remaining
-                today. Resets{" "}
-                {new Date(allowance.resetAt).toLocaleString([], {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-                .
-              </p>
-            )}
-            {adapter && preview && (
-              <p id="ai-preview-note" className="text-muted-foreground">
-                AI interaction preview - sample results; no AI request.
-              </p>
-            )}
-            {!prompt && adapter && preview && (
-              <div className="flex flex-wrap gap-2">
-                {[
-                  "Semiconductor equipment",
-                  "Renewable energy beyond solar",
-                  "Data-center infrastructure",
-                ].map((s) => (
-                  <Button
-                    key={s}
-                    variant="outline"
-                    className="h-auto min-h-11 text-left text-xs whitespace-normal"
-                    onClick={() => {
-                      setPrompt(s);
-                      input.current?.focus();
-                    }}
+      <SearchResultsViewport>
+        {!ai && normalResults}
+        {ai &&
+          (adapter !== null ||
+            busy ||
+            result !== null ||
+            allowance !== null) && (
+            <div className="mt-3 space-y-3 text-sm">
+              {allowancePending && !allowance && (
+                <div role="status" aria-label="Loading AI allowance">
+                  <Skeleton className="h-4 w-64 max-w-full" />
+                </div>
+              )}
+              {allowance && (
+                <p role="status" className="text-muted-foreground">
+                  <span
+                    className={
+                      allowance.remaining <= 5 ? "ai-allowance-low" : undefined
+                    }
                   >
-                    {s}
-                  </Button>
-                ))}
-              </div>
-            )}
-            <div role="status" aria-live="polite">
-              {busy
-                ? preview
-                  ? "Finding sample assets…"
-                  : "Finding assets…"
-                : result?.kind === "results"
-                  ? result.summary
-                  : result?.kind === "clarification"
-                    ? result.question
-                    : result?.message}
-              {result && submitted !== prompt && (
-                <p className="mt-2">
-                  Previous prompt results. Submit your edited prompt to update.
+                    {allowance.remaining}
+                  </span>{" "}
+                  of {allowance.limit} AI searches remaining today. Resets{" "}
+                  {new Date(allowance.resetAt).toLocaleString([], {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                  .
                 </p>
               )}
-            </div>
-            {busy && (
-              <Button variant="outline" onClick={cancel}>
-                Cancel search
-              </Button>
-            )}
-            {result?.kind === "clarification" && (
-              <div className="flex flex-wrap gap-2">
-                {result.answers.map((s) => (
-                  <Button
-                    variant="outline"
-                    key={s}
-                    onClick={() => {
-                      setPrompt(`${submitted}: ${s}`);
-                      input.current?.focus();
-                    }}
-                  >
-                    {s}
-                  </Button>
-                ))}
-              </div>
-            )}
-            {result?.kind === "results" && (
-              <div className="space-y-1">
-                {result.assets.map((a) => {
-                  const added = selected.includes(a.ticker);
-                  return (
-                    <div
-                      key={a.ticker}
-                      className="flex items-center gap-3 py-3"
+              {adapter && preview && (
+                <p id="ai-preview-note" className="text-muted-foreground">
+                  AI interaction preview - sample results; no AI request.
+                </p>
+              )}
+              {!prompt && adapter && preview && (
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Semiconductor equipment",
+                    "Renewable energy beyond solar",
+                    "Data-center infrastructure",
+                  ].map((s) => (
+                    <Button
+                      key={s}
+                      variant="outline"
+                      className="h-auto min-h-11 text-left text-xs whitespace-normal"
+                      onClick={() => {
+                        setPrompt(s);
+                        input.current?.focus();
+                      }}
                     >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold">
-                          {a.ticker}{" "}
-                          <span className="font-normal text-stone-300">
-                            {a.name}
-                          </span>
-                        </p>
-                        <p className="mt-1 text-xs text-stone-400">{a.why}</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        disabled={added || selected.length >= 6}
-                        onClick={() => onAdd(a.ticker)}
-                      >
-                        {added ? "Added" : "Add"}
-                      </Button>
-                    </div>
-                  );
-                })}
+                      {s}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <div role="status" aria-live="polite">
+                {busy
+                  ? preview
+                    ? "Finding sample assets…"
+                    : "Finding assets…"
+                  : result?.kind === "results"
+                    ? result.summary
+                    : result?.kind === "clarification"
+                      ? result.question
+                      : result?.message}
+                {result && submitted !== prompt && (
+                  <p className="text-muted-foreground mt-2 text-xs italic">
+                    Previous prompt results. Submit your edited prompt to
+                    update.
+                  </p>
+                )}
               </div>
-            )}
-          </div>
-        )}
+              {busy && result?.kind !== "results" && <SearchRowsSkeleton />}
+              {busy && (
+                <Button variant="outline" onClick={cancel}>
+                  Cancel search
+                </Button>
+              )}
+              {result?.kind === "clarification" && (
+                <div className="flex flex-wrap gap-2">
+                  {result.answers.map((s) => (
+                    <Button
+                      variant="outline"
+                      key={s}
+                      className="h-auto min-h-11 text-left whitespace-normal"
+                      onClick={() => {
+                        setPrompt(`${submitted}: ${s}`);
+                        input.current?.focus();
+                      }}
+                    >
+                      {s}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <AnimatedSearchRows
+                className="space-y-1"
+                items={
+                  result?.kind === "results"
+                    ? result.assets.map((a) => {
+                        const added = selected.includes(a.ticker);
+                        return {
+                          key: a.ticker,
+                          content: (
+                            <div className="flex items-center gap-3 py-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold">
+                                  {a.ticker}{" "}
+                                  <span className="font-normal text-stone-300">
+                                    {a.name}
+                                  </span>
+                                </p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                disabled={added || selected.length >= 6}
+                                onClick={() => onAdd(a.ticker)}
+                              >
+                                {added ? "Added" : "Add"}
+                              </Button>
+                            </div>
+                          ),
+                        };
+                      })
+                    : []
+                }
+              />
+            </div>
+          )}
+      </SearchResultsViewport>
     </div>
   );
 }

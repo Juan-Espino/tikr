@@ -34,6 +34,9 @@ try {
   await page.getByRole("button", { name: "Try your own mix" }).click();
   const ai = page.getByRole("button", { name: "AI", exact: true });
   const normal = page.getByRole("textbox", { name: "Search assets" });
+  const field = page.locator(".asset-search-field");
+  await field.click({ position: { x: 20, y: 85 } });
+  await expect(normal).toBeFocused();
   await normal.fill("NV");
   await expect(
     page.getByRole("button", { name: "NVDA, NVIDIA Corporation" }),
@@ -59,6 +62,9 @@ try {
   await ai.click();
   const prompt = page.getByRole("textbox", { name: "Describe assets" });
   const submit = page.getByRole("button", { name: "Find assets" });
+  await expect(prompt).toBeFocused();
+  await prompt.blur();
+  await field.click({ position: { x: 20, y: 85 } });
   await expect(prompt).toBeFocused();
   await expect(submit).toBeDisabled();
   await page
@@ -185,8 +191,13 @@ try {
   await ai.click();
   await page.waitForTimeout(2000);
   await ai.click();
+  // Existing rows remain during/cancelled replacement searches; cancelled work
+  // must not claim those rows describe the edited prompt.
   await expect(
-    page.getByText("Illustrative sample rows", { exact: false }),
+    page.getByText("Previous prompt results.", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Finding sample assets", { exact: false }),
   ).toHaveCount(0);
   const clean = await browser.newContext();
   const publicView = await clean.newPage();

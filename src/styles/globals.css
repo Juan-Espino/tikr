@@ -333,9 +333,11 @@ select {
 
 /* Electric edge adapted from https://codepen.io/BalintFerenczy/pen/KwdoyEN.
    Keep displacement and the small red halo local to the field's border. */
+:root {
+  --ai-rim: #a84943;
+}
 .ai-discovery-field {
   background: #080808;
-  --ai-rim: #a84943;
   --ai-rim-width: 2;
   border-color: var(--border);
 }
@@ -445,4 +447,82 @@ select {
   transition:
     opacity 240ms ease-in-out,
     visibility 0s;
+}
+
+.ai-allowance-low {
+  color: var(--ai-rim);
+}
+.portfolio-editor-dialog {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.portfolio-editor-dialog > * {
+  flex-shrink: 0;
+}
+.portfolio-editor-dialog > [data-editor-allocation] {
+  overflow-x: hidden;
+  flex-shrink: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.search-results-viewport {
+  scrollbar-gutter: stable;
+}
+.search-row-exit {
+  animation: search-row-exit 100ms ease-out forwards;
+}
+@keyframes search-row-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-row-exit {
+    animation: none;
+    visibility: hidden;
+  }
+}
+
+/* Keep the fixed editor chrome compact on phones, leaving usable result and
+   allocation scroll regions inside the existing 90dvh dialog cap. */
+@media (max-width: 639px) {
+  .portfolio-editor-dialog {
+    padding: 16px;
+  }
+  .portfolio-editor-dialog > p {
+    line-height: 20px;
+  }
+  .portfolio-editor-dialog > .grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .portfolio-editor-dialog > .grid label {
+    font-size: 12px;
+    line-height: 18px;
+  }
+  .portfolio-editor-dialog > .grid input {
+    margin-top: 4px;
+    padding: 8px;
+  }
+  .portfolio-editor-dialog > section {
+    margin-top: 16px;
+    padding-top: 12px;
+  }
+  .portfolio-editor-dialog > section > .flex > span {
+    font-size: 12px;
+    line-height: 18px;
+  }
+  .portfolio-editor-dialog > .sticky {
+    margin: 12px -16px 0;
+    padding: 12px 16px;
+  }
+  .portfolio-editor-dialog > .sticky p {
+    font-size: 12px;
+    line-height: 18px;
+  }
 }

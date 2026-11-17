@@ -1,3 +1,29 @@
+## PR preparation authorized - 2026-11-16
+
+Owner requested a review PR and production-readiness assessment after editor hover/status corrections. Branch publication is authorized; merge and production deployment/configuration remain separate. Existing cloud autosave is quiet after acknowledgement: no routine Saved label, with pending/error feedback retained. release-readiness.md distinguishes source verification from unverified live-AI production activation and service capacity.
+
+## Existing account portfolio autosave approved - 2026-11-16
+
+Owner supersedes earlier manual-save requirements for existing account portfolios: edits save automatically after500ms quiet time, only valid definitions, latest-unsent coalescing and one in-flight write per portfolio. Show Saving/Saved/Changes not saved; no autosave success toasts. Preserve ownership/revision/session fencing, conflict recovery, read-only examples and no private browser persistence. New portfolios retain an explicit Create in account action; signing in alone does not create/import/save guest work. Done flushes; offline/retries retain edits in memory. Confirmed deletion supersedes queued edits, with no resurrection. Leave/sign-out guards disclose pending work. Remove all landing skeletons and the permanent account/manual-save notice. See portfolio-autosave.md for contract, evidence and limits.
+
+## Methodology and loading behavior approved - 2026-11-16
+
+Methodology is a dedicated public reading page linked from the landing header; the old landing methodology section is removed. Header uses Portfolios terminology. Initial session/account/cloud/history/search/AI reads receive layout-matched skeletons; date changes with a loaded graph keep the existing graph animation. Writes and OAuth handoffs preserve their forms/content. Static methodology does not wait for private account loading. Financial rules, portfolio ownership and explicit Save behavior remain unchanged.
+
+## Ticker-only discovery approved - 2026-11-16
+
+Owner approved ticker-only results (up to six, fewer allowed), supported-catalog filtering, canonical display names, inline clarification/no-match and a real signed-in DEV trial. GPT-OSS120B selected for this trial. No AI business explanation or model name matching remains. Relevance is unverified. Existing 500-character/20-completed-per-account-per-UTC-day rules persist. DEV activation is authorized for stoic-corgi-586 only; production and Git publication remain separate.
+
+## Six-result discovery baseline - 2026-11-16
+
+Owner approved model comparison, supported-catalog/name validation and fewer than
+six matches when uncertain; verified-description enrichment is excluded for now.
+Restored candidate cap to six in contract/schema/instructions, preserving rejection
+of unsupported or name-mismatched tickers and existing portfolio max-six behavior.
+Model remains GPT-OSS20B until owner selects the comparison model. Proposed next
+comparison: Groq openai/gpt-oss-120b using the same prompts/settings initially.
+No provider call, deployment or model activation in this change.
+
 ## AI backend mocked implementation - owner authorized 2026-11-15
 
 Owner approved implementing the described backend scope with mocked responses in

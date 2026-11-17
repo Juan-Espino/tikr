@@ -8,6 +8,9 @@ export const state = {
   account: "" as string,
   online: true,
   fail: "",
+  permanentFailure: "",
+  failAfterCommit: false,
+  writes: [] as { id: string; revision?: number }[],
   hold: false,
   responseAccount: "",
   sessionFailure: false,
@@ -59,12 +62,15 @@ export async function mutate(
     sessionFence: string;
   },
 ) {
+  state.writes.push({ id: args.clientId, revision: args.revision });
   if (state.hold) {
     state.hold = false;
     await new Promise<void>((resolve) => {
       state.release = resolve;
     });
   }
+  if (!state.online) throw Error("OFFLINE");
+  if (state.permanentFailure) throw new ConvexError(state.permanentFailure);
   if (state.fail) {
     const code = state.fail;
     state.fail = "";
@@ -114,6 +120,10 @@ export async function mutate(
     row.revision++;
     row.updated = Date.now();
     emit();
+    if (state.failAfterCommit) {
+      state.failAfterCommit = false;
+      throw Error("LOST_ACK");
+    }
     return structuredClone(row);
   }
   const created = {
@@ -154,6 +164,9 @@ export const qa = {
     state.online = value;
     emit();
   },
+  failForever: (value: string) => {
+    state.permanentFailure = value;
+  },
   fail: (value: string) => {
     state.fail = value;
   },
@@ -165,6 +178,10 @@ export const qa = {
     state.release = null;
   },
   rows: () => structuredClone(state.rows),
+  writes: () => structuredClone(state.writes),
+  loseAck: () => {
+    state.failAfterCommit = true;
+  },
   remote: (id: string, patch: Partial<Portfolio>) => {
     const row = state.rows.find((r) => r.clientId === id)!;
     row.definition = { ...row.definition, ...patch };

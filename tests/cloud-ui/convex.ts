@@ -1,9 +1,28 @@
 import { useSyncExternalStore } from "react";
 import { mutate, state, subscribe, version } from "./state";
-import type { FunctionReference } from "convex/server";
+import { getFunctionName, type FunctionReference } from "convex/server";
 import { discoveryClient } from "./discovery-client";
+const mockClient = {
+  ...discoveryClient,
+  query: async (
+    fn: FunctionReference<"query">,
+    args: { clientId?: string },
+  ) => {
+    if (getFunctionName(fn) === "portfolios:get") {
+      const row = state.rows.find(
+        (r) =>
+          r.clientId === args.clientId &&
+          r.ownerId === state.account &&
+          !r.deleted,
+      );
+      if (!row) throw Error("PORTFOLIO_UNAVAILABLE");
+      return structuredClone(row);
+    }
+    return discoveryClient.query();
+  },
+};
 export function useConvex() {
-  return discoveryClient;
+  return mockClient;
 }
 function useSnapshot() {
   useSyncExternalStore(subscribe, version, version);

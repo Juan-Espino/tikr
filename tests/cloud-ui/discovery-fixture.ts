@@ -53,17 +53,14 @@ export const discoveryFixture: DiscoveryAdapter = async ({
       {
         ticker: "NVDA",
         name: "NVIDIA",
-        why: "Illustrative match: computing hardware for a data-center prompt.",
       },
       {
         ticker: "MSFT",
         name: "Microsoft",
-        why: "Illustrative match: cloud infrastructure for a data-center prompt.",
       },
       {
         ticker: "AAPL",
         name: "Apple",
-        why: "Sample row to review selection behavior; not a verified theme match.",
       },
     ],
   };

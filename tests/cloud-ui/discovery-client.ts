@@ -41,7 +41,6 @@ export const discoveryClient = {
           {
             ticker: "NVDA",
             name: "Synthetic canonical NVIDIA",
-            why: "Synthetic AI suggestion for adapter verification.",
           },
         ],
       },

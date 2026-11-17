@@ -9,9 +9,7 @@ export const resultValidator = v.union(
   v.object({
     kind: v.literal("results"),
     summary: v.string(),
-    assets: v.array(
-      v.object({ ticker: v.string(), name: v.string(), why: v.string() }),
-    ),
+    assets: v.array(v.object({ ticker: v.string(), name: v.string() })),
   }),
   v.object({
     kind: v.literal("clarification"),

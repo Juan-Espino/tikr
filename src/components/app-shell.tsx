@@ -1,4 +1,5 @@
 "use client";
+import { PageSkeleton } from "~/components/loading-skeletons";
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -18,7 +19,6 @@ export function StorageNotice() {
     notice,
     setNotice,
     storageBlocked,
-    cloud,
     busy,
     saveError,
     conflict,
@@ -33,13 +33,6 @@ export function StorageNotice() {
   }, [notice, setNotice]);
   return (
     <>
-      {cloud && (
-        <p role="status" className="my-3 text-sm text-stone-300">
-          {busy
-            ? "Saving to cloud… Keep this tab open."
-            : "Account portfolios · changes save only when confirmed"}
-        </p>
-      )}
       {saveError && (
         <div role="alert" className="my-4 rounded-lg bg-stone-900 p-4 text-sm">
           <p>{saveError}</p>
@@ -79,13 +72,7 @@ export function AppShell({
   const router = useRouter();
   const { open, ready, cloud, busy } = useDemoPortfolios();
   if (!ready)
-    return (
-      <main role="status" className="p-10">
-        {cloud
-          ? "Loading account portfolios… Check your connection if this continues."
-          : "Loading local portfolios…"}
-      </main>
-    );
+    return <PageSkeleton variant={portfolio ? "portfolio" : "dashboard"} />;
   return (
     <main
       className={`min-h-screen ${portfolio ? "portfolio-editor-copy" : ""}`}

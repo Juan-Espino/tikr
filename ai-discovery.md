@@ -1,3 +1,146 @@
+## Ticker-only signed-in DEV trial - 2026-11-16
+
+Owner approved implementation and real signed-in integrated-browser testing.
+Supersedes the earlier mocked-only/no-deployment checkpoint for this DEV trial;
+production, Git publication, paid upgrades and Alpaca activation remain excluded.
+
+Implemented GPT-OSS120B/low, max six symbols. Model output is strict
+{kind, summary, tickers, question, answers}; successful results require summary,
+question and answers empty. No model company names or per-stock explanations.
+Server normalizes/deduplicates symbols, rejects invalid/unsupported entries against
+existing fresh cached catalog, and returns canonical ticker/name rows with fixed
+AI-suggested/relevance-unverified copy. Name matcher removed because no model names
+are accepted. No-match and focused clarification stay inline; chips fill/refine,
+never auto-submit. Existing auth/session/quota/cancel/weights behavior remains.
+
+Target confirmed from canonical public DEV bindings and CLI: dev:stoic-corgi-586.
+convex dev --once succeeded and generated real API types; added two discovery table
+indexes. Securely supplied Groq key and explicit enable flag set on this DEV target
+only. Existing SITE_URL confirmed http://localhost:5000; Google config unchanged.
+Port 5000 was free; isolated feature Next server started there (PID2368 at startup).
+Ignored feature .env.local contains only three public DEV bindings and public AI flag.
+No main configuration edits or private market/auth credential copies. Next process
+inherited no APCA/Alpaca keys: market-performance/ordinary search remain labeled sample
+mode. AI result membership uses actual existing DEV cached catalog; no catalog refresh,
+Alpaca request or public/production market-data activation was performed.
+
+Live bounded probes using current transport plus existing internal DEV catalog lookup:
+- give me ai stocks -> NVDA, GOOG, MSFT, AMD, IBM, META; all six supported.
+- Semiconductor equipment companies -> AMAT, LRCX, KLAC, TER, ENTG; all five supported.
+- Companies involved with chips -> focused semiconductor-versus-snack clarification.
+These direct probes do not prove live signed-in action/session settlement; no account
+quota charged by direct probes. Relevance is not independently verified.
+
+Verification: pnpm check passed (lint/both TS); full Vitest 113 passed/25 files;
+then one additional strict ticker-only shape test added, focused discovery 20 passed.
+AI browser desktop/mobile suite passed at temp tikr-ai-ui-aaxHcl. Credential-cleared
+optimized auth/AI build passed at temp tikr-cleared-build-SF3onI. No owner cloud
+portfolio created/edited/deleted by assistant. Public preview opened successfully at
+http://localhost:5000/sign-in (Tikr title). Two subsequent snapshot attempts each
+failed: Preview automation snapshot timed out after 15000ms. Native CUA fallback
+unavailable: failed to connect native pipe (os error 2). Real Google sign-in and
+signed-in end-to-end search remain owner verification; no login success claimed.
+
+Review: http://localhost:5000/sign-in. Sign in, create a new unsaved portfolio,
+toggle AI, enter a theme, submit, then Add returned cached assets. Save stays an
+explicit owner action. Server flags/key remain DEV-only for this authorized trial.
+Rollback trial: stop this owned feature server and disable TIKR_AI_DISCOVERY_ENABLED
+on stoic-corgi-586; keep quota receipts/cloud data intact. No commit/push/PR/merge.
+
+## Names-only 120B experiment - 2026-11-16
+
+Owner approved one focused names/tickers-only experiment. Six direct live public
+sample requests, once each, used 120B/low/1024 cap/max six. Trial-only transpiled
+schema, instructions and runtime validator removed candidate why fields; source
+app contract/UI and configured model are unchanged. No deploy/activation, catalog
+fetch, quota/account writes or portfolio/account data transmission. Exact request
+instructions/schema and responses: ai-discovery-trial-names-only.md.
+
+All six shape-valid; four suggestion lists, one clarification, one forecast refusal.
+Semiconductor list now uses TER/Teradyne, but data-center list includes CONE/CyrusOne
+(acquired/delisting requested in 2022) and CDAY/Co-Diagnostics (issuer says CODX).
+Renewables list pairs PE with Pattern Energy, whose historical symbol was PEGI and
+which was taken private in 2020. Factual reliability remains unresolved. No current
+supported-catalog pass count is claimed; no live catalog was accessed. Exact full-name
+normalization also rejects common legitimate abbreviations (Corp vs Corporation), a
+false-negative concern for owner review before app integration. Do not silently relax
+identity checking or claim that deleting explanations establishes relevance.
+
+No source-code checks rerun: source app code unchanged; git diff whitespace check
+passed for documentation. Next: owner reviews bounded experiment before integration
+or additional model/settings work. No permanent UI removal or model switch made.
+
+## GPT-OSS120B bounded direct trial - 2026-11-16
+
+Owner approved the 120B comparison. Six exact public sample prompts ran once each
+through the current transport with a trial-only model override (120B, low reasoning,
+1024 completion cap, six candidates). No source model switch, catalog/provider-data
+fetch, deployment, activation, quota write or portfolio/account data transmission.
+All six passed runtime shape validation. Four suggestion responses, one clarification,
+one forecast refusal. Not a controlled model-only comparison to previous 20B run:
+the earlier run capped three, while this owner-approved baseline caps six.
+Exact instructions/schema/user prompts/response contents are in ai-discovery-trial-120b.md.
+
+Still not quality-ready: TEL/Teradyne and AVNT/AVANTAGE are mismatched identities.
+Official Avient FAQ identifies AVNT as Avient; Nasdaq issuer listing identifies
+Teradyne as TER. Raw outputs are preserved; these are not catalog-validated UI results.
+Do not infer thematic accuracy from a matching name/ticker or schema-valid response.
+Code was not changed for this trial; prior 19 focused tests remain the latest checks.
+Next: owner review of responses before choosing further prompt/model experiments.
+
+## Three-candidate live trial - 2026-11-16
+
+Owner approved clearer discovery-vs-advice instructions, at most three high-confidence
+candidates, and company names for conservative catalog identity matching. Implemented
+case/punctuation-insensitive full-name equality; differing abbreviations may be dropped
+rather than guessed. This does not verify theme/business relevance. No schema tables,
+deployment, config activation or provider/model switch was performed.
+
+Six live direct requests (no retries) all passed runtime validation. Exact system/user
+prompts and completion contents are recorded in ai-discovery-trial.md at owner request;
+these public sample prompts are a bounded review artifact, not application prompt logs.
+No reasoning or key is recorded. AI stocks returns examples, chips asks clarification,
+forecast redirects. Factual quality remains unacceptable: NTES was called Netech and
+CNNE CyrusOne; issuer sources identify NetEase and Cannae respectively:
+https://ir.netease.com/shareholder-services/investor-faqs
+https://cannae.gcs-web.com/ir-resources/investor-faqs
+No live catalog was fetched for this direct test. New identity filter was verified
+synthetically; it was not applied to these raw model completions.
+
+Focused discovery suite: 19 passed; pnpm check (lint/both TS), changed-code formatting
+and diff check passed. App remains disabled. Next model/settings evaluation requires
+owner direction; no stronger-model or paid fallback was silently introduced.
+
+## Bounded direct Groq trial - 2026-11-16
+
+Owner supplied a key through secure entry and authorized testing prompts. Seven
+sequential direct transport requests used the existing GPT-OSS20B/low/schema;
+no deployment, environment activation, live catalog/market access or account quota
+write occurred. Key was read only inside the trial command, never printed/copied
+into source/config. Temporary transpilation is ignored under .next/ai-live-trial.
+
+Four HTTP 200 responses, three HTTP 400 responses. One 200 failed application
+cross-field validation; the first 400 body was not retained, the other two codes
+were output_parse_failed and json_validate_failed. No automatic retry exists;
+two manual diagnostic repeats of the semiconductor test are included in the seven.
+Three responses passed runtime validation but contained serious ticker/business
+mismatches. Renewable results called PUMP Albemarle and NTR NextEra; data-center
+results called LTC a data-center REIT. Official issuer pages establish PUMP is
+ProPetro, NTR is Nutrien and LTC focuses on seniors housing/health care:
+https://ir.propetroservices.com/
+https://www.nutrien.com/investors/shareholder-information
+https://www.ltcreit.com/
+
+Four returned usage records total 2,638 tokens (605-736/request); unsuccessful
+requests without usage are excluded, so this is not full billed usage or a monthly
+capacity estimate. Timed valid responses were 0.47 and 0.67 seconds; initial
+invalid-shape HTTP200 was 1.05 seconds. Tiny sample, no reliability guarantee.
+
+Decision pending owner: current configuration fails quality/structured-output
+readiness. Catalog identity validation cannot establish thematic relevance or fix
+wrong-business explanations. Keep app disabled; evaluate prompt/schema/settings
+before another bounded trial, without silently changing model or paid plan.
+
 # AI asset discovery: mocked backend review
 
 The owner approved implementation and mocked testing in the existing feature

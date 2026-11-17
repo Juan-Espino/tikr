@@ -12,6 +12,7 @@ import { authClient } from "~/lib/auth-client";
 import {
   DiscoveryPreview,
   DiscoveryAllowance,
+  DiscoveryAllowancePending,
   DiscoveryPreviewMode,
 } from "~/components/ai-asset-search";
 import {
@@ -33,6 +34,7 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
   const enabled = process.env.NEXT_PUBLIC_AI_DISCOVERY_ENABLED === "true";
   const current = useRef(scope);
   current.current = scope;
+  const [loadingScope, setLoadingScope] = useState<string | null>(null);
   const [usage, setUsage] = useState<{
     scope: string;
     value: DiscoveryUsage;
@@ -41,6 +43,7 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
     if (!scope || !enabled) return;
     let alive = true;
     const refresh = () => {
+      setLoadingScope(scope);
       void client
         .query(api.discoveryQuota.usage, { sessionFence: scope })
         .then((value) => {
@@ -48,6 +51,9 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
         })
         .catch(() => {
           /* An unconfigured backend never blocks normal search. */
+        })
+        .finally(() => {
+          if (alive && current.current === scope) setLoadingScope(null);
         });
     };
     refresh();
@@ -107,13 +113,17 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
   );
   return (
     <DiscoveryPreviewMode.Provider value={false}>
-      <DiscoveryAllowance.Provider
-        value={usage?.scope === scope ? usage.value : null}
+      <DiscoveryAllowancePending.Provider
+        value={scope !== null && loadingScope === scope}
       >
-        <DiscoveryPreview.Provider value={enabled && scope ? adapter : null}>
-          {children}
-        </DiscoveryPreview.Provider>
-      </DiscoveryAllowance.Provider>
+        <DiscoveryAllowance.Provider
+          value={usage?.scope === scope ? usage.value : null}
+        >
+          <DiscoveryPreview.Provider value={enabled && scope ? adapter : null}>
+            {children}
+          </DiscoveryPreview.Provider>
+        </DiscoveryAllowance.Provider>
+      </DiscoveryAllowancePending.Provider>
     </DiscoveryPreviewMode.Provider>
   );
 }

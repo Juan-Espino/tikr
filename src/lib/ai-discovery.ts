@@ -4,7 +4,7 @@ export const DISCOVERY = {
   maxPrompt: 500,
   dailyLimit: 20,
   maxCandidates: 6,
-  model: "openai/gpt-oss-20b",
+  model: "openai/gpt-oss-120b",
   maxCompletionTokens: 1024,
   timeoutMs: 15_000,
   leaseMs: 30_000,
@@ -20,7 +20,7 @@ export type DiscoveryResult =
   | {
       kind: "results";
       summary: string;
-      assets: { ticker: string; name: string; why: string }[];
+      assets: { ticker: string; name: string }[];
     }
   | { kind: "clarification"; question: string; answers: string[] }
   | { kind: "empty" | "error" | "unavailable" | "limit"; message: string };
@@ -47,47 +47,36 @@ export function discoveryDay(now: number) {
   return { day, resetAt: Date.parse(`${day}T00:00:00Z`) + 86_400_000 };
 }
 
-// AI explanations are suggestions, never independently verified sector metadata.
+// The model supplies candidate symbols only. Catalog data supplies display names.
 const boundedText = (max: number) => z.string().trim().min(1).max(max);
 export const candidateResponse = z
   .object({
     kind: z.enum(["results", "clarification", "empty"]),
-    summary: boundedText(240),
-    candidates: z
-      .array(
-        z.object({ ticker: boundedText(16), why: boundedText(180) }).strict(),
-      )
-      .max(DISCOVERY.maxCandidates),
+    summary: z.string().trim().max(240),
+    tickers: z.array(boundedText(16)).max(DISCOVERY.maxCandidates),
     question: z.string().max(160),
     answers: z.array(boundedText(80)).max(3),
   })
   .strict()
   .superRefine((value, ctx) => {
-    if (
-      value.kind === "results" &&
-      (!value.candidates.length || value.question || value.answers.length)
-    )
+    const invalid =
+      value.kind === "results"
+        ? !value.tickers.length ||
+          !!value.summary ||
+          !!value.question ||
+          !!value.answers.length
+        : value.kind === "clarification"
+          ? !!value.tickers.length ||
+            !value.question.trim() ||
+            value.answers.length < 2
+          : !!value.tickers.length ||
+            !value.summary ||
+            !!value.question ||
+            !!value.answers.length;
+    if (invalid)
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Invalid result shape",
-      });
-    if (
-      value.kind === "clarification" &&
-      (value.candidates.length ||
-        !value.question.trim() ||
-        value.answers.length < 2)
-    )
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Invalid clarification",
-      });
-    if (
-      value.kind === "empty" &&
-      (value.candidates.length || value.question || value.answers.length)
-    )
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Invalid empty response",
+        message: "Invalid discovery shape",
       });
   });
 export type DiscoveryCandidates = z.infer<typeof candidateResponse>;

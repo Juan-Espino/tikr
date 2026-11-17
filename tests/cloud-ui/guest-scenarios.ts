@@ -89,10 +89,10 @@ export async function guestScenarios(stage: string) {
   }
   if (stage === "cloud") {
     qa.account("A");
-    await until(() => !!button("Save to cloud"), "cloud session");
+    await until(() => !!button("Create in account"), "cloud session");
     check(qa.rows().length === 0, "no autosave");
     qa.fail("NAME_CONFLICT");
-    await click("Save to cloud");
+    await click("Create in account");
     await until(
       () => !!document.querySelector('[role="dialog"]:not([data-closed])'),
       "collision editor",
@@ -143,14 +143,14 @@ export async function guestScenarios(stage: string) {
     await sleep();
     qa.online(false);
     await sleep();
-    await click("Save to cloud");
+    await click("Create in account");
     check(text().includes("Cloud saving is unavailable"), "offline refusal");
     check(qa.rows().length === 0, "no local fallback/cloud write");
     qa.online(true);
     await sleep();
     qa.hold();
     await click("Retry save");
-    check(text().includes("Saving to cloud"), "pending feedback");
+    check(text().includes("Saving"), "pending feedback");
     check(button("Saving…")?.disabled, "double-click disabled");
     qa.release();
     await until(() => location.pathname === "/dashboard", "acknowledged save");
@@ -244,7 +244,7 @@ export async function guestScenarios(stage: string) {
       );
       check(
         !button("Edit") &&
-          !button("Save to cloud") &&
+          !button("Create in account") &&
           !button("Duplicate") &&
           !button("Delete"),
         "no original mutation controls",

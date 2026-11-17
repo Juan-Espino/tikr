@@ -4,7 +4,11 @@ import betterAuthTest from "@convex-dev/better-auth/test";
 import { afterEach, expect, test, vi } from "vitest";
 import { api, internal, components } from "./_generated/api";
 import schema from "./schema";
-import { DISCOVERY, discoveryDay } from "../src/lib/ai-discovery";
+import {
+  DISCOVERY,
+  discoveryDay,
+  candidateResponse,
+} from "../src/lib/ai-discovery";
 import { catalogShard, packCatalogShard } from "../src/lib/asset-catalog";
 import { requestDiscoveryCandidates } from "../src/lib/discovery-provider";
 const modules = import.meta.glob("./**/*.ts");
@@ -15,8 +19,8 @@ afterEach(() => {
 });
 const valid = {
   kind: "results",
-  summary: "Computing infrastructure suggestions",
-  candidates: [{ ticker: "NVDA", why: "Computing hardware" }],
+  summary: "",
+  tickers: ["NVDA"],
   question: "",
   answers: [],
 };
@@ -156,13 +160,7 @@ test("candidates are deduplicated and matched exactly to canonical cached assets
   fetcher.mockImplementation(async () =>
     response({
       ...valid,
-      candidates: [
-        { ticker: "NVDA", why: "hardware" },
-        { ticker: "nvda", why: "duplicate" },
-        { ticker: "MADEUP", why: "unsupported" },
-        { ticker: "bad$", why: "invalid" },
-        { ticker: "MSFT", why: "cloud" },
-      ],
+      tickers: ["NVDA", "nvda", "MSFT"],
     }),
   );
   const args = { ...request(), sessionFence: identities[0]!.sessionId };
@@ -170,8 +168,8 @@ test("candidates are deduplicated and matched exactly to canonical cached assets
   expect(answer.result).toMatchObject({
     kind: "results",
     assets: [
-      { ticker: "NVDA", name: "Canonical NVDA", why: "hardware" },
-      { ticker: "MSFT", name: "Canonical MSFT", why: "cloud" },
+      { ticker: "NVDA", name: "Canonical NVDA" },
+      { ticker: "MSFT", name: "Canonical MSFT" },
     ],
   });
   expect(answer.usage?.remaining).toBe(19);
@@ -268,11 +266,14 @@ test.each(["empty", "clarification", "unknown"])(
     const { a, identities } = await setup();
     const payload =
       kind === "unknown"
-        ? { ...valid, candidates: [{ ticker: "MADEUP", why: "unmatched" }] }
+        ? {
+            ...valid,
+            tickers: ["MADEUP"],
+          }
         : {
             kind,
             summary: "No confident supported suggestions",
-            candidates: [],
+            tickers: [],
             question:
               kind === "clarification" ? "Equipment or generation?" : "",
             answers:
@@ -491,4 +492,38 @@ test("transport sends only bounded prompt instructions and stops on deadline", a
   const rejected = expect(timed).rejects.toThrow("Deadline");
   await vi.advanceTimersByTimeAsync(DISCOVERY.timeoutMs + 1);
   await rejected;
+});
+
+test("unsupported and invalid tickers are dropped; canonical names come only from catalog", async () => {
+  const fetcher = liveFixture();
+  const { a, identities } = await setup();
+  fetcher.mockImplementation(async () =>
+    response({
+      ...valid,
+      tickers: ["MADEUP", "bad$"],
+    }),
+  );
+  const answer = await a.action(api.discovery.search, {
+    ...request(),
+    sessionFence: identities[0]!.sessionId,
+  });
+  expect(answer.result.kind).toBe("empty");
+  expect(answer.usage?.remaining).toBe(19);
+});
+
+test("ticker-only output is bounded, strict and separated from clarification", () => {
+  expect(
+    candidateResponse.parse({
+      ...valid,
+      tickers: ["NVDA", "MSFT", "GOOG", "AMD", "IBM", "META"],
+    }).tickers,
+  ).toHaveLength(6);
+  for (const bad of [
+    { ...valid, tickers: Array(7).fill("NVDA") },
+    { ...valid, tickers: [{ ticker: "NVDA", name: "Invented name" }] },
+    { ...valid, candidates: [] },
+    { ...valid, summary: "Unverified business explanation" },
+    { ...valid, question: "Mixed result state?" },
+  ])
+    expect(candidateResponse.safeParse(bad).success).toBe(false);
 });

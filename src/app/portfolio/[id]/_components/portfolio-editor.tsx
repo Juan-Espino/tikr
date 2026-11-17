@@ -1,6 +1,8 @@
 "use client";
 
 import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
+import { SearchRowsSkeleton } from "~/components/loading-skeletons";
+import { AnimatedSearchRows } from "~/components/animated-search-results";
 import { AiAssetSearch } from "~/components/ai-asset-search";
 import type { CatalogAsset } from "~/lib/asset-catalog";
 import { useEffect, useRef, useState } from "react";
@@ -59,9 +61,9 @@ export function PortfolioEditor({
   useEffect(() => {
     const controller = new AbortController();
     if (failedRetry.current === retrySearch) return;
-    setFiltered([]);
     setSearchFailed(false);
     if (!search.trim()) {
+      setFiltered([]);
       setSearchState("");
       return;
     }
@@ -269,21 +271,29 @@ export function PortfolioEditor({
           }
           normalResults={
             <>
-              {filtered.length > 0 && (
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {filtered.map((asset) => {
-                    const selected = holdings.some(
-                      (h) => h.ticker === asset.ticker,
-                    );
-                    return (
+              {searchState === "Searching..." && !filtered.length && (
+                <SearchRowsSkeleton grid />
+              )}
+              <AnimatedSearchRows
+                className={
+                  filtered.length
+                    ? "mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"
+                    : ""
+                }
+                items={filtered.map((asset) => {
+                  const selected = holdings.some(
+                    (h) => h.ticker === asset.ticker,
+                  );
+                  return {
+                    key: asset.ticker,
+                    content: (
                       <Button
-                        key={asset.ticker}
                         variant="outline"
                         disabled={!selected && holdings.length >= 6}
                         aria-pressed={selected}
                         aria-label={`${asset.ticker}, ${asset.name}`}
                         onClick={() => select(asset.ticker)}
-                        className={`h-auto min-h-14 min-w-0 justify-between gap-3 px-3 py-2 text-left ${selected ? "!bg-muted border-stone-500" : "!bg-background hover:!bg-muted"}`}
+                        className={`h-auto min-h-14 w-full min-w-0 justify-between gap-3 px-3 py-2 text-left ${selected ? "!bg-muted border-stone-500" : "!bg-background hover:!bg-muted"}`}
                       >
                         <span className="min-w-0">
                           <span className="block font-semibold">
@@ -299,10 +309,10 @@ export function PortfolioEditor({
                           <Plus aria-hidden="true" />
                         )}
                       </Button>
-                    );
-                  })}
-                </div>
-              )}
+                    ),
+                  };
+                })}
+              />
               <span role="status" aria-live="polite" className="sr-only">
                 {searchState}
               </span>
@@ -325,6 +335,7 @@ export function PortfolioEditor({
       </section>
       <section
         className="border-border mt-6 border-t pt-5"
+        data-editor-allocation
         aria-labelledby="allocation-title"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -352,10 +363,13 @@ export function PortfolioEditor({
         </div>
         <div className="divide-border mt-3 divide-y">
           {holdings.map((holding) => (
-            <div key={holding.ticker} className="flex items-center gap-3 py-2">
+            <div
+              key={holding.ticker}
+              className="flex min-w-0 items-center gap-3 py-2 pr-1"
+            >
               <label
                 htmlFor={`allocation-${holding.ticker}`}
-                className="flex-1 font-medium"
+                className="min-w-0 flex-1 truncate font-medium"
               >
                 {holding.ticker}
               </label>

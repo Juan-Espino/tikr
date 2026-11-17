@@ -1,4 +1,5 @@
 "use client";
+import { PageSkeleton } from "~/components/loading-skeletons";
 import { useConfirmation } from "~/components/confirmation-dialog";
 import { useEffect, useState } from "react";
 
@@ -30,14 +31,7 @@ const panel = "rounded-xl border border-border bg-card p-5 md:p-7";
 export default function PortfolioPage({ id }: { id: string }) {
   const store = useDemoPortfolios();
   const router = useRouter();
-  if (!store.ready)
-    return (
-      <main role="status" className="p-10">
-        {store.cloud
-          ? "Loading account portfolios…"
-          : "Loading local portfolios…"}
-      </main>
-    );
+  if (!store.ready) return <PageSkeleton variant={"portfolio"} />;
   const selected =
     examples().find((p) => p.id === id) ??
     (store.draft?.id === id
@@ -69,6 +63,8 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
     open,
     cloud,
     busy,
+    autosaveStatus,
+    flush,
     storageBlocked,
     pin,
     saveError,
@@ -134,6 +130,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
       return;
     }
     setNameValidationAttempted(false);
+    flush?.(draft.id);
     setEditorOpen(false);
   }
   function changeDraft(p: Portfolio) {
@@ -184,7 +181,9 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
               {readOnly
                 ? "Read-only original"
                 : cloud
-                  ? "Save to sync edits to your account"
+                  ? draft.revision === undefined
+                    ? "Create this portfolio to keep it in your account"
+                    : "Changes save automatically"
                   : "Temporary draft - sign in to save"}
             </p>
             {readOnly && (
@@ -213,6 +212,27 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
               >
                 Try your own mix
               </Button>
+            ) : cloud && draft.revision !== undefined ? (
+              autosaveStatus &&
+              autosaveStatus.state !== "saved" && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="text-muted-foreground self-center text-sm"
+                >
+                  {autosaveStatus?.state === "saving" ||
+                  autosaveStatus?.state === "waiting"
+                    ? "Saving\u2026"
+                    : autosaveStatus &&
+                        ["invalid", "offline", "error", "conflict"].includes(
+                          autosaveStatus.state,
+                        )
+                      ? ["error", "conflict"].includes(autosaveStatus.state)
+                        ? "Changes not saved"
+                        : `Changes not saved. ${autosaveStatus.message}`
+                      : ""}
+                </p>
+              )
             ) : (
               <Button
                 disabled={
@@ -231,7 +251,11 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                   save(draft);
                 }}
               >
-                {busy ? "Saving…" : cloud ? "Save to cloud" : "Sign in to save"}
+                {busy
+                  ? "Saving…"
+                  : cloud
+                    ? "Create in account"
+                    : "Sign in to save"}
               </Button>
             )}
           </div>
@@ -306,15 +330,18 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                       const original = conflict
                         ? draft
                         : portfolios.find((p) => p.id === draft.id)!;
-                      void open({
-                        ...original,
-                        id: crypto.randomUUID(),
-                        revision: undefined,
-                        pinned: false,
-                        updated: Date.now(),
-                      });
+                      void open(
+                        {
+                          ...original,
+                          id: crypto.randomUUID(),
+                          revision: undefined,
+                          pinned: false,
+                          updated: Date.now(),
+                        },
+                        { copyOf: draft.id },
+                      );
                       setNotice(
-                        "Choose a unique name, then save the duplicate.",
+                        "Choose a unique name, then create the duplicate in your account.",
                       );
                     }}
                   >
@@ -350,7 +377,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
         )}
         <div className="flex flex-col gap-4">
           <Dialog open={!readOnly && editorOpen} onOpenChange={setEditorOpen}>
-            <DialogContent>
+            <DialogContent className="portfolio-editor-dialog">
               <PortfolioEditor
                 portfolio={draft}
                 isNew={

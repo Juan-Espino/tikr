@@ -99,8 +99,8 @@ export const search = action({
       } else {
         const tickers = [
           ...new Set(
-            candidates.candidates
-              .map((c) => c.ticker.trim().toUpperCase())
+            candidates.tickers
+              .map((ticker) => ticker.trim().toUpperCase())
               .filter(validTicker),
           ),
         ];
@@ -108,17 +108,12 @@ export const search = action({
           internal.discoveryCatalog.lookup,
           { tickers },
         );
-        const assets = catalog.map((asset) => ({
-          ticker: asset.ticker,
-          name: asset.name,
-          why: candidates.candidates.find(
-            (c) => c.ticker.trim().toUpperCase() === asset.ticker,
-          )!.why,
-        }));
+        const assets = catalog.map(({ ticker, name }) => ({ ticker, name }));
         result = assets.length
           ? {
               kind: "results",
-              summary: `AI-suggested matches. ${candidates.summary}`,
+              summary:
+                "AI-suggested matches from the supported catalog. Relevance is not verified.",
               assets,
             }
           : {

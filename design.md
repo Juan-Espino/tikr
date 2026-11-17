@@ -1,3 +1,36 @@
+## Final editor review corrections - 2026-11-16
+
+Owner approved removal of the routine Saved badge while retaining Saving and failure/conflict feedback. Allocation rows reserve trailing space for the existing hover/focus treatment, truncate flexible labels and prevent horizontal scrolling. No global button animation change.
+
+## Autosave flow and landing loading - 2026-11-16
+
+Existing cloud portfolios replace Save to cloud with quiet inline Saving/Saved/Changes not saved. Detailed failures remain actionable inline; no per-edit toast. New drafts use Create in account. Done closes and flushes, with no geometry redesign. Landing renders the actual hero while initialization runs; creation actions wait for readiness and its pending account control has no skeleton. The permanent account confirmation notice is removed. Existing shared confirmation dialogs handle unsaved sign-out; pending private identity remains hidden.
+
+## Page-specific loading and methodology - 2026-11-16
+
+Owner approved a simple reading page at /methodology and removal of the landing methodology footer. Landing Explore becomes the shared ghost Portfolios button. Loading uses local shadcn-style Skeleton, matte muted blocks, matching each page and result-row layout. Sign-in retains the bright panel palette. Reduced motion removes pulse. Skeletons represent initial reads only; loaded charts retain date-switch animation, and existing content remains during writes/refetches. Globe fallback remains useful rendered content. No animation/dependency addition.
+
+## Search motion and allowance approved - 2026-11-16
+
+At five or fewer searches, only the remaining number uses the shared coral rim token. Results grow/shrink over200ms ease-out, capped by the existing90dvh editor limit minus measured chrome. Stable ticker rows enter over200ms with5px travel and30ms stagger for the first6 new items; exits fade100ms. Reduced motion is immediate/static. Retain existing rows through replacement loading and cancellation; stale-prompt notice remains distinct. Editor-only fixed input/Done, bounded results and allocation scroll regions; compact phone chrome preserves usable room without changing field/control sizes. Timings live in SEARCH_MOTION in animated-search-results.tsx. No animation dependency.
+
+## Previous-prompt notice hierarchy - 2026-11-16
+
+Owner requested visual separation between current result/question and the stale
+prompt notice. The notice now uses muted 12px italic text; main response stays
+14px normal. Text/status semantics and backend behavior unchanged. Clarification
+questions/chips are model-generated, not a fixed list or guaranteed for every input;
+clear discovery should yield tickers, unrelated input should yield empty. The
+observed general-person clarification is not proof of intended asset-only behavior.
+
+## Ticker-only result rows - 2026-11-16
+
+Owner approved simplifying AI results to canonical catalog ticker/name plus Add/Added, without per-stock AI explanations. One fixed relevance-unverified status accompanies results. Inline clarification/question chips fill a refinement for explicit resubmission; no chat history or auto-submit. Existing field dimensions, animation, focus, mode toggle and allocation controls stay unchanged.
+
+## Asset-search click target - 2026-11-16
+
+The entire existing field focuses its active input when clicked, with a text cursor over empty space. AI toggle and submit retain independent button behavior; geometry and animation are unchanged.
+
 ## Backend adapter and allowance - approved integration 2026-11-15
 
 Preserve the completed search/toggle/motion UI. When enabled and signed in, the

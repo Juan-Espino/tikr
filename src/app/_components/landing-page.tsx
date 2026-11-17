@@ -1,4 +1,5 @@
 "use client";
+import { PendingLanding } from "~/components/intro";
 
 import { useRouter } from "next/navigation";
 
@@ -21,12 +22,7 @@ export default function LandingPage() {
   const draft = hasUnsavedPortfolio(activeDraft, portfolios)
     ? activeDraft
     : null;
-  if (!ready)
-    return (
-      <main role="status" className="p-10">
-        {cloud ? "Loading account portfolios…" : "Loading local portfolios…"}
-      </main>
-    );
+  if (!ready) return <PendingLanding />;
   return (
     <>
       <StorageNotice />
@@ -47,7 +43,7 @@ export default function LandingPage() {
         <p className="text-muted-foreground mt-3 text-xs">
           {cloud
             ? "Saved portfolios sync to your account. Unsaved edits stay in this tab."
-            : "Try a temporary draft without an account. Sign in, then confirm Save to keep it."}
+            : "Try a temporary draft without an account. Sign in, then choose Create in account to keep it."}
         </p>
       </div>
     </>
