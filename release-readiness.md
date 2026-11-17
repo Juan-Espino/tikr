@@ -3,8 +3,24 @@
 Owner requested PR preparation on 2026-11-16. This authorizes publishing the
 feature branch and a review PR, not merging or changing production configuration.
 Earlier uncommitted-only checkpoints in the historical notes are superseded for
-this preparation. No production deployment or configuration has been inspected or
-changed by this preparation.
+this preparation. Subsequent explicit owner approval authorized the production
+backend deployment and secure Groq key installation below, with AI disabled.
+No PR merge, frontend release or AI activation is included in that approval.
+
+## Production backend preparation completed - 2026-11-16
+
+Deployed source commit `348a34000464bad27f7a1a62ba6c48c23b2c3748` to production
+Convex `warmhearted-tapir-205` after announcing the target and receiving explicit
+owner consent. Convex TypeScript/schema validation passed; the two discovery
+indexes were added and no indexes were deleted. Secure file-based Groq key
+installation succeeded without printing the key or putting it in command arguments.
+
+Read-only verification confirms the installed key matches the supplied secure
+input, `TIKR_AI_DISCOVERY_ENABLED=disabled`, and the deployed discovery search and
+quota usage functions are present. Existing `SITE_URL` remains
+`https://tikr-lovat.vercel.app`. No live AI request or owner portfolio operation
+was performed. The Vercel production environment names were audited; its public
+AI flag was absent. No Vercel configuration or frontend deployment was changed.
 
 ## Scope
 
@@ -45,19 +61,16 @@ every network race or new live Google end-to-end verification.
 I do not recommend describing live AI as production-ready until these separately
 approved steps have been completed:
 
-1. Classify/announce the intended production Convex target and authorize its
-   deployment. Deploy the additive functions/schema before enabling the client.
-   The recorded hosting build includes a Convex deployment step; inspect its
-   target/credentials under production authorization before relying on a merge.
-2. Securely configure a production Groq key and server
-   `TIKR_AI_DISCOVERY_ENABLED=explicit`; set the intended frontend's
-   `NEXT_PUBLIC_AI_DISCOVERY_ENABLED=true`. No DEV secret or ignored config should
-   be copied into a release. These flags default to inactive, but the existing
-   production environment has not been audited, so its values are not asserted.
-3. Confirm that the production cached catalog is fresh and complete enough for
+1. Confirm that the production cached catalog is fresh and complete enough for
    the lookup contract. Do not seed, refresh or make market-provider calls merely
    to bypass a failed catalog preflight.
-4. Smoke-test real sign-in, discovery/clarification, supported filtering and
+2. Separately approve AI activation and the frontend release. Set the production
+   server `TIKR_AI_DISCOVERY_ENABLED=explicit` and intended frontend
+   `NEXT_PUBLIC_AI_DISCOVERY_ENABLED=true` only for that rollout. Backend/key
+   preparation is complete; both activation gates currently remain inactive.
+   The hosting build includes a Convex deployment step: verify its target before
+   release, and never copy DEV secrets or ignored configuration into production.
+3. Smoke-test real sign-in, discovery/clarification, supported filtering and
    allowance settlement, then autosave/reload, offline recovery and conflict
    refusal against the intended deployment. Verify service capacity/account limits
    for the intended audience; earlier free-plan estimates are not guarantees.

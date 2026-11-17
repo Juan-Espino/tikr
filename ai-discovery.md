@@ -1,3 +1,14 @@
+## Production backend preparation - 2026-11-16
+
+Subsequent explicit owner consent authorized deployment of PR26 backend source
+`348a340` to production Convex `warmhearted-tapir-205` and secure file-based Groq key
+installation. Deployment, TypeScript/schema validation and read-only function/env
+verification succeeded. Server flag remains `TIKR_AI_DISCOVERY_ENABLED=disabled`;
+the Vercel production public AI flag is absent. No live production AI request,
+frontend release, merge or owner-data mutation was performed. Earlier DEV-only
+restrictions below are historical; activation and release still require their own
+approval. See release-readiness.md for evidence and remaining gates.
+
 ## Ticker-only signed-in DEV trial - 2026-11-16
 
 Owner approved implementation and real signed-in integrated-browser testing.

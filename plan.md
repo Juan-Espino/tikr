@@ -1,3 +1,18 @@
+## Production backend preparation completed - 2026-11-16
+
+Owner explicitly approved deploying PR26's backend to production Convex
+`warmhearted-tapir-205` and securely installing the supplied Groq key while keeping
+AI disabled. Deployed source `348a340`; TypeScript/schema checks passed, both
+discovery indexes added, none deleted. Read-only verification confirms discovery
+search/quota functions, key presence and equality to secure input, server flag
+`disabled`, and unchanged production site origin. No secret values were printed.
+Vercel production public AI flag was absent; no frontend configuration/release,
+live AI request, owner portfolio operation or merge occurred. Historical production
+restrictions below are superseded only for this explicitly authorized preparation.
+
+Next: production catalog readiness, separately approved AI/frontend activation and
+real signed-in production smoke checks. PR26 remains draft. See release-readiness.md.
+
 PR preparation verification: final132Vitest/26files, lint/bothTS and cleared optimized auth/AI build passed (temp tikr-cleared-build-Ukpnp0). Desktop/mobile hover+focus keep dialog width and allocation scrollWidth fixed (tikr-search-motion-j6Z2A4); autosave browser confirms no visible Saved label (tikr-autosave-dFpPDS). Main worktree observed clean; no backend/financial/provider/auth callback source changes outside new AI modules/schema. Remaining live-AI production gates documented in release-readiness.md.
 
 ## PR preparation and final editor corrections - 2026-11-16
