@@ -1,4 +1,6 @@
 import "./guest-scenarios";
+import "./shared-refresh-scenario";
+import { SharedRefreshRetryQA } from "./shared-refresh-retry";
 import { HistoryChart } from "../../src/components/history-chart";
 import LandingPage from "../../src/app/_components/landing-page";
 import { LandingSurface } from "../../src/components/landing-surface";
@@ -64,6 +66,8 @@ declare global {
 }
 function App() {
   useSyncExternalStore(subscribe, version, version);
+  if (new URLSearchParams(location.search).has("retry-qa"))
+    return <SharedRefreshRetryQA />;
   if (new URLSearchParams(location.search).has("chart-qa")) {
     const lines = [
       {
@@ -90,6 +94,11 @@ function App() {
   return (
     <DemoPortfoliosProvider>
       <Probe />
+      {new URLSearchParams(location.search).has("shared-refresh") && (
+        <p role="note">
+          Synthetic delayed shared SPY QA; no live market or account data.
+        </p>
+      )}
       {new URLSearchParams(location.search).has("landing-qa") &&
       location.pathname === "/" ? (
         <LandingPage />

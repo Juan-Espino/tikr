@@ -334,7 +334,7 @@ test("uncooperative loaders time out without leaking errors or hanging the refre
   });
   const view = await f.cache.open(request).settled;
   assert.equal(view.status, "blocked");
-  assert.equal(view.code, "REFRESH_FAILED");
+  assert.equal(view.code, "REFRESH_TIMEOUT");
   assert.equal(view.originalFailure.code, "TIMEOUT");
   assert.equal(view.originalFailure.stage, "source");
   assert.match(view.originalFailure.trace, /^[a-f0-9-]{36}$/);

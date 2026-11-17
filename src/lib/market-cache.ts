@@ -327,7 +327,7 @@ export function createOnDemandBacktests(options: CacheOptions) {
               code: "TIMEOUT",
             });
             controller.abort();
-            reject(new CacheError("REFRESH_FAILED"));
+            reject(new CacheError("REFRESH_TIMEOUT"));
           }, timeoutMs);
         });
         const payload = await Promise.race([

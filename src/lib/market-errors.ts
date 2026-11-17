@@ -9,6 +9,7 @@ export const marketFailureCodes = [
   "BROWSING_RATE_LIMIT",
   "REFRESH_COOLDOWN",
   "REFRESH_BUSY",
+  "REFRESH_TIMEOUT",
   "SHARED_BUDGET_EXHAUSTED",
   "TEAM_BUDGET_UNVERIFIED",
   "REFRESH_GUARDED",
@@ -106,6 +107,8 @@ export function marketErrorMessage(
     case "UNVERIFIED_DATA":
       return "We couldn't load market history right now. Please try again later.";
     case "BROWSING_RATE_LIMIT":
+    case "REFRESH_TIMEOUT":
+      return "The history refresh did not finish in time. Please try again shortly.";
     case "REFRESH_BUSY":
     case "REFRESH_COOLDOWN":
     case "DAILY_LIMIT":

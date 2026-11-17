@@ -288,3 +288,69 @@ test("hosted endObservation expires the exact owner once even after unsuccessful
     operations.find((row) => row.args.op === "begin")!.args.token,
   );
 });
+
+test("one provider-batch consumer cancellation does not abort a healthy peer", async () => {
+  const { createBatchedPersonalLoader } =
+    await import("../src/lib/alpaca/batched-loader");
+  const { withMarketTrace, marketTrace } =
+    await import("../src/lib/market-trace");
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const days = ["2026-11-11", "2026-11-12"];
+  const parents: string[] = [];
+  const cancelled = new AbortController();
+  const healthy = new AbortController();
+  const loader = createBatchedPersonalLoader(
+    { keyId: "synthetic", secret: "secret-canary" },
+    {
+      from: days[0]!,
+      through: days[1]!,
+      sessions: days,
+      complete: true,
+      finalityVerified: true,
+      provenance: "synthetic",
+    },
+    async (_config, q) => {
+      cancelled.abort();
+      expect(q.signal?.aborted).toBe(false);
+      return {
+        symbols: q.symbols,
+        start: q.start,
+        end: q.end,
+        prices: Object.fromEntries(
+          q.symbols.map((symbol) => [
+            symbol,
+            Object.fromEntries(days.map((day) => [day, "100"])),
+          ]),
+        ),
+        actions: [],
+        evidence: {
+          barsTraversal: "complete",
+          actionsTraversal: "complete",
+          actionsCompleteness: "unknown",
+          note: "synthetic",
+        },
+      };
+    },
+  );
+  await Promise.all(
+    ["SPY", "AAPL"].map((symbol) =>
+      withMarketTrace(async () => {
+        parents.push(marketTrace()!);
+        return loader({
+          symbol,
+          from: days[0]!,
+          through: days[1]!,
+          recheckFrom: days[0]!,
+          signal: symbol === "SPY" ? cancelled.signal : healthy.signal,
+        });
+      }),
+    ),
+  );
+  const batch = log.mock.calls
+    .map((call) => JSON.parse(String(call[0])))
+    .find((row) => row.event === "market_provider_batch");
+  expect(batch.parents.sort()).toEqual(parents.sort());
+  expect(batch.symbolCount).toBe(2);
+  expect(parents).not.toContain(batch.trace);
+  expect(JSON.stringify(log.mock.calls)).not.toContain("secret-canary");
+});

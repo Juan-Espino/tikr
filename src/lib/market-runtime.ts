@@ -8,7 +8,7 @@ import {
   gateway,
   policyIdentity,
 } from "./market-hosted.ts";
-import { marketFailure } from "./market-errors.ts";
+import { MarketFailure, marketFailure } from "./market-errors.ts";
 import { randomUUID } from "node:crypto";
 import { open } from "node:fs/promises";
 import { constants } from "node:fs";
@@ -233,6 +233,7 @@ export async function openMarket(
 async function openConfiguredMarket(
   request: MarketRequest,
 ): Promise<{ initial: MarketResponse; settled: Promise<MarketResponse> }> {
+  const requestDeadline = performance.now() + (hosted() ? 45000 : 15000);
   // Hosted activation is explicit and separate from the compatible local path.
   if (
     hosted()
@@ -274,12 +275,22 @@ async function openConfiguredMarket(
       // provider work. Recheck trust/ownership on every poll, including revocation.
       for (
         let poll = 0;
-        poll < 8 &&
+        performance.now() < requestDeadline &&
         failure?.code === "REFRESH_GUARDED" &&
         failure.guardState === "active";
         poll++
       ) {
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await new Promise((resolve) =>
+          setTimeout(
+            resolve,
+            Math.min(
+              2000,
+              250 * 2 ** Math.min(poll, 3),
+              Math.max(1, Math.ceil(requestDeadline - performance.now())),
+            ),
+          ),
+        );
+        if (performance.now() >= requestDeadline) break;
         try {
           await control("check", scope, symbols);
           failure = undefined;
@@ -289,6 +300,8 @@ async function openConfiguredMarket(
           if (!failure) throw nextError;
         }
       }
+      if (performance.now() >= requestDeadline)
+        throw new MarketFailure("REFRESH_TIMEOUT");
       if (
         failure?.code === "REFRESH_GUARDED" &&
         failure.guardState === "abandoned"
@@ -320,6 +333,8 @@ async function openConfiguredMarket(
       }
     }
   }
+  if (performance.now() >= requestDeadline)
+    throw new MarketFailure("REFRESH_TIMEOUT");
   const provisional = process.env.TIKR_MARKET_MODE === "personal-provisional";
   const data = provisional ? undefined : await bundle();
   const source = data
@@ -337,6 +352,8 @@ async function openConfiguredMarket(
     : await personalSource(
         request.portfolios.flatMap((p) => p.holdings.map((h) => h.symbol)),
       );
+  if (performance.now() >= requestDeadline)
+    throw new MarketFailure("REFRESH_TIMEOUT");
   const { load } = source;
   const history = withDisposableHistory(
     convexStorage(
@@ -354,7 +371,7 @@ async function openConfiguredMarket(
     ),
     // Includes bounded admission/provider queueing and atomic publication. The
     // old 15s single-process default expired healthy cold multi-portfolio work.
-    timeoutMs: hosted() ? 45000 : 15000,
+    timeoutMs: Math.max(1, Math.floor(requestDeadline - performance.now())),
     calendar: () => source.calendar,
     historyStart: source.historyStart,
     evidenceRevision: source.revision,

@@ -45,7 +45,7 @@ export function PortfolioCard({
         ? undefined
         : displayed) ?? {
         ...current,
-        view: { status: "blocked", code: "DATA_UNAVAILABLE" },
+        view: current.view,
       });
   return (
     <div className="min-w-0">

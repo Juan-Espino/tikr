@@ -15,6 +15,7 @@ import type { Portfolio, Range } from "~/lib/demo";
 import { HoldingReturns } from "./holding-returns";
 import { HistoryChart } from "./history-chart";
 import { readBrowserHistory, saveBrowserHistory } from "~/lib/browser-history";
+import { authClient } from "~/lib/auth-client";
 import { fetchMarket } from "~/lib/market-client-batch";
 // Only the explicitly marked synthetic review may bypass the server. Real-data
 // requests must pass the server's correction and revocation checks every time.
@@ -26,8 +27,11 @@ export function useMarketResults(
   range: Range,
   amount: string,
 ) {
+  const session = authClient.useSession();
+  const requestScope = session.data?.session.id ?? "guest";
   const [view, setView] = useState<MarketResponse>({ status: "refreshing" });
   const [attempt, setAttempt] = useState(0);
+  const automatic = useRef({ key: "", count: 0 });
   const retryIntent = useRef<{ key: string; nonce: number } | null>(null),
     retryNonce = useRef(0);
   const key = JSON.stringify({
@@ -38,6 +42,7 @@ export function useMarketResults(
     range,
     amount,
   });
+  const responseKey = JSON.stringify([requestScope, key]);
   const [receivedFor, setReceivedFor] = useState("");
   const [displayPortfolios, setDisplayPortfolios] = useState(portfolios);
   const [displayAmount, setDisplayAmount] = useState(amount);
@@ -70,7 +75,7 @@ export function useMarketResults(
           value.evidenceExpiresAt &&
           !(Date.parse(value.evidenceExpiresAt) > Date.now())
         ) {
-          setReceivedFor(key);
+          setReceivedFor(responseKey);
           setView({ status: "blocked", code: "EVIDENCE_EXPIRED" });
           return;
         }
@@ -78,8 +83,20 @@ export function useMarketResults(
           setDisplayPortfolios(inputs.portfolios);
           setDisplayAmount(inputs.amount);
         }
-        setReceivedFor(key);
-        setView(value);
+        const automaticKey = JSON.stringify([requestScope, key]);
+        if (automatic.current.key !== automaticKey)
+          automatic.current = { key: automaticKey, count: 0 };
+        const busy =
+          value.code === "REFRESH_BUSY" ||
+          (value.code === "REFRESH_GUARDED" &&
+            value.guardState === "active" &&
+            !value.originalFailure);
+        setReceivedFor(responseKey);
+        setView(
+          busy && automatic.current.count < 2
+            ? { ...value, status: "refreshing" }
+            : value,
+        );
       };
       if (remaining) exitTimer = window.setTimeout(commit, remaining);
       else commit();
@@ -124,6 +141,7 @@ export function useMarketResults(
           const response = await fetchMarket(
             { ...body, retry, ...(history.length ? { history } : {}) },
             AbortSignal.any([abort.signal, AbortSignal.timeout(55000)]),
+            requestScope,
           );
           if (!response.ok || !response.body) {
             if (!abort.signal.aborted) {
@@ -198,7 +216,7 @@ export function useMarketResults(
           }
         } catch {
           if (!abort.signal.aborted) {
-            setReceivedFor(key);
+            setReceivedFor(responseKey);
             setView({ status: "blocked", code: "DATA_UNAVAILABLE" });
           }
         } finally {
@@ -212,7 +230,26 @@ export function useMarketResults(
       if (exitTimer !== undefined) window.clearTimeout(exitTimer);
       abort.abort();
     };
-  }, [key, attempt]);
+  }, [key, attempt, requestScope, responseKey]);
+  useEffect(() => {
+    const busy =
+      view.code === "REFRESH_BUSY" ||
+      (view.code === "REFRESH_GUARDED" &&
+        view.guardState === "active" &&
+        !view.originalFailure);
+    if (
+      receivedFor !== responseKey ||
+      !busy ||
+      view.status !== "refreshing" ||
+      automatic.current.count >= 2
+    )
+      return;
+    const timer = window.setTimeout(() => {
+      automatic.current.count++;
+      setAttempt(++retryNonce.current);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [view, responseKey, receivedFor]);
   useEffect(() => {
     if (!view.evidenceExpiresAt) return;
     const delay = Date.parse(view.evidenceExpiresAt) - Date.now();
@@ -228,14 +265,8 @@ export function useMarketResults(
   }, [view.evidenceExpiresAt]);
   const visibleView = useMemo(
     () =>
-      receivedFor === key
-        ? view
-        : view.series &&
-            (!view.evidenceExpiresAt ||
-              Date.parse(view.evidenceExpiresAt) > Date.now())
-          ? { ...view, status: "refreshing" as const }
-          : { status: "refreshing" as const },
-    [receivedFor, key, view],
+      receivedFor === responseKey ? view : { status: "refreshing" as const },
+    [receivedFor, responseKey, view],
   );
   const retry = useCallback(() => {
     const nonce = ++retryNonce.current;

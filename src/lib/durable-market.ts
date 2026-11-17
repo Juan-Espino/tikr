@@ -215,11 +215,37 @@ export function createDurableBacktests(options: {
   };
   const { storage } = options,
     clock = options.clock ?? (() => new Date());
+  const assertTime = (deadline: number, signal?: AbortSignal) => {
+    if (signal?.aborted || performance.now() >= deadline)
+      throw new MarketFailure("REFRESH_TIMEOUT");
+  };
+  const pause = async (ms: number, deadline: number, signal?: AbortSignal) => {
+    if (signal?.aborted || performance.now() >= deadline)
+      throw new MarketFailure("REFRESH_BUSY");
+    await new Promise<void>((resolve, reject) => {
+      const abort = () => {
+        clearTimeout(timer);
+        reject(new MarketFailure("REFRESH_BUSY"));
+      };
+      const timer = setTimeout(
+        () => {
+          signal?.removeEventListener("abort", abort);
+          resolve();
+        },
+        Math.min(ms, Math.max(1, Math.ceil(deadline - performance.now()))),
+      );
+      signal?.addEventListener("abort", abort, { once: true });
+    });
+    if (signal?.aborted || performance.now() >= deadline)
+      throw new MarketFailure("REFRESH_BUSY");
+  };
   const run = async (
     request: Omit<BacktestRequest, "start" | "end">,
     range: Preset,
     retry = false,
+    deadline = performance.now() + (options.timeoutMs ?? 15000),
   ): Promise<{ initial: CacheView; settled: Promise<CacheView> }> => {
+    assertTime(deadline);
     const symbols = [
       ...new Set([
         "SPY",
@@ -377,6 +403,7 @@ export function createDurableBacktests(options: {
 
       const core = createOnDemandBacktests({
         ...options,
+        timeoutMs: Math.max(1, Math.floor(deadline - performance.now())),
         clock,
         calendar: () => full,
         load: async (q) => {
@@ -453,7 +480,8 @@ export function createDurableBacktests(options: {
                 throw new MarketFailure(limitation.code);
             }
           }
-          const token = await storage
+          assertTime(deadline, q.signal);
+          let token = await storage
             .acquire(key, cycle, retry, q.from)
             .catch((error) => {
               const failure = marketFailure(error),
@@ -469,8 +497,78 @@ export function createDurableBacktests(options: {
             });
           if (!token) {
             let current: Stored | undefined;
-            for (let i = 0; i < 3; i++) {
-              current = (await storage.read([key]))[0];
+            const started = Date.now();
+            let delay = 200;
+            console.error(
+              JSON.stringify({
+                event: "market_join_begin",
+                symbol: q.symbol,
+                ...traceFields(),
+                sourceRevision: options.evidenceRevision,
+              }),
+            );
+            while (!q.signal.aborted && performance.now() < deadline) {
+              assertEvidence();
+              try {
+                await storage.assertReadable([q.symbol]);
+                current = (await storage.read([key]))[0];
+                if (
+                  current &&
+                  freshnessCycle(new Date(current.checkedAt)) === cycle &&
+                  !current.payload.includes('"invalidated":true') &&
+                  (JSON.parse(current.payload) as AssetHead)
+                    .evidenceRevision === options.evidenceRevision &&
+                  covers(current, q.from)
+                )
+                  break;
+                // A completed narrower owner is not sufficient coverage. Ask
+                // the authoritative lease protocol for a fenced expansion;
+                // never fetch while its owner/guard remains active.
+                if (
+                  current &&
+                  (JSON.parse(current.payload) as AssetHead)
+                    .evidenceRevision === options.evidenceRevision &&
+                  !covers(current, q.from)
+                ) {
+                  assertTime(deadline, q.signal);
+                  token = await storage.acquire(key, cycle, false, q.from);
+                  if (token) break;
+                }
+              } catch (error) {
+                const failure = marketFailure(error);
+                if (
+                  failure?.code !== "REFRESH_GUARDED" ||
+                  failure.guardState === "abandoned" ||
+                  failure.originalFailure
+                ) {
+                  console.error(
+                    JSON.stringify({
+                      event: "market_join_owner_failed",
+                      symbol: q.symbol,
+                      ...traceFields(),
+                      code: failure?.code ?? "UNVERIFIED_DATA",
+                      waitMs: Date.now() - started,
+                    }),
+                  );
+                  throw error;
+                }
+              }
+              await pause(delay, deadline, q.signal).catch((error) => {
+                console.error(
+                  JSON.stringify({
+                    event: "market_join_wait_deadline",
+                    symbol: q.symbol,
+                    ...traceFields(),
+                    waitMs: Date.now() - started,
+                  }),
+                );
+                throw error;
+              });
+              delay = Math.min(2000, delay * 2);
+            }
+            if (!token) {
+              if (q.signal.aborted || performance.now() >= deadline)
+                throw new MarketFailure("REFRESH_BUSY");
               if (
                 current &&
                 freshnessCycle(new Date(current.checkedAt)) === cycle &&
@@ -478,29 +576,42 @@ export function createDurableBacktests(options: {
                 (JSON.parse(current.payload) as AssetHead).evidenceRevision ===
                   options.evidenceRevision &&
                 covers(current, q.from)
-              )
-                break;
-              await new Promise((resolve) => setTimeout(resolve, 400));
+              ) {
+                await storage.assertReadable([q.symbol]);
+                assertEvidence();
+                const asset = await loadAsset(storage, current);
+                const confirmed = (await storage.read([key]))[0];
+                if (confirmed?.revision !== current.revision)
+                  throw new MarketFailure("UNVERIFIED_DATA");
+                await storage.assertReadable([q.symbol]);
+                console.error(
+                  JSON.stringify({
+                    event: "market_join_publication_observed",
+                    symbol: q.symbol,
+                    ...traceFields(),
+                    revision: current.revision,
+                    waitMs: Date.now() - started,
+                  }),
+                );
+                loadedHeads.set(key, current);
+                loadedAssets.set(q.symbol, asset);
+                return {
+                  feed: "sip",
+                  asset,
+                  pendingSession: (JSON.parse(current.payload) as AssetHead)
+                    .pendingSession,
+                };
+              }
+              console.error(
+                JSON.stringify({
+                  event: "market_join_wait_deadline",
+                  symbol: q.symbol,
+                  ...traceFields(),
+                  waitMs: Date.now() - started,
+                }),
+              );
+              throw new MarketFailure("REFRESH_BUSY");
             }
-            if (
-              current &&
-              freshnessCycle(new Date(current.checkedAt)) === cycle &&
-              !current.payload.includes('"invalidated":true') &&
-              (JSON.parse(current.payload) as AssetHead).evidenceRevision ===
-                options.evidenceRevision &&
-              covers(current, q.from)
-            ) {
-              loadedHeads.set(key, current);
-              const asset = await loadAsset(storage, current);
-              loadedAssets.set(q.symbol, asset);
-              return {
-                feed: "sip",
-                asset,
-                pendingSession: (JSON.parse(current.payload) as AssetHead)
-                  .pendingSession,
-              };
-            }
-            throw new Error("REFRESH_BUSY_OR_LIMITED");
           }
           let finishGuard:
             Awaited<ReturnType<MarketStorage["beginRefresh"]>> | undefined;
@@ -508,8 +619,10 @@ export function createDurableBacktests(options: {
             safeToRelease = false;
           let stage: RefreshFailure["stage"] = "guard";
           try {
+            assertTime(deadline, q.signal);
             stage = "guard";
             finishGuard = await storage.beginRefresh(q.symbol);
+            assertTime(deadline, q.signal);
             stage = "source";
             const previous = old
               ? await loadAsset(storage, old).catch(() => undefined)
@@ -532,6 +645,7 @@ export function createDurableBacktests(options: {
               authoritativeFrom,
               q.from,
             ].sort()[0]!;
+            assertTime(deadline, q.signal);
             const refreshed = await options.load({
               ...q,
               // Explicit retries must not replace a wider validated cache with a narrow window.
@@ -589,6 +703,7 @@ export function createDurableBacktests(options: {
                 existing.find((e) => e.key === r.key)?.revision !== r.revision,
             );
             stage = "storage-write";
+            q.signal.throwIfAborted();
             await storage.write(key, token, changed);
             await storage.confirmRefresh?.(q.symbol, records.at(-1)!.revision);
             if (storage.namespace)
@@ -832,7 +947,7 @@ export function createDurableBacktests(options: {
             error instanceof Error &&
             error.message === "REFRESH_GUARDED"
           )
-            return (await open(request, range, false)).settled;
+            return (await open(request, range, false, deadline)).settled;
           return {
             status: "blocked",
             requested: period,
@@ -848,9 +963,10 @@ export function createDurableBacktests(options: {
     request: Omit<BacktestRequest, "start" | "end">,
     range: Preset,
     retry = false,
+    deadline = performance.now() + (options.timeoutMs ?? 15000),
   ): Promise<{ initial: CacheView; settled: Promise<CacheView> }> => {
     try {
-      return await run(request, range, retry);
+      return await run(request, range, retry, deadline);
     } catch (error) {
       if (!(error instanceof Error) || error.message !== "REFRESH_GUARDED")
         throw error;
@@ -880,11 +996,14 @@ export function createDurableBacktests(options: {
             guardState: error.guardState,
           };
         let last = marketFailure(error);
-        for (let attempt = 0; attempt < 30; attempt++) {
-          await new Promise((resolve) => setTimeout(resolve, 400));
+        for (let attempt = 0; performance.now() < deadline; attempt++) {
+          await pause(
+            Math.min(2000, 200 * 2 ** Math.min(attempt, 4)),
+            deadline,
+          );
           try {
             await storage.assertReadable(symbols);
-            const next = await run(request, range, retry);
+            const next = await run(request, range, retry, deadline);
             return await next.settled;
           } catch (error) {
             last = marketFailure(error);
@@ -917,7 +1036,13 @@ export function createDurableBacktests(options: {
       };
       return {
         initial: { status: "refreshing", requested: period },
-        settled: wait(),
+        settled: wait().catch((error): CacheView => ({
+          status: "blocked",
+          requested: period,
+          code: marketFailure(error)?.code ?? "UNVERIFIED_DATA",
+          originalFailure: marketFailure(error)?.originalFailure,
+          guardState: marketFailure(error)?.guardState,
+        })),
       };
     }
   };

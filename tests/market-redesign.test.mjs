@@ -187,3 +187,74 @@ test("YTD comparison and holding/weight edits recalculate from warm history with
   );
   assert.equal(f.provider.requests, providerBefore);
 });
+
+test("four owner portfolios finish YTD with shared delayed SPY and warm reopen uses no provider HTTP", async () => {
+  const groups = [
+    ["PLTR", "RTX", "BA", "LMT", "NOC"],
+    ["MCD", "RRBG", "QSR"],
+    ["AAPL", "KO", "USB", "BAC", "AXP", "KHC"],
+    ["RBLX", "GME", "AMC"],
+  ];
+  const { equalWeights } = await import("../src/lib/demo.ts");
+  const symbols = ["SPY", ...groups.flat()];
+  const f = createFixture("after", "four-owner-refresh", {
+    symbols,
+    delayMs: 1800,
+  });
+  const requests = groups.map((group, index) => ({
+    portfolios: [
+      {
+        id: `owner-${index}`,
+        holdings: equalWeights(group).map((h) => ({
+          symbol: h.ticker,
+          weight: h.weight,
+        })),
+      },
+    ],
+    amount: "10000",
+  }));
+  const views = await Promise.all(
+    requests.map((request) => f.run(request, "YTD")),
+  );
+  assert.deepEqual(
+    views.map((v) => v.final.status),
+    ["ready", "ready", "ready", "ready"],
+  );
+  for (const { final } of views) {
+    assert.ok(final.result.actual.start.startsWith("2026-"));
+    assert.equal(
+      final.result.portfolios[0].points.length,
+      final.result.benchmark.points.length,
+    );
+    assert.equal(final.result.actual.end, "2026-11-10");
+  }
+  const cold = structuredClone({ provider: f.provider, database: f.database });
+  const warm = await Promise.all(
+    requests.map((request) => f.run(request, "YTD")),
+  );
+  assert.ok(warm.every((v) => v.final.status === "ready"));
+  assert.equal(f.provider.requests, cold.provider.requests);
+  console.log(
+    JSON.stringify({
+      case: "four-owner-delayed",
+      cold,
+      warmProviderAdditional: f.provider.requests - cold.provider.requests,
+      warmDatabaseReadAdditional:
+        f.database.readCalls - cold.database.readCalls,
+    }),
+  );
+});
+
+test("a wide request waits for a narrow owner then acquires a fenced coverage expansion", async () => {
+  const f = createFixture("after", "narrow-wide-join", { delayMs: 1800 });
+  const request = {
+    portfolios: [{ id: "range", holdings: [{ symbol: "SPY", weight: "100" }] }],
+    amount: "1000",
+  };
+  const narrow = f.run(request, "1W");
+  const wide = f.run(request, "5Y");
+  const [a, b] = await Promise.all([narrow, wide]);
+  assert.equal(a.final.status, "ready");
+  assert.equal(b.final.status, "ready");
+  assert.ok(b.final.result.actual.start < a.final.result.actual.start);
+});

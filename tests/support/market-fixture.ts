@@ -43,7 +43,11 @@ export const portfolios: Portfolio[] = [0, 1, 2].map((i) => ({
     weight: j === 2 ? "33.34" : "33.33",
   })),
 }));
-export function createFixture(mode = "after", identifier = "fixture") {
+export function createFixture(
+  mode = "after",
+  identifier = "fixture",
+  settings: { symbols?: string[]; delayMs?: number } = {},
+) {
   let evidenceUntil = Date.parse("2026-12-01");
   let now = new Date("2026-11-11T15:00:00Z"),
     epoch = 0,
@@ -95,6 +99,8 @@ export function createFixture(mode = "after", identifier = "fixture") {
               : url.url,
         );
         const requested = u.searchParams.get("symbols")!.split(",");
+        if (settings.delayMs && requested.includes("SPY"))
+          await new Promise((resolve) => setTimeout(resolve, settings.delayMs));
         const start = u.searchParams.get("start")!.slice(0, 10),
           end = u.searchParams.get("end")!.slice(0, 10);
         if (u.pathname.endsWith("/bars")) {
@@ -241,7 +247,7 @@ export function createFixture(mode = "after", identifier = "fixture") {
       storage,
       calendar: () => calendar,
       load: loader,
-      supportedSymbols: symbols,
+      supportedSymbols: settings.symbols ?? symbols,
       historyStart: calendar.from,
       clock: () => now,
       evidenceRevision: "synthetic-stable-policy",
