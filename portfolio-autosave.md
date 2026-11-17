@@ -1,3 +1,52 @@
+Verification completed for local review (2026-11-16 Pacific): 142 Vitest cases
+across 27 files passed, including 10 new creation coordinator cases. Focused
+Node demo/name/auth-return/trial checks recorded separately. pnpm check (lint and
+both TypeScript projects), changed-file Prettier, diff/newlines/private-pattern
+checks and optimized credential-cleared auth/AI build passed (Pj9scO under temp).
+
+Browser evidence: qa-autocreate passes desktop/mobile name-only refusal,
+automatic creation, leaving before Done while creation is held, sign-in recovery,
+newer recovery retained until latest acknowledgement, rapid edits, lost ack,
+offline reconnect, name conflict, conflict Duplicate, cross-account fences,
+unchanged hero DOM across auth updates, header typography and compact/full chart
+interaction (temp tikr-autocreate-m0rbK8). Guest nine groups (tikr-guest-ui-uD4gU6),
+cloud ten groups (tikr-cloud-ui-hxLRVY), autosave (tikr-autosave-EQxBw4), four mobile
+delete races, search motion (tikr-search-motion-7xFgqy), AI interaction
+(tikr-ai-ui-PbLXYJ) passed. One subsequent Edge launch crashed in its disposable
+profile before a test ran; the standalone autosave rerun passed.
+
+Optimized-build delayed-auth browser proof: each hero word and globe entrance
+starts once, headline/canvas nodes remain identical, header font metrics match,
+and desktop/mobile have no horizontal overflow (tikr-landing-production-nxHlF9).
+Screenshots visually inspected at mobile width. Shared preview failed twice with
+"The browser is not producing screenshot frames"; its own tab was closed and
+isolated headless Edge used. No owner profile/storage reset. The two isolated
+optimized QA servers were stopped; real localhost:5000 remains running.
+
+Real DEV guest browser proof: build -> name -> real SPY catalog selection -> Done
+-> Sign in to save -> Google entry screen passed, zero page errors in a fresh
+context. Actual Google exchange and signed-in automatic cloud creation still need
+owner testing; synthetic A/B coverage is distinct. No real AI prompt submitted in
+this round. No commit/push/PR/merge or production mutation in this round.
+
+## Automatic creation and local review - owner approved 2026-11-16
+
+Supersedes earlier explicit Create in account / sign-in-never-saves requirements.
+A signed-in portfolio with a nonblank valid name, at least one holding, valid
+allocation and amount is created automatically after 500ms; name-only/empty work
+remains temporary. The active guest/example-copy draft recovers through sign-in
+and saves automatically to that account when valid. Originals remain read-only.
+No legacy collection import or cross-account recovery is added. Creation and
+updates share one serialized coordinator, stable client ID, revision fences,
+bounded retries, and exact idempotent replay of uncertain creates. Newer edits
+remain editable during creation. No cloud save acknowledgement is implied by login.
+Name conflicts require correction; invalid edits keep the last valid cloud state.
+Private account work remains in memory; temporary guest recovery is account-bound
+before creation and settled only after acknowledgement without deleting newer work.
+Normal route navigation retains the provider queue; forced closure/crash recovery
+of private unsent edits is not guaranteed. This round is local owner review only:
+no new commit, push, PR, merge, production deployment or production configuration.
+
 # Account portfolio autosave
 
 Owner approved 2026-11-16. This supersedes manual-save requirements for edits to

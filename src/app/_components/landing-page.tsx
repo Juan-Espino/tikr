@@ -1,9 +1,7 @@
 "use client";
-import { PendingLanding } from "~/components/intro";
+import { useEffect, useRef } from "react";
+import { useLandingActions } from "~/components/landing-surface";
 
-import { useRouter } from "next/navigation";
-
-import { Landing } from "~/components/intro";
 import { Button } from "~/components/ui/button";
 
 import { examples, newPortfolio, hasUnsavedPortfolio } from "~/lib/demo";
@@ -11,29 +9,39 @@ import { examples, newPortfolio, hasUnsavedPortfolio } from "~/lib/demo";
 import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
 import { StorageNotice } from "~/components/app-shell";
 export default function LandingPage() {
-  const router = useRouter();
+  const publish = useLandingActions();
   const {
     draft: activeDraft,
     portfolios,
     open,
     ready,
     cloud,
+    prepareToLeave,
   } = useDemoPortfolios();
   const draft = hasUnsavedPortfolio(activeDraft, portfolios)
     ? activeDraft
     : null;
-  if (!ready) return <PendingLanding />;
+  const current = useRef({ draft, open, prepareToLeave });
+  current.current = { draft, open, prepareToLeave };
+  useEffect(() => {
+    publish?.({
+      ready,
+      prepareToLeave: async () =>
+        (await current.current.prepareToLeave?.()) ?? true,
+      build: () => {
+        void current.current.open(current.current.draft ?? newPortfolio());
+      },
+      example: () => {
+        void current.current.open(examples()[0]!);
+      },
+    });
+    return () => publish?.(null);
+  }, [publish, ready]);
   return (
     <>
       <StorageNotice />
-      <Landing
-        onBuild={() => open(draft ?? newPortfolio())}
-        onExample={() => open(examples()[0]!)}
-        onLogin={() => router.push("/sign-in")}
-        onDashboard={() => router.push("/dashboard")}
-      />
       <div className="mx-auto max-w-6xl px-5 pb-8">
-        <Button onClick={() => open(draft ?? newPortfolio())}>
+        <Button disabled={!ready} onClick={() => open(draft ?? newPortfolio())}>
           {draft
             ? cloud
               ? "Resume draft"
@@ -43,7 +51,7 @@ export default function LandingPage() {
         <p className="text-muted-foreground mt-3 text-xs">
           {cloud
             ? "Saved portfolios sync to your account. Unsaved edits stay in this tab."
-            : "Try a temporary draft without an account. Sign in, then choose Create in account to keep it."}
+            : "Try a temporary draft without an account. Sign in to save your named portfolio automatically."}
         </p>
       </div>
     </>

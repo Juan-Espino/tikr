@@ -1,3 +1,15 @@
+## Scoped header, landing and dashboard fixes - 2026-11-16
+
+Keep existing matte near-black/stone palette, Manrope and established controls.
+Signed-out Sign in and Methodology now use the same shadcn/Base UI ghost/small
+button treatment as Portfolios, including link press feedback. The public hero
+is mounted above guest/account/readiness switches; controls bind as data becomes
+ready. No landing skeleton or replacement hero is rendered during initialization.
+The headline and globe keep their original entrance timing, without auth-driven
+replay. Dashboard reads Portfolio dashboard and omits the collection-status label.
+Compact dashboard charts are pointer-passive with no active dots; full portfolio
+charts retain scrubbing. See plan.md for optimized-build and browser evidence.
+
 ## Final editor review corrections - 2026-11-16
 
 Owner approved removal of the routine Saved badge while retaining Saving and failure/conflict feedback. Allocation rows reserve trailing space for the existing hover/focus treatment, truncate flexible labels and prevent horizontal scrolling. No global button animation change.

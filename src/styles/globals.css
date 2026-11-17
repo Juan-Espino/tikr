@@ -224,9 +224,9 @@ select {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  :where(button, [role="button"]):not(.account-avatar-trigger):not(
-      :disabled
-    ):not([aria-disabled="true"]):not([data-disabled]) {
+  :where(button, [role="button"], [data-slot="button"]):not(
+      .account-avatar-trigger
+    ):not(:disabled):not([aria-disabled="true"]):not([data-disabled]) {
     transition-property:
       color, background-color, border-color, box-shadow, opacity, translate,
       scale;
@@ -234,9 +234,9 @@ select {
     transition-timing-function: ease-out;
   }
 
-  :where(button, [role="button"]):not(.account-avatar-trigger):not(
-      :disabled
-    ):not([aria-disabled="true"]):not([data-disabled]):is(
+  :where(button, [role="button"], [data-slot="button"]):not(
+      .account-avatar-trigger
+    ):not(:disabled):not([aria-disabled="true"]):not([data-disabled]):is(
       :hover,
       :focus-visible
     ) {
@@ -244,9 +244,9 @@ select {
     scale: 1.05;
   }
 
-  :where(button, [role="button"]):not(.account-avatar-trigger):not(
-      :disabled
-    ):not([aria-disabled="true"]):not([data-disabled]):active {
+  :where(button, [role="button"], [data-slot="button"]):not(
+      .account-avatar-trigger
+    ):not(:disabled):not([aria-disabled="true"]):not([data-disabled]):active {
     translate: 0;
     scale: 0.97;
     transition-duration: 90ms;

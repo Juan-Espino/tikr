@@ -27,12 +27,9 @@ try {
         updated: Date.now(),
       }),
     );
-    await page
-      .getByRole("button", { name: "Create in account", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Open Delete QA, 1 assets" })
-      .click();
+    await page.waitForFunction(
+      () => window.__portfolioStore.draft?.revision === 1,
+    );
     const rename = async (name) => {
       await page.getByRole("button", { name: "Edit", exact: true }).click();
       await page.getByLabel("Portfolio name", { exact: true }).fill(name);
@@ -82,6 +79,11 @@ try {
     await expect
       .poll(() => page.evaluate(() => window.__cloudQA.rows()[0].deleted))
       .toBe(true);
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: /Deleted .* from your account\./ }),
+    ).toHaveCount(1);
     await page.waitForTimeout(800);
     expect(
       await page.evaluate(

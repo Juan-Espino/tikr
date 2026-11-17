@@ -77,7 +77,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
   useEffect(() => {
     if (storedDraft?.id === initial.id && storedDraft.revision !== undefined)
       updateDraft(storedDraft);
-    // Only an explicit cloud save or conflict reload changes this draft's revision.
+    // Acknowledgements and conflict reloads advance the local revision.
     // Reactive remote changes must not replace unsaved edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storedDraft?.revision, initial.id]);
@@ -111,7 +111,6 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
       : nameValidationAttempted
         ? portfolioNameError(draft, portfolios)
         : "";
-  const saveNameError = portfolioNameError(draft, portfolios);
   const suggestedName =
     nameError && draft.name.trim()
       ? suggestedPortfolioName(draft.name, portfolios)
@@ -182,7 +181,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                 ? "Read-only original"
                 : cloud
                   ? draft.revision === undefined
-                    ? "Create this portfolio to keep it in your account"
+                    ? "Add a name and a valid allocation to save automatically"
                     : "Changes save automatically"
                   : "Temporary draft - sign in to save"}
             </p>
@@ -212,7 +211,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
               >
                 Try your own mix
               </Button>
-            ) : cloud && draft.revision !== undefined ? (
+            ) : cloud ? (
               autosaveStatus &&
               autosaveStatus.state !== "saved" && (
                 <p
@@ -243,19 +242,10 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                   !validAmount(draft.amount)
                 }
                 onClick={() => {
-                  if (cloud && saveNameError) {
-                    setNameValidationAttempted(true);
-                    setEditorOpen(true);
-                    return;
-                  }
                   save(draft);
                 }}
               >
-                {busy
-                  ? "Saving…"
-                  : cloud
-                    ? "Create in account"
-                    : "Sign in to save"}
+                Sign in to save
               </Button>
             )}
           </div>
@@ -272,7 +262,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
             {draft.revision === undefined && (
               <Button
                 variant="outline"
-                disabled={busy}
+                disabled={busy || autosaveStatus?.state === "saving"}
                 onClick={async () => {
                   if (
                     await confirm({
@@ -341,7 +331,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                         { copyOf: draft.id },
                       );
                       setNotice(
-                        "Choose a unique name, then create the duplicate in your account.",
+                        "Choose a unique name; the duplicate will save automatically.",
                       );
                     }}
                   >

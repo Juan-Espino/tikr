@@ -123,12 +123,16 @@ export function CloudPortfoliosProvider({
   const retryAction = useRef<null | (() => Promise<void>)>(null);
   const lastOperation = useRef("save");
   const adoptedGuest = useRef(false);
+  const ownedTrial = useRef<Portfolio | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
     // Recover only the separate temporary trial, never a legacy collection or private cloud record.
     try {
-      setDraft(readTrial(localStorage, accountId));
+      const recovered = readTrial(localStorage, accountId);
+      if (recovered) writeTrial(localStorage, recovered, recovered, accountId);
+      ownedTrial.current = recovered;
+      setDraft(recovered);
     } catch {
       setNotice(
         "The recovery draft could not be read. Stored data has not been changed.",
@@ -169,8 +173,22 @@ export function CloudPortfoliosProvider({
     !suspended && auth.isAuthenticated && connection.isWebSocketConnected;
   const ready = localReady && status === "Exhausted";
   const [, redrawAutosave] = useState(0);
-  const live = useRef({ available, portfolios, update, client, sessionFence });
-  live.current = { available, portfolios, update, client, sessionFence };
+  const live = useRef({
+    available,
+    portfolios,
+    update,
+    create,
+    client,
+    sessionFence,
+  });
+  live.current = {
+    available,
+    portfolios,
+    update,
+    create,
+    client,
+    sessionFence,
+  };
   const [autosave] = useState(
     () =>
       new PortfolioAutosave<Portfolio>({
@@ -185,6 +203,14 @@ export function CloudPortfoliosProvider({
               : ""),
         available: () =>
           live.current.available && !lock.current && mounted.current,
+        create: async (p) =>
+          cloudPortfolio(
+            await live.current.create({
+              clientId: p.id,
+              definition: cloudDefinition({ ...p, name: p.name.trim() }),
+              sessionFence: live.current.sessionFence,
+            }),
+          ),
         write: async (p, revision) =>
           cloudPortfolio(
             await live.current.update({
@@ -221,6 +247,28 @@ export function CloudPortfoliosProvider({
             : "retry",
         message: cloudError,
         acknowledged: (saved, latest) => {
+          // Settle only acknowledged work. Newer in-flight edits and another
+          // tab's recovery must survive an older creation acknowledgement.
+          try {
+            const bridge = readTrial(localStorage, accountId);
+            if (
+              bridge?.id === saved.id &&
+              (JSON.stringify(cloudDefinition(bridge)) ===
+                JSON.stringify(cloudDefinition(saved)) ||
+                (JSON.stringify(bridge) ===
+                  JSON.stringify(ownedTrial.current) &&
+                  JSON.stringify(cloudDefinition(saved)) ===
+                    JSON.stringify(
+                      cloudDefinition({ ...latest, name: latest.name.trim() }),
+                    )))
+            ) {
+              writeTrial(localStorage, null, bridge, accountId);
+              ownedTrial.current = null;
+            }
+          } catch {
+            /* Never overwrite another tab's recovery state. */
+          }
+
           if (mounted.current)
             setDraft((current) =>
               current?.id === saved.id
@@ -301,55 +349,55 @@ export function CloudPortfoliosProvider({
       }
     }
   }
-  async function persist(p: Portfolio, navigate: boolean) {
+  function stageDraft(p: Portfolio) {
     if (isExample(p.id)) return;
-    const nameError = portfolioNameError(p, portfolios);
-    if (nameError) {
-      setSaveError(nameError);
-      return;
-    }
-    await run(async () => {
-      const row =
-        p.revision === undefined
-          ? await create({
-              clientId: p.id,
-              definition: cloudDefinition(p),
-              sessionFence,
-            })
-          : await update({
-              clientId: p.id,
-              revision: p.revision,
-              definition: cloudDefinition(p),
-              sessionFence,
-            });
-      if (!mounted.current) return;
-      try {
-        settleTrial(localStorage, p, accountId);
-      } catch {
-        /* Preserve unreadable or newer recovery state. */
-      }
-      const saved = cloudPortfolio(row);
-      autosave.track(saved);
-      const current = draftRef.current;
-      const next =
-        current?.id === p.id &&
-        JSON.stringify(cloudDefinition(current)) !==
-          JSON.stringify(cloudDefinition(p))
-          ? { ...current, revision: row.revision, updated: row.updated }
-          : saved;
-      setDraft(next);
-      if (next !== saved) autosave.stage(next, saved);
-      setNotice("Saved to your account.");
-      if (navigate) router.push("/dashboard");
-    });
+    if (
+      p.revision !== undefined ||
+      autosave.status(p.id) ||
+      (p.name.trim() &&
+        p.holdings.length &&
+        allocation(p.holdings).valid &&
+        validAmount(p.amount))
+    )
+      autosave.stage(
+        p,
+        portfolios.find((row) => row.id === p.id),
+      );
   }
+  useEffect(() => {
+    if (
+      ready &&
+      adoptedGuest.current &&
+      draft &&
+      !conflict &&
+      !(
+        draft.revision === undefined &&
+        portfolios.some((p) => p.id === draft.id)
+      )
+    )
+      stageDraft(draft);
+    // Recover only after the authenticated list has checked same-ID conflicts.
+    // Ordinary edits stage synchronously below; reactive lists don't restart debounce.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, draft?.id]);
   const store: PortfolioStore = {
     confirmationDialog: dialog,
     portfolios,
     draft: auth.isAuthenticated ? draft : null,
     setDraft: (value) => {
-      const next = typeof value === "function" ? value(draft) : value;
+      const next =
+        typeof value === "function" ? value(draftRef.current) : value;
       if (next && isExample(next.id)) return;
+      if (
+        !next &&
+        draftRef.current &&
+        !autosave.canDiscardUncreated(draftRef.current.id)
+      ) {
+        setNotice(
+          "Resolve the pending save before discarding. If it was created, use Delete portfolio.",
+        );
+        return;
+      }
       // Only a guest-origin bridge is recoverable. Private cloud definitions never enter browser draft storage.
       try {
         const bridge = readTrial(localStorage, accountId);
@@ -357,27 +405,38 @@ export function CloudPortfoliosProvider({
           bridge &&
           (next?.id === bridge.id || next === null) &&
           next?.revision === undefined
-        )
+        ) {
           writeTrial(
             localStorage,
             next,
-            draft?.id === bridge.id ? draft : bridge,
+            draftRef.current?.id === bridge.id ? draftRef.current : bridge,
             accountId,
           );
+          ownedTrial.current = next;
+        }
       } catch {
         setNotice(
           "Draft recovery could not be updated. Keep this tab open; existing browser data is preserved.",
         );
       }
-      if (next?.revision !== undefined)
-        autosave.stage(
-          next,
-          portfolios.find((p) => p.id === next.id),
-        );
+      if (next) stageDraft(next);
+      else if (draftRef.current?.revision === undefined) {
+        const id = draftRef.current?.id;
+        if (id && autosave.status(id)?.state === "saving") {
+          setNotice(
+            "Wait for creation to finish before discarding this portfolio.",
+          );
+          return;
+        }
+        if (id) autosave.discard(id);
+      }
+      draftRef.current = next;
       setDraft(next);
     },
     setPortfolios: () =>
-      setNotice("Start a portfolio, then choose Create in account."),
+      setNotice(
+        "Add a name and a valid allocation; your portfolio saves automatically.",
+      ),
     ready,
     storageBlocked: false,
     notice,
@@ -393,14 +452,38 @@ export function CloudPortfoliosProvider({
       } catch {
         /* Cloud portfolios remain usable when browser recovery storage is unavailable. */
       }
+      const copyingConflict =
+        !!draft &&
+        options?.copyOf === draft.id &&
+        p.revision === undefined &&
+        (conflict || autosave.status(draft.id)?.state === "conflict") &&
+        JSON.stringify(cloudDefinition(p)) ===
+          JSON.stringify(cloudDefinition({ ...draft, pinned: false }));
+      if (
+        draft &&
+        draft.revision === undefined &&
+        draft.id !== p.id &&
+        !copyingConflict &&
+        autosave.dirtyId(draft.id)
+      ) {
+        await autosave.flush(draft.id);
+        if (autosave.dirtyId(draft.id)) {
+          setNotice(
+            "Changes are not saved. Resolve the current portfolio before opening another.",
+          );
+          return;
+        }
+      }
       if (
         draft &&
         draft.id !== p.id &&
         draft.revision === undefined &&
+        !copyingConflict &&
+        autosave.version(draft.id) === undefined &&
         !(await confirm({
           title: "Replace your unsaved draft?",
           description:
-            "Opening another portfolio will discard the current unsaved draft. Create it in your account first to keep your mix. This cannot be undone.",
+            "Opening another portfolio will discard the current unsaved draft. Add a name and a valid allocation to save your mix automatically. This cannot be undone.",
           action: "Replace draft",
         }))
       )
@@ -431,12 +514,6 @@ export function CloudPortfoliosProvider({
         );
       }
       if (draft && draft.id !== p.id && autosave.dirtyId(draft.id)) {
-        const copyingConflict =
-          options?.copyOf === draft.id &&
-          p.revision === undefined &&
-          (conflict || autosave.status(draft.id)?.state === "conflict") &&
-          JSON.stringify(cloudDefinition(p)) ===
-            JSON.stringify(cloudDefinition({ ...draft, pinned: false }));
         if (copyingConflict) autosave.discard(draft.id);
         else await autosave.flush(draft.id);
         if (autosave.dirtyId(draft.id)) {
@@ -446,14 +523,15 @@ export function CloudPortfoliosProvider({
           return;
         }
       }
-      autosave.track(p);
+      if (p.revision !== undefined) autosave.track(p);
       setDraft(p);
       setSaveError("");
       setConflict(false);
       router.push(`/portfolio/${encodeURIComponent(p.id)}`);
     },
     save: (p) => {
-      void persist(p, true);
+      stageDraft(p);
+      void autosave.flush(p.id);
     },
     pin: (p) => {
       if (isExample(p.id) || p.revision === undefined) return;
@@ -494,13 +572,18 @@ export function CloudPortfoliosProvider({
       return confirm({
         title: "Sign out with unsaved changes?",
         description:
-          "Some changes have not been acknowledged by your account. Sign out without waiting, or cancel to keep your edits here and wait for Saved. Unsent edits will be lost on sign-out.",
+          "Some changes have not been acknowledged by your account. Sign out without waiting, or cancel to keep your edits here and wait for saving to finish. Unsent edits will be lost on sign-out.",
         action: "Sign out anyway",
       });
     },
     saveError:
       saveError ||
-      (auto && ["error", "conflict"].includes(auto.state) ? auto.message : ""),
+      (auto &&
+      (["error", "conflict"].includes(auto.state) ||
+        (auto.state === "invalid" &&
+          auto.message.startsWith("A portfolio with this name")))
+        ? auto.message
+        : ""),
     conflict: conflict || auto?.state === "conflict",
     reloadDraft: () => {
       const latest = portfolios.find((p) => p.id === draft?.id);
@@ -526,12 +609,14 @@ export function CloudPortfoliosProvider({
         void run(retryAction.current, "delete");
         return;
       }
-      if (draft?.revision !== undefined && autosave.dirtyId(draft.id)) {
+      if (draft && autosave.dirtyId(draft.id)) {
         autosave.retry(draft.id);
         return;
       }
-      if (lastOperation.current === "save" && draft) void persist(draft, true);
-      else if (
+      if (lastOperation.current === "save" && draft) {
+        stageDraft(draft);
+        autosave.retry(draft.id);
+      } else if (
         ["delete", "pin"].includes(lastOperation.current) &&
         retryAction.current
       )

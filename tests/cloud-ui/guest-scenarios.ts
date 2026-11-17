@@ -88,92 +88,53 @@ export async function guestScenarios(stage: string) {
     );
   }
   if (stage === "cloud") {
+    qa.online(false);
     qa.account("A");
-    await until(() => !!button("Create in account"), "cloud session");
-    check(qa.rows().length === 0, "no autosave");
+    await until(() => window.__portfolioStore.cloud, "cloud session");
+    check(qa.rows().length === 0, "offline recovery remains unsaved");
+    check(trial()?.owner === "A", "recovery bound before creation");
+    qa.account("B");
+    await sleep();
+    check(
+      !text().includes("Synthetic trial"),
+      "B cannot restore A-bound trial",
+    );
+    qa.account("A");
+    await sleep();
+    check(text().includes("Synthetic trial"), "A resumes its trial");
     qa.fail("NAME_CONFLICT");
-    await click("Create in account");
+    qa.online(true);
     await until(
       () => !!document.querySelector('[role="dialog"]:not([data-closed])'),
       "collision editor",
     );
     check(text().includes("already exists"), "collision feedback");
+    qa.online(false);
     await input("portfolio-name", "Synthetic resolved");
     await click("Done");
-    qa.account("B");
-    await sleep();
-    check(
-      !text().includes("Synthetic resolved"),
-      "B cannot restore A-bound trial",
-    );
-    qa.account("A");
-    await sleep();
-    check(text().includes("Synthetic resolved"), "A resumes bound trial");
-    qa.expiresAt(Date.now() - 1);
-    await sleep();
-    check(
-      !text().includes("Synthetic resolved"),
-      "expired session hides bound recovery",
-    );
-    qa.account("A");
-    await sleep();
-    check(text().includes("Synthetic resolved"), "trial survives expiration");
-    check(qa.rows().length === 0, "session transitions never autosave");
-    const beforeReplacement = window.__portfolioStore.draft!;
-    void window.__portfolioStore.open({
-      ...beforeReplacement,
-      id: crypto.randomUUID(),
-      name: "Replacement fixture",
-    });
-    await until(() => !!button("Replace draft"), "replacement confirmation");
-    const newerRecovery = JSON.parse(
-      localStorage.getItem("tikr-trial-v1")!,
-    ) as { draft: { amount: string } };
-    newerRecovery.draft.amount = "12347";
-    localStorage.setItem("tikr-trial-v1", JSON.stringify(newerRecovery));
-    await click("Replace draft");
-    check(
-      window.__portfolioStore.draft?.id === beforeReplacement.id &&
-        trial()?.draft.amount === "12347",
-      "replacement preserves intervening tab changes",
-    );
-    qa.account("B");
-    await sleep();
-    qa.account("A");
-    await sleep();
-    qa.online(false);
-    await sleep();
-    await click("Create in account");
-    check(text().includes("Cloud saving is unavailable"), "offline refusal");
-    check(qa.rows().length === 0, "no local fallback/cloud write");
-    qa.online(true);
-    await sleep();
+    check(qa.rows().length === 0, "offline creation has no local fallback");
     qa.hold();
-    await click("Retry save");
-    check(text().includes("Saving"), "pending feedback");
-    check(button("Saving…")?.disabled, "double-click disabled");
-    qa.release();
-    await until(() => location.pathname === "/dashboard", "acknowledged save");
-    check(qa.rows().length === 1, "one cloud row");
-    check(text().includes("Saved to your account"), "truthful acknowledgement");
-    check(trial() === null, "correct draft settled");
-    const savedToast = [
-      ...document.querySelectorAll("[data-sonner-toast]"),
-    ].find((node) => node.textContent?.includes("Saved to your account"));
-    check(
-      savedToast &&
-        !savedToast.querySelector("button") &&
-        savedToast.getAttribute("data-dismissible") === "false",
-      "automatic toast without dismiss control",
+    qa.online(true);
+    await until(
+      () => window.__portfolioStore.autosaveStatus?.state === "saving",
+      "pending creation",
     );
-
+    check(!button("Edit")?.disabled, "edits remain available during creation");
+    qa.release();
+    await until(
+      () => window.__portfolioStore.draft?.revision !== undefined,
+      "acknowledged creation",
+    );
+    check(qa.rows().length === 1, "one cloud row");
+    check(trial() === null, "correct draft settled");
+    await click("All portfolios");
     check(
       !text().includes("Read-only starting points"),
       "signed in examples hidden",
     );
     check(
       !text().includes("Resume draft:"),
-      "saved portfolio has no resume draft",
+      "acknowledged portfolio has no resume draft",
     );
     const getItem = Storage.prototype.getItem;
     Storage.prototype.getItem = () => {
@@ -184,10 +145,6 @@ export async function guestScenarios(stage: string) {
     } finally {
       Storage.prototype.getItem = getItem;
     }
-    check(
-      text().includes("Synthetic resolved"),
-      "cloud opening works without browser recovery storage",
-    );
     await click("Edit");
     await input("portfolio-name", "Private unsaved edit");
     await click("Done");
@@ -196,13 +153,13 @@ export async function guestScenarios(stage: string) {
     await sleep();
     check(
       !text().includes("Private unsaved edit"),
-      "session-error hides private view",
+      "session error hides private view",
     );
     qa.sessionFailure(false);
     await sleep();
     check(
       text().includes("Private unsaved edit"),
-      "transient session restores in-tab edit",
+      "transient session restores in-tab edits",
     );
     qa.account("B");
     await sleep();
@@ -212,7 +169,7 @@ export async function guestScenarios(stage: string) {
     await sleep();
     check(!text().includes("Private unsaved edit"), "guest cannot see A edits");
     passed.push(
-      "mocked login explicit save, collision, offline/retry/pending, single acknowledgement, draft settlement, private cache and A/B/guest isolation",
+      "automatic sign-in save, collision, offline/held creation, settlement and private A/B/guest isolation",
     );
   }
   if (stage === "originals") {

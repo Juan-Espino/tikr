@@ -82,7 +82,7 @@ export default function Dashboard() {
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div>
             <p className="text-muted-foreground text-xs tracking-[.18em] uppercase">
-              Portfolio lab
+              Portfolio dashboard
             </p>
             <h1 className="sr-only">Portfolio dashboard</h1>
             <p className="text-muted-foreground mt-3 text-sm">

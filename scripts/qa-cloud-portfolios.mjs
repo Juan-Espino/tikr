@@ -100,28 +100,17 @@ try {
     localStorage.getItem("tikr-demo-v1"),
   );
   await page.evaluate(() => window.__cloudQA.account("A"));
+  await page.waitForFunction(() =>
+    window.__cloudQA.rows().some((r) => r.clientId === "guestdraft"),
+  );
   await expect(
     page.getByText("Account cloud portfolios", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Resume draft: Guest draft" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Guest draft", exact: true }),
-  ).toBeVisible();
-  expect(await page.evaluate(() => window.__cloudQA.rows())).toHaveLength(0);
-  await page
-    .getByRole("button", { name: "Create in account", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Portfolio dashboard",
-      includeHidden: true,
-    }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("tikr-demo-v1"))).toBe(
     original,
   );
   passed.push(
-    "guest draft -> account -> explicit cloud save without guest rewrite",
+    "guest draft -> automatic account creation without legacy rewrite",
   );
   await page.getByRole("button", { name: "Open account" }).click();
   await expect(
@@ -247,15 +236,12 @@ try {
     .getByLabel("Portfolio name", { exact: true })
     .fill("Recovered edits");
   await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.waitForFunction(
+    () => window.__portfolioStore.draft?.revision === 1,
+  );
   await page
-    .getByRole("button", { name: "Create in account", exact: true })
+    .getByRole("button", { name: "All portfolios", exact: true })
     .click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Portfolio dashboard",
-      includeHidden: true,
-    }),
-  ).toBeVisible();
   passed.push(
     "remote deletion cannot resurrect; explicit duplicate saves a new definition",
   );
@@ -285,7 +271,7 @@ try {
   ).toBeVisible();
   await page.evaluate(() => window.__cloudQA.expiresAt(Date.now() + 150));
   await expect(
-    page.getByText("Temporary guest draft", { exact: true }),
+    page.getByRole("button", { name: "Sign in", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Open Recovered edits/ }),
@@ -295,7 +281,7 @@ try {
   );
   await page.evaluate(() => window.__cloudQA.account(""));
   await expect(
-    page.getByText("Temporary guest draft", { exact: true }),
+    page.getByRole("button", { name: "Sign in", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Open Legacy same name/ }),
