@@ -109,7 +109,7 @@ try {
   ).toBeVisible();
   expect(await page.evaluate(() => window.__cloudQA.rows())).toHaveLength(0);
   await page
-    .getByRole("button", { name: "Save to cloud", exact: true })
+    .getByRole("button", { name: "Create in account", exact: true })
     .click();
   await expect(
     page.getByRole("heading", {
@@ -153,38 +153,44 @@ try {
     "failed session refresh hides private content while preserving unsaved edits",
   );
   await page.evaluate(() => window.__cloudQA.online(false));
-  await page
-    .getByRole("button", { name: "Save to cloud", exact: true })
-    .click();
-  await expect(
-    page.getByText(/Nothing is queued or saved locally/),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Unsaved offline edit", exact: true }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Starting amount (USD)", { exact: true }).fill("20000");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByText(/Changes not saved/).first()).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("tikr-demo-v1"))).toBe(
     original,
   );
-  await page.evaluate(() => window.__cloudQA.online(true));
-  await page.evaluate(() => window.__cloudQA.fail("TRANSPORT_FAILURE"));
-  await page.getByRole("button", { name: "Retry save", exact: true }).click();
-  await expect(page.getByText(/Cloud saving failed/)).toBeVisible();
+  await page.evaluate(() => {
+    window.__cloudQA.fail("TRANSPORT_FAILURE");
+    window.__cloudQA.online(true);
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__portfolioStore.autosaveStatus?.state),
+    )
+    .toBe("saved");
   passed.push(
-    "offline and transport failure preserve edits with explicit retry and no local fallback",
+    "offline and transient failure preserve edits and recover without local fallback",
   );
   await page.evaluate(() => window.__cloudQA.hold());
-  await page.getByRole("button", { name: "Retry save", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Saving…", exact: true }),
-  ).toBeDisabled();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Starting amount (USD)", { exact: true }).fill("30000");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__portfolioStore.autosaveStatus?.state),
+    )
+    .toBe("saving");
   await page.evaluate(() => window.__cloudQA.release());
-  await expect(
-    page.getByRole("heading", {
-      name: "Portfolio dashboard",
-      includeHidden: true,
-    }),
-  ).toBeVisible();
-  passed.push("pending save stays pending until acknowledgment");
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__portfolioStore.autosaveStatus?.state),
+    )
+    .toBe("saved");
+  await page
+    .getByRole("button", { name: "All portfolios", exact: true })
+    .click();
+  passed.push("pending autosave stays pending until acknowledgement");
   await page
     .getByRole("button", { name: "Open Unsaved offline edit, 1 assets" })
     .click();
@@ -197,24 +203,28 @@ try {
   await expect(
     page.getByRole("button", { name: "Unpin", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/Pin saved to your account/)).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__portfolioStore.autosaveStatus?.state),
+    )
+    .toBe("saved");
   expect(
     await page.evaluate(
       () =>
         window.__cloudQA.rows().find((row) => row.clientId === "guestdraft")
           ?.definition.name,
     ),
-  ).toBe("Unsaved offline edit");
+  ).toBe("My conflicting edits");
   await expect(
     page.getByRole("heading", { name: "My conflicting edits", exact: true }),
   ).toBeVisible();
-  passed.push("pin saves only pin state and preserves unrelated unsaved edits");
+  passed.push("pin and valid edits serialize without replacing newer fields");
   await page.evaluate(() =>
     window.__cloudQA.remote("guestdraft", { name: "Remote edit" }),
   );
-  await page
-    .getByRole("button", { name: "Save to cloud", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Starting amount (USD)", { exact: true }).fill("40001");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(
     page.getByText(/changed in another tab or device/),
   ).toBeVisible();
@@ -227,9 +237,9 @@ try {
   ).toBeVisible();
   passed.push("stale revision preserves edits until explicit cloud reload");
   await page.evaluate(() => window.__cloudQA.deleted("guestdraft"));
-  await page
-    .getByRole("button", { name: "Save to cloud", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Starting amount (USD)", { exact: true }).fill("40002");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByText(/was deleted or is unavailable/)).toBeVisible();
   await page.getByRole("button", { name: "Duplicate", exact: true }).click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
@@ -238,7 +248,7 @@ try {
     .fill("Recovered edits");
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await page
-    .getByRole("button", { name: "Save to cloud", exact: true })
+    .getByRole("button", { name: "Create in account", exact: true })
     .click();
   await expect(
     page.getByRole("heading", {

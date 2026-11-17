@@ -4,6 +4,26 @@ import { PERSONAL_SOURCE_POLICY } from "../src/lib/market-policy";
 import { portfolioFields } from "./portfolioFields";
 
 export default defineSchema({
+  discoveryUsage: defineTable({
+    ownerId: v.string(),
+    day: v.string(),
+    completed: v.number(),
+    pendingId: v.optional(v.id("discoveryRequests")),
+    leaseUntil: v.optional(v.number()),
+  }).index("by_ownerId_and_day", ["ownerId", "day"]),
+  discoveryRequests: defineTable({
+    ownerId: v.string(),
+    requestId: v.string(),
+    promptHash: v.string(),
+    day: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    leaseUntil: v.number(),
+    expiresAt: v.number(),
+  }).index("by_ownerId_and_requestId", ["ownerId", "requestId"]),
   portfolios: defineTable(portfolioFields)
     .index("by_ownerId_and_deleted", ["ownerId", "deleted"])
     .index("by_ownerId_and_clientId", ["ownerId", "clientId"])

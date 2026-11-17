@@ -1,4 +1,8 @@
 ﻿"use client";
+import { usePathname } from "next/navigation";
+import type { SaveState } from "~/lib/portfolio-autosave";
+import { PendingLanding } from "~/components/intro";
+import { PageSkeleton } from "~/components/loading-skeletons";
 
 import {
   createContext,
@@ -144,13 +148,19 @@ export type PortfolioStore = {
   storageBlocked: boolean;
   notice: string;
   setNotice: Dispatch<SetStateAction<string>>;
-  open: (p: Portfolio) => void | Promise<void>;
+  open: (p: Portfolio, options?: { copyOf: string }) => void | Promise<void>;
   save: (p: Portfolio) => void;
   remove: (p: Portfolio) => boolean | Promise<boolean>;
   resetStorage: () => void;
   pin: (p: Portfolio) => void;
   cloud: boolean;
   busy: boolean;
+  autosaveStatus?: {
+    state: SaveState;
+    message: string;
+  } | null;
+  flush?: (id: string) => void;
+  prepareToLeave?: () => Promise<boolean>;
   saveError: string;
   conflict: boolean;
   reloadDraft: () => void;
@@ -168,6 +178,7 @@ function LocalPortfoliosProvider({ children }: { children: ReactNode }) {
   );
 }
 function AccountPortfoliosProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const session = authClient.useSession();
   const lastSession = useRef(session.data);
   if (!session.isPending && !session.error) lastSession.current = session.data;
@@ -190,11 +201,12 @@ function AccountPortfoliosProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     toast.dismiss();
   }, [notificationScope]);
+  if (pathname === "/methodology" && !activeSession) return children;
   if (session.isPending && !activeSession)
-    return (
-      <p role="status" className="p-10">
-        Checking session…
-      </p>
+    return pathname === "/" ? (
+      <PendingLanding />
+    ) : (
+      <PageSkeleton label="Checking session..." />
     );
   if (activeSession && expiry > Date.now())
     return (

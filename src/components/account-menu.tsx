@@ -1,5 +1,7 @@
 ﻿"use client";
-import { useState } from "react";
+import { Skeleton } from "~/components/ui/skeleton";
+import { PortfolioContext } from "~/providers/demo-portfolios-provider";
+import { useContext, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "~/lib/auth-client";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
@@ -11,12 +13,28 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-export function AccountMenu() {
+export function AccountMenu({
+  quietPending = false,
+}: { quietPending?: boolean } = {}) {
   const { data, isPending, error } = authClient.useSession();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const router = useRouter();
-  if (isPending) return <span role="status">Checking session…</span>;
+  const portfolios = useContext(PortfolioContext);
+  if (isPending && quietPending)
+    return (
+      <span
+        className="inline-flex size-11"
+        role="status"
+        aria-label="Checking session"
+      />
+    );
+  if (isPending)
+    return (
+      <span role="status" aria-label="Checking session">
+        <Skeleton className="size-11 rounded-full" />
+      </span>
+    );
   if (
     !data ||
     error ||
@@ -72,6 +90,13 @@ export function AccountMenu() {
             setBusy(true);
             setFailed(false);
             try {
+              if (
+                portfolios?.prepareToLeave &&
+                !(await portfolios.prepareToLeave())
+              ) {
+                setBusy(false);
+                return;
+              }
               const result = await authClient.signOut();
               if (result.error) throw new Error();
               window.location.replace("/");

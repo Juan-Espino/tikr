@@ -1,4 +1,7 @@
 "use client";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "~/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { WireframeGlobe } from "./wireframe-globe";
 import { TikrLogo } from "./tikr-logo";
@@ -16,26 +19,45 @@ function AppHeader({
         <TikrLogo />
       </button>
       <nav className="flex items-center gap-4 text-[12px] text-stone-400 md:flex">
-        <button onClick={onDashboard} className="hover:text-stone-100">
-          Explore
-        </button>
-        <a href="#method">Methodology</a>
-        <AccountMenu />
+        <Button variant="ghost" size="sm" onClick={onDashboard}>
+          Portfolios
+        </Button>
+        <Link
+          href="/methodology"
+          className="hover:bg-muted hover:text-foreground rounded-lg px-2.5 py-2 text-sm focus-visible:outline-2"
+        >
+          Methodology
+        </Link>
+        <AccountMenu quietPending />
       </nav>
     </header>
   );
 }
 
+export function PendingLanding() {
+  const router = useRouter();
+  return (
+    <Landing
+      pending
+      onLogin={() => router.push("/sign-in")}
+      onDashboard={() => router.push("/dashboard")}
+      onBuild={() => undefined}
+      onExample={() => undefined}
+    />
+  );
+}
 export function Landing({
   onLogin,
   onDashboard,
   onBuild,
   onExample,
+  pending = false,
 }: {
   onLogin: () => void;
   onDashboard: () => void;
   onBuild: () => void;
   onExample: () => void;
+  pending?: boolean;
 }) {
   return (
     <main className="min-h-screen overflow-x-clip bg-[#080808] text-stone-200">
@@ -54,12 +76,14 @@ export function Landing({
             </h1>
             <div className="mt-9 flex flex-wrap gap-3">
               <button
+                disabled={pending}
                 onClick={onBuild}
                 className="rounded-full bg-stone-100 px-5 py-3 text-[13px] font-medium text-black transition hover:bg-white"
               >
                 Build a portfolio <ArrowRight className="ml-2 inline size-4" />
               </button>
               <button
+                disabled={pending}
                 onClick={onExample}
                 className="rounded-full border border-stone-700 px-5 py-3 text-[13px] text-stone-300 hover:border-stone-500"
               >
@@ -75,19 +99,6 @@ export function Landing({
           </div>
         </section>
       </div>
-      <section
-        id="method"
-        className="border-t border-[#222220] px-5 py-8 md:px-10"
-      >
-        <div className="supporting-copy mx-auto flex max-w-6xl flex-col justify-between gap-4 text-[11px] text-stone-400 md:flex-row">
-          <span>01 / What it is</span>
-          <span className="supporting-copy max-w-sm text-stone-400">
-            A calmer way to look back. Lump sum, buy and hold, deterministic
-            sample data.
-          </span>
-          <span>Updated Oct 2026</span>
-        </div>
-      </section>
     </main>
   );
 }
@@ -125,8 +136,8 @@ export function Login({
             Tikr.
           </h1>
           <p className="supporting-copy mt-4 text-sm leading-6 text-stone-600">
-            Sign in with Google, then confirm Save to keep your draft in your
-            account. Signing in alone never saves your draft.
+            Sign in with Google, then choose Create in account to keep your
+            draft in your account. Signing in alone never saves your draft.
           </p>
           <button
             disabled={pending}

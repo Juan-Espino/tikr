@@ -9,6 +9,11 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as discovery from "../discovery.js";
+import type * as discoveryCatalog from "../discoveryCatalog.js";
+import type * as discoveryFields from "../discoveryFields.js";
+import type * as discoveryIdentity from "../discoveryIdentity.js";
+import type * as discoveryQuota from "../discoveryQuota.js";
 import type * as hosted from "../hosted.js";
 import type * as http from "../http.js";
 import type * as market from "../market.js";
@@ -25,6 +30,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  discovery: typeof discovery;
+  discoveryCatalog: typeof discoveryCatalog;
+  discoveryFields: typeof discoveryFields;
+  discoveryIdentity: typeof discoveryIdentity;
+  discoveryQuota: typeof discoveryQuota;
   hosted: typeof hosted;
   http: typeof http;
   market: typeof market;

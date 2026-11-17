@@ -1,8 +1,12 @@
 "use client";
 
+import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
+import { SearchRowsSkeleton } from "~/components/loading-skeletons";
+import { AnimatedSearchRows } from "~/components/animated-search-results";
+import { AiAssetSearch } from "~/components/ai-asset-search";
 import type { CatalogAsset } from "~/lib/asset-catalog";
 import { useEffect, useRef, useState } from "react";
-import { Check, Plus, Search, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import {
   allocation,
   equalWeights,
@@ -46,22 +50,21 @@ export function PortfolioEditor({
   nameError?: string;
   suggestedName?: string;
 }) {
+  const { cloud: signedIn } = useDemoPortfolios();
   const failedRetry = useRef<number | null>(null);
   const [retrySearch, setRetrySearch] = useState(0);
   const [searchFailed, setSearchFailed] = useState(false);
   const [catalogSource, setCatalogSource] = useState("unknown");
   const [search, setSearch] = useState("");
   const [filtered, setFiltered] = useState<CatalogAsset[]>([]);
-  const [searchState, setSearchState] = useState(
-    "Enter a ticker or company name.",
-  );
+  const [searchState, setSearchState] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     if (failedRetry.current === retrySearch) return;
-    setFiltered([]);
     setSearchFailed(false);
     if (!search.trim()) {
-      setSearchState("Enter a ticker or company name.");
+      setFiltered([]);
+      setSearchState("");
       return;
     }
     setSearchState("Searching...");
@@ -232,8 +235,8 @@ export function PortfolioEditor({
         className="border-border mt-6 border-t pt-5"
         aria-labelledby="add-assets-title"
       >
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 id="add-assets-title" className="text-lg">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h3 id="add-assets-title" className="shrink-0 text-lg">
             Choose assets
           </h3>
           <span className="text-muted-foreground text-sm">
@@ -248,67 +251,91 @@ export function PortfolioEditor({
                     : "Asset catalog"}
           </span>
         </div>
-        <div className="relative mt-3 flex items-center">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400"
-          />
-          <input
-            aria-label="Search assets"
-            maxLength={100}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search ticker or name"
-            className={`${field} mt-0 pl-10`}
-          />
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {filtered.map((asset) => {
-            const selected = holdings.some((h) => h.ticker === asset.ticker);
-            return (
-              <Button
-                key={asset.ticker}
-                variant="outline"
-                disabled={!selected && holdings.length >= 6}
-                aria-pressed={selected}
-                aria-label={`${asset.ticker}, ${asset.name}`}
-                onClick={() => select(asset.ticker)}
-                className={`h-auto min-h-14 min-w-0 justify-between gap-3 px-3 py-2 text-left ${selected ? "!bg-muted border-stone-500" : "!bg-background hover:!bg-muted"}`}
-              >
-                <span className="min-w-0">
-                  <span className="block font-semibold">{asset.ticker}</span>
-                  <span className="block truncate text-xs text-stone-400">
-                    {asset.name}
-                  </span>
-                </span>
-                {selected ? (
-                  <Check aria-hidden="true" />
-                ) : (
-                  <Plus aria-hidden="true" />
-                )}
-              </Button>
-            );
-          })}
-        </div>
-        <p role="status" className="text-muted-foreground mt-3 text-sm">
-          {searchState}
-        </p>
-        {holdings.length >= 6 && (
-          <p role="status" className="mt-2 text-sm">
-            Six holdings maximum. Remove a holding to add another.
-          </p>
-        )}
-        {searchFailed && (
-          <Button
-            variant="outline"
-            onClick={() => setRetrySearch((n) => n + 1)}
-          >
-            Retry search
-          </Button>
-        )}
+        <AiAssetSearch
+          signedIn={signedIn}
+          selected={holdings.map((h) => h.ticker)}
+          onAdd={(ticker) => {
+            if (!holdings.some((h) => h.ticker === ticker)) select(ticker);
+          }}
+          normal={
+            <div className="relative flex items-center">
+              <input
+                aria-label="Search assets"
+                maxLength={100}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Enter a ticker or company name."
+                className="mt-0 h-10 w-full border-0 bg-transparent py-2.5 pr-[5.25rem] pl-2.5 text-sm focus-visible:ring-0 focus-visible:outline-none"
+              />
+            </div>
+          }
+          normalResults={
+            <>
+              {searchState === "Searching..." && !filtered.length && (
+                <SearchRowsSkeleton grid />
+              )}
+              <AnimatedSearchRows
+                className={
+                  filtered.length
+                    ? "mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"
+                    : ""
+                }
+                items={filtered.map((asset) => {
+                  const selected = holdings.some(
+                    (h) => h.ticker === asset.ticker,
+                  );
+                  return {
+                    key: asset.ticker,
+                    content: (
+                      <Button
+                        variant="outline"
+                        disabled={!selected && holdings.length >= 6}
+                        aria-pressed={selected}
+                        aria-label={`${asset.ticker}, ${asset.name}`}
+                        onClick={() => select(asset.ticker)}
+                        className={`h-auto min-h-14 w-full min-w-0 justify-between gap-3 px-3 py-2 text-left ${selected ? "!bg-muted border-stone-500" : "!bg-background hover:!bg-muted"}`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block font-semibold">
+                            {asset.ticker}
+                          </span>
+                          <span className="block truncate text-xs text-stone-400">
+                            {asset.name}
+                          </span>
+                        </span>
+                        {selected ? (
+                          <Check aria-hidden="true" />
+                        ) : (
+                          <Plus aria-hidden="true" />
+                        )}
+                      </Button>
+                    ),
+                  };
+                })}
+              />
+              <span role="status" aria-live="polite" className="sr-only">
+                {searchState}
+              </span>
+              {holdings.length >= 6 && (
+                <p role="status" className="mt-2 text-sm">
+                  Six holdings maximum. Remove a holding to add another.
+                </p>
+              )}
+              {searchFailed && (
+                <Button
+                  variant="outline"
+                  onClick={() => setRetrySearch((n) => n + 1)}
+                >
+                  Retry search
+                </Button>
+              )}
+            </>
+          }
+        />
       </section>
       <section
         className="border-border mt-6 border-t pt-5"
+        data-editor-allocation
         aria-labelledby="allocation-title"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -336,10 +363,13 @@ export function PortfolioEditor({
         </div>
         <div className="divide-border mt-3 divide-y">
           {holdings.map((holding) => (
-            <div key={holding.ticker} className="flex items-center gap-3 py-2">
+            <div
+              key={holding.ticker}
+              className="flex min-w-0 items-center gap-3 py-2 pr-1"
+            >
               <label
                 htmlFor={`allocation-${holding.ticker}`}
-                className="flex-1 font-medium"
+                className="min-w-0 flex-1 truncate font-medium"
               >
                 {holding.ticker}
               </label>

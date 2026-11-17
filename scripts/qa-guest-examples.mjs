@@ -4,6 +4,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+const reviewUrl = process.env.TIKR_QA_URL ?? "http://127.0.0.1:5177";
 const artifacts = await mkdtemp(join(tmpdir(), "tikr-guest-ui-"));
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const passed = [];
@@ -18,7 +19,7 @@ try {
   await page.route("**/api/assets**", (r) =>
     r.fulfill({ json: [], headers: { "X-Tikr-Catalog": "sample" } }),
   );
-  await page.goto("http://127.0.0.1:5177");
+  await page.goto(reviewUrl);
   await page.waitForFunction(() => !!window.__guestScenarios);
   const legacy = JSON.stringify(
     {
@@ -87,7 +88,7 @@ try {
     fullPage: true,
   });
   const second = await context.newPage();
-  await second.goto(`http://127.0.0.1:5177/portfolio/${id}`);
+  await second.goto(`${reviewUrl}/portfolio/${id}`);
   await second.waitForFunction(() => !!window.__portfolioStore?.draft);
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.locator("#portfolio-amount").fill("12346");

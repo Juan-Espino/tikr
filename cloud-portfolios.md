@@ -1,3 +1,7 @@
+## Owner-approved autosave update - 2026-11-16
+
+Existing account definitions now use validated, serialized frontend autosave. New definitions still require Create in account; guest login alone never saves. The existing server ownership, expected revision, name uniqueness and deletion receipts are unchanged. Earlier manual-save instructions below remain historical. See portfolio-autosave.md for offline/retry/conflict/delete behavior, memory-only privacy limits and automated/Terra-medium browser evidence. No new backend deployment or production activation accompanies this frontend update.
+
 ## Guest/examples release preparation - approved 2026-11-15
 
 Owner now authorizes production readiness preparation plus commit/push/PR for this

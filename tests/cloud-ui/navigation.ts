@@ -5,3 +5,5 @@ const navigate = (url: string) => {
 };
 const router = { push: navigate, replace: navigate };
 export const useRouter = () => router;
+
+export const usePathname = () => window.location.pathname;

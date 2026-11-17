@@ -1,3 +1,110 @@
+## PR preparation authorized - 2026-11-16
+
+Owner requested a review PR and production-readiness assessment after editor hover/status corrections. Branch publication is authorized; merge and production deployment/configuration remain separate. Existing cloud autosave is quiet after acknowledgement: no routine Saved label, with pending/error feedback retained. release-readiness.md distinguishes source verification from unverified live-AI production activation and service capacity.
+
+## Existing account portfolio autosave approved - 2026-11-16
+
+Owner supersedes earlier manual-save requirements for existing account portfolios: edits save automatically after500ms quiet time, only valid definitions, latest-unsent coalescing and one in-flight write per portfolio. Show Saving/Saved/Changes not saved; no autosave success toasts. Preserve ownership/revision/session fencing, conflict recovery, read-only examples and no private browser persistence. New portfolios retain an explicit Create in account action; signing in alone does not create/import/save guest work. Done flushes; offline/retries retain edits in memory. Confirmed deletion supersedes queued edits, with no resurrection. Leave/sign-out guards disclose pending work. Remove all landing skeletons and the permanent account/manual-save notice. See portfolio-autosave.md for contract, evidence and limits.
+
+## Methodology and loading behavior approved - 2026-11-16
+
+Methodology is a dedicated public reading page linked from the landing header; the old landing methodology section is removed. Header uses Portfolios terminology. Initial session/account/cloud/history/search/AI reads receive layout-matched skeletons; date changes with a loaded graph keep the existing graph animation. Writes and OAuth handoffs preserve their forms/content. Static methodology does not wait for private account loading. Financial rules, portfolio ownership and explicit Save behavior remain unchanged.
+
+## Ticker-only discovery approved - 2026-11-16
+
+Owner approved ticker-only results (up to six, fewer allowed), supported-catalog filtering, canonical display names, inline clarification/no-match and a real signed-in DEV trial. GPT-OSS120B selected for this trial. No AI business explanation or model name matching remains. Relevance is unverified. Existing 500-character/20-completed-per-account-per-UTC-day rules persist. DEV activation is authorized for stoic-corgi-586 only; production and Git publication remain separate.
+
+## Six-result discovery baseline - 2026-11-16
+
+Owner approved model comparison, supported-catalog/name validation and fewer than
+six matches when uncertain; verified-description enrichment is excluded for now.
+Restored candidate cap to six in contract/schema/instructions, preserving rejection
+of unsupported or name-mismatched tickers and existing portfolio max-six behavior.
+Model remains GPT-OSS20B until owner selects the comparison model. Proposed next
+comparison: Groq openai/gpt-oss-120b using the same prompts/settings initially.
+No provider call, deployment or model activation in this change.
+
+## AI backend mocked implementation - owner authorized 2026-11-15
+
+Owner approved implementing the described backend scope with mocked responses in
+this feature worktree. GPT-OSS20B with low reasoning is the initial implementation
+model. Server authentication, 500-character validation, atomic20/account/UTC-day
+accounting, bounded Groq response parsing and cached-catalog candidate validation
+are now implemented locally. Signed-in UI can use the backend adapter and show
+remaining allowance/reset time when enabled. No live inference, secret access or
+deployment is authorized by this checkpoint; enable flags remain unset.
+
+Completed server responses consume the reserved UTC-day slot even if the browser
+cancels/disconnects after submission. Failed provider/catalog responses release it.
+Private receipts retain no raw prompts/results/reasoning; they expire after two
+days. No automatic retries or paid fallback. Actual relevance, token use and live
+account capacity still require an approved development trial. The earlier monthly
+capacity estimate is provisional. See ai-discovery.md for architecture and evidence.
+Earlier frontend-only/not-implemented statements below are historical where
+superseded. Production and Git publication remain separately gated.
+
+## AI usage defaults - owner accepted 2026-11-15
+
+Signed-in discovery permits up to 500 characters per prompt and 20 completed AI
+searches per account per UTC calendar day. Reset at midnight UTC; display reset
+time in the user's timezone and remaining allowance in AI mode. Each submitted
+refinement counts when completed; clarification and no-match responses count.
+Failed requests, rejected inputs and mode toggles do not consume user allowance.
+Ordinary ticker search stays available after the AI allowance is exhausted.
+
+Enforce identity, prompt bounds and atomic per-account accounting on the future
+backend. Model output must be bounded separately, and shared Groq capacity must
+be checked before activation; a per-user allowance is not guaranteed service
+capacity. Defaults must be configurable. Daily accounting is not implemented yet.
+This supersedes earlier unresolved AI quota notes. Model/live activation remain
+unapproved; no market-data quota change is authorized.
+
+## AI access - owner decision 2026-11-15
+
+AI discovery requires sign-in. Guests can see and press the AI toggle, but pressing
+it shows the transient toast "You must be signed in." and leaves ordinary ticker
+search active. No redirect, forced login modal, automatic saving or draft mutation.
+Signed-in users can toggle AI normally. Ordinary search and portfolio operations
+remain open to guests. This supersedes earlier unresolved AI guest-access scope.
+
+Current implementation is a frontend gate using the existing account collection
+state; no new auth endpoint or credential use. The future AI backend must enforce
+verified server authentication for every request independently of client UI state.
+AI quotas/model/live activation are still unresolved; no live AI request enabled.
+
+## AI candidate discovery approach - owner decision 2026-11-15
+
+Owner settles the MVP approach: Groq interprets the explicit user prompt and
+proposes a small bounded set of tickers. The backend validates candidates against
+the existing supported asset catalog, removes unknown/unsupported/duplicate symbols,
+and returns canonical catalog tickers/names for individual user selection.
+
+Results are AI-suggested matches; catalog membership does not establish thematic
+relevance. Do not claim independently verified sectors, industries or theme matches.
+A separate verified classification metadata source is no longer an MVP prerequisite;
+this supersedes earlier metadata requirements for discovery. No catalog enrichment
+or metadata-provider signup is approved. Existing historical validation still applies
+on selection; no automatic holdings/weight changes or saving are introduced.
+
+Owner confirms UI iteration is finished. AI guest access, quotas, model and live
+activation remain unresolved. This decision settles the approach; it does not
+start backend implementation, credential access, provider calls or deployment.
+
+## AI asset discovery interaction prototype - owner scope 2026-11-15
+
+Stage 1 is frontend interaction only, based on merged PR25 at 2279d49.
+Explicit AI toggle beside ordinary search changes the same area to a textarea.
+Typing/chips never submit; Enter submits, Shift+Enter adds a line, IME is respected.
+Inline sample rows require individual Add; existing six-holding and allocation rules
+remain. Examples stay read-only; Try your own mix is required. No automatic saving,
+auth changes, portfolio/account data transmission or live AI request is included.
+
+Fixture only: the isolated tests/cloud-ui harness supplies an adapter when opened
+with ?ai-preview. Public app routes have no fixture adapter and AI is unavailable.
+No server endpoint, Groq/backend, metadata verification or catalog enrichment is
+implemented. AI guest policy, quotas and verified sector/theme sources remain
+unapproved. Stage 2 awaits explicit owner UI approval; no publication is authorized.
+
 ## Guest/examples release preparation - approved 2026-11-15
 
 Owner now authorizes production readiness preparation plus commit/push/PR for this

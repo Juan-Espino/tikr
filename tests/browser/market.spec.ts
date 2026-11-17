@@ -1295,7 +1295,10 @@ test("catalog search debounces, ignores superseded responses, supports keyboard 
   await page.goto("/portfolio/test-one");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   const input = page.getByRole("textbox", { name: "Search assets" });
-  await expect(page.getByText("Enter a ticker or company name.")).toBeVisible();
+  await expect(input).toHaveAttribute(
+    "placeholder",
+    "Enter a ticker or company name.",
+  );
   await input.fill("old");
   await page.waitForTimeout(220);
   await input.fill("new");

@@ -9,6 +9,7 @@ const server = await createServer({
   publicDir: join(root, "public"),
   oxc: { jsx: { runtime: "automatic" } },
   define: {
+    "process.env.NEXT_PUBLIC_AI_DISCOVERY_ENABLED": JSON.stringify("true"),
     "process.env.NEXT_PUBLIC_CONVEX_URL": JSON.stringify(
       "https://synthetic.invalid",
     ),
@@ -28,7 +29,14 @@ const server = await createServer({
     ],
   },
   css: { postcss: join(root, "postcss.config.js") },
-  server: { host: "127.0.0.1", port: 5177, fs: { allow: [root] } },
+  server: {
+    host: "127.0.0.1",
+    port: Number(process.env.TIKR_QA_PORT ?? 5177),
+    strictPort: true,
+    fs: { allow: [root] },
+  },
 });
 await server.listen();
-console.log("Synthetic guest QA: http://127.0.0.1:5177");
+console.log(
+  `Synthetic guest QA: http://127.0.0.1:${process.env.TIKR_QA_PORT ?? 5177}`,
+);

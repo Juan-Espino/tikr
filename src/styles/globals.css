@@ -330,3 +330,199 @@ select {
     opacity: 0.48;
   }
 }
+
+/* Electric edge adapted from https://codepen.io/BalintFerenczy/pen/KwdoyEN.
+   Keep displacement and the small red halo local to the field's border. */
+:root {
+  --ai-rim: #a84943;
+}
+.ai-discovery-field {
+  background: #080808;
+  --ai-rim-width: 2;
+  border-color: var(--border);
+}
+.ai-discovery-field[data-ai="true"] {
+  border-color: transparent;
+}
+.ai-discovery-field > svg {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 850ms ease-out,
+    visibility 0s 850ms;
+  overflow: visible;
+  filter: drop-shadow(0 0 2px var(--ai-rim));
+}
+.ai-discovery-field rect {
+  fill: none;
+  stroke: var(--ai-rim);
+  stroke-width: var(--ai-rim-width);
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 850ms ease-out;
+}
+.asset-search-field[data-ai="false"]:has(input:focus-visible) {
+  border-color: #e7e5e4;
+  outline: 2px solid #e7e5e4;
+  outline-offset: 0;
+}
+.asset-search-field input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+}
+.ai-discovery-field textarea:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+}
+.ai-discovery-rim {
+  opacity: 0.45;
+}
+.ai-discovery-electric {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-discovery-field > svg {
+    filter: none;
+  }
+  .ai-discovery-rim {
+    opacity: 1;
+  }
+  .ai-discovery-electric {
+    display: none;
+  }
+}
+
+/* Selected AI toggle echoes the same coral red as its active search field. */
+.ai-mode-active {
+  color: #d8786d;
+}
+.ai-mode-active svg {
+  color: #d8786d;
+}
+
+.ai-mode-control {
+  width: 58px;
+  min-width: 58px;
+  max-width: 58px;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  padding: 0;
+}
+
+.ai-discovery-field[data-ai="true"] > svg {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 850ms ease-out,
+    visibility 0s;
+}
+.ai-discovery-field[data-ai="true"] rect {
+  stroke-dashoffset: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-discovery-field > svg {
+    transition: none;
+  }
+}
+
+/* Keep both text layers and submit mounted so interrupted fades can reverse. */
+.ai-mode-text,
+.ai-mode-submit {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 240ms ease-in-out,
+    visibility 0s 240ms;
+}
+.ai-discovery-field[data-ai="false"] [data-mode="normal"],
+.ai-discovery-field[data-ai="true"] [data-mode="ai"],
+.ai-discovery-field[data-ai="true"] .ai-mode-submit {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity 240ms ease-in-out,
+    visibility 0s;
+}
+
+.ai-allowance-low {
+  color: var(--ai-rim);
+}
+.portfolio-editor-dialog {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.portfolio-editor-dialog > * {
+  flex-shrink: 0;
+}
+.portfolio-editor-dialog > [data-editor-allocation] {
+  overflow-x: hidden;
+  flex-shrink: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.search-results-viewport {
+  scrollbar-gutter: stable;
+}
+.search-row-exit {
+  animation: search-row-exit 100ms ease-out forwards;
+}
+@keyframes search-row-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-row-exit {
+    animation: none;
+    visibility: hidden;
+  }
+}
+
+/* Keep the fixed editor chrome compact on phones, leaving usable result and
+   allocation scroll regions inside the existing 90dvh dialog cap. */
+@media (max-width: 639px) {
+  .portfolio-editor-dialog {
+    padding: 16px;
+  }
+  .portfolio-editor-dialog > p {
+    line-height: 20px;
+  }
+  .portfolio-editor-dialog > .grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .portfolio-editor-dialog > .grid label {
+    font-size: 12px;
+    line-height: 18px;
+  }
+  .portfolio-editor-dialog > .grid input {
+    margin-top: 4px;
+    padding: 8px;
+  }
+  .portfolio-editor-dialog > section {
+    margin-top: 16px;
+    padding-top: 12px;
+  }
+  .portfolio-editor-dialog > section > .flex > span {
+    font-size: 12px;
+    line-height: 18px;
+  }
+  .portfolio-editor-dialog > .sticky {
+    margin: 12px -16px 0;
+    padding: 12px 16px;
+  }
+  .portfolio-editor-dialog > .sticky p {
+    font-size: 12px;
+    line-height: 18px;
+  }
+}
