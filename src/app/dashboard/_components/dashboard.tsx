@@ -45,7 +45,10 @@ export default function Dashboard() {
     generation: string;
     results: Record<string, MarketResult>;
   }>({ generation: "", results: {} });
-  const [previous, setPrevious] = useState<Record<string, MarketResult>>({});
+  const [previous, setPrevious] = useState<{
+    generation: string;
+    results: Record<string, MarketResult>;
+  }>({ generation: "", results: {} });
   const [timedOut, setTimedOut] = useState("");
   const report = useCallback(
     (incoming: string, id: string, result: MarketResult) => {
@@ -73,8 +76,8 @@ export default function Dashboard() {
     return () => window.clearTimeout(timer);
   }, [generation]);
   useEffect(() => {
-    if (complete) setPrevious(current);
-  }, [current, complete]);
+    if (complete) setPrevious({ generation, results: current });
+  }, [current, complete, generation]);
   return (
     <AppShell centered dashboard>
       {" "}
@@ -150,7 +153,9 @@ export default function Dashboard() {
                   generation={generation}
                   displayed={
                     waiting
-                      ? previous[p.id]
+                      ? previous.generation === generation
+                        ? previous.results[p.id]
+                        : undefined
                       : current[p.id]?.view.status === "refreshing"
                         ? undefined
                         : current[p.id]

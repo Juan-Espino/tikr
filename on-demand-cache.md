@@ -116,3 +116,18 @@ existing records are not deleted/reset or declared complete by migration.
 Gateway calls now share the bounded process write queue to reduce self-contention
 on global accounting/control documents. This does not remove cross-instance
 transaction conflicts; real acceptance and safe error diagnostics remain necessary.
+
+## Shared refresh / dashboard recovery ? local work, 2026-11-17
+
+PR27 base 766030c7; uncommitted local patch only. Deterministic 1.8s SPY lease race
+reproduced ready/blocked before fix, ready/ready afterward with one source load.
+Dashboard's 8s atomic display window now releases loading cards to their actual
+state rather than manufacturing DATA_UNAVAILABLE. Session-scoped in-flight sharing,
+consumer cancellation isolation, bounded joins and two ordinary browser rechecks
+preserve lease/guard authority. No financial policy, backend deployment or production access.
+See [market-data-integration.md](market-data-integration.md#shared-refresh--dashboard-recovery--local-work-2026-11-17)
+for implementation contract, local measurement, verification and explicit coverage gaps.
+Exactly one independent Sol Low review found two P2 issues (Retry attempt collision and
+postdeadline work). Both were fixed locally and focused regressions added; no second review.
+Next: owner review of the uncommitted patch, with remaining fault-matrix gaps documented.
+No publication or deployment.

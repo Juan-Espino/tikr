@@ -512,3 +512,13 @@ Error references and retained diagnostics are backend-only. See mvp-history-read
 for exact evidence and the owner-approved general reported-USD dividend assumption. Do not
 claim that insufficient history is the only possible failure or that live foreign
 amounts were verified merely because their source contains prices.
+
+## Shared refresh recovery ? approved local scope, 2026-11-17
+
+A healthy shared SPY refresh remains loading and completes portfolios automatically.
+The dashboard retains its bounded 8-second coordinated display window, then releases
+individual cards to their actual states: ready cards render, pending cards stay loading,
+and genuine failures remain local to their cards. A previous range/generation cannot
+stand in for a newly selected period. Temporary busy results permit at most two ordinary
+client rechecks per mounted financial identity/session. No visual redesign or financial
+methodology change. See market-data-integration.md for evidence and verification limits.

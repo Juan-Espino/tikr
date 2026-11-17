@@ -326,3 +326,65 @@ AutoexpiredguardrecoveryretainsCAS/revocations; operationalquotas removedshareds
 FinalMVPfollowupacceptance: actualforeignASML/TSM1Yremainsblockedafteroneeditorretry;
 sourcecurrencyabsentcannotestablishUSDgrosscashperADR/share. Real1Wloading/recovery,
 WARchartandreloadpass. Nooperationalquotaenforcementwasrestored. Seemvp-history-readiness.md.
+
+## Shared refresh / dashboard recovery ? local work, 2026-11-17
+
+Owner authorizes this narrowly scoped local fix on PR27 base `766030c7e572bc8438acee5e93a3e89c7859ece3`.
+No production access, backend deployment, publication, data cleanup or financial-policy change.
+
+Deterministic evidence: two independent coordinators sharing transaction storage, with an acquisition
+barrier and SPY delayed 1.8 seconds, previously returned ready/blocked; the lease loser exhausted
+its three 400ms checks before publication. The corrected case returns ready/ready with one SPY load.
+A separate dashboard defect replaced still-refreshing cards with DATA_UNAVAILABLE after its 8-second
+atomic display window. That window now releases each card to its actual state, including loading.
+This reproduces two causes; the owner's HTTP-200 traces alone do not prove payload validity or
+attribute every production failure. No production verification has been performed.
+
+Lease losers wait with bounded exponential backoff (200ms to 2s), guard/evidence checks, complete
+root reconstruction and revision readback. A guard remains authoritative: waiting never deletes it
+or launches a second provider refresh. Existing abandoned-owner recovery remains fenced; this patch
+adds no new reclaim protocol. Hosted startup guard waiting and the core share the existing 45s
+budget; browser/route limits remain 55/60s. Monotonic time measures deadlines. Cache timeout has a
+specific REFRESH_TIMEOUT code. Browser terminal active/busy responses can trigger at most two
+ordinary rechecks per financial identity/session; they do not set retry authorization.
+
+Client in-flight sharing is session-scoped and includes complete request/history bytes; explicit
+retries do not share. Independent consumers receive independent bounded response streams. One
+consumer cancellation cannot cancel peers. Provider batching cancels only once every member signal
+has aborted, and removes its listeners on settlement. No provider coverage/batching policy changes.
+Previous dashboard generations and old range results cannot be presented as current completed work.
+
+Local evidence: Node durable/cache/redesign 73 passed; wider cache/storage run 72 passed;
+Vitest 146 passed across 29 files with --testTimeout=60000, including the new cancellation and
+Convex join cases. Lint, both TS, changed-file formatting, diff whitespace and added-line secret
+pattern checks passed. Final credential-cleared --auth-fixture optimized build passed.
+Four-portfolio delayed fixture: 2 actual provider HTTP calls (bars + actions), 57 storage reads,
+18 writes, 21 lease calls and 36 guard checks. Warm reopen: 0 provider HTTP, 4 additional reads.
+These are fixture application operations, not billing or an estimate of production traffic.
+The shared Convex fixture proves separate coordinator/storage instances join one validated SPY load.
+It is separate from the four-portfolio browser fixture, whose shared storage is in memory.
+
+Synthetic local UI: `TIKR_QA_PORT=5190 node --conditions=react-server --experimental-strip-types
+scripts/serve-guest-qa.mjs --shared-refresh`, then `http://127.0.0.1:5190/?shared-refresh`.
+The scenario creates only synthetic in-memory account rows, uses the actual market hook/cards and
+local mocked provider transport, selects YTD, and labels the data. Fresh incognito browser observed
+loading followed by four charts, no error flashes, at 390px and 1440px; no existing profile was seeded.
+An initial narrow-to-wide test with all provider calls artificially delayed did fail, so that result
+is not counted as passing evidence. The final fixture delays only SPY-containing provider calls. A dedicated concurrent narrow1W/wide5Y
+regression now verifies waiting followed by authoritative fenced expansion, without accepting narrow
+coverage as a complete wide result.
+
+Remaining verification limits: no live provider/OAuth/production smoke test; not every requested
+crash/expiry/range/abort permutation has a new dedicated join regression. Existing guard/revocation,
+correction, malformed/missing content and bounded queue tests remain relevant but do not certify all
+cross-instance failure interleavings. Storage RPCs retain their existing individual timeout/cleanup
+behavior; no new storage cancellation API was introduced. Exactly one independent Sol Low read-only review completed. It found two P2 defects:
+manual Retry could reuse an automatic attempt number, and postdeadline operations could start.
+Both were corrected locally without another reviewer. Automatic/manual attempts now share one
+monotonic sequence while explicit retry authorization stays separate. Deadline checks run after
+sleeps, before guard/provider work and after acquisition; late owned tokens are released.
+New regressions cover guard sleep, late acquisition/expansion/guard completion (zero provider starts),
+and a virtual-time hosted 45s guard wait (no RPC begins after expiry, fewer than 30 checks).
+The actual hook browser regression observes busy -> ordinary recheck -> SOURCE_FAILURE -> manual
+Retry -> ready, with request retry flags [false, false, true]. Different history bytes are now
+included in the client identity test. Final fixes were verified by the implementer, not re-reviewed.

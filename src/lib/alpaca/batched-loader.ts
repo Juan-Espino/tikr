@@ -57,8 +57,17 @@ export function createBatchedPersonalLoader(
         const symbols = [
           ...new Set(batch.flatMap((item) => item.query.symbols)),
         ].sort();
+        const controller = new AbortController();
+        const signals = batch.map((item) => item.query.signal);
+        const check = () => {
+          if (signals.every((signal) => signal?.aborted)) controller.abort();
+        };
+        for (const signal of signals)
+          signal?.addEventListener("abort", check, { once: true });
+        check();
         void slot(() =>
           withMarketTrace(() => {
+            controller.signal.throwIfAborted();
             console.error(
               JSON.stringify({
                 event: "market_provider_batch",
@@ -82,30 +91,31 @@ export function createBatchedPersonalLoader(
               {
                 ...batch[0]!.query,
                 symbols,
-                signal: AbortSignal.any(
-                  batch.flatMap((item) =>
-                    item.query.signal ? [item.query.signal] : [],
-                  ),
-                ),
+                signal: controller.signal,
               },
             );
           }),
-        ).then(
-          (value) => {
-            for (const item of batch) {
-              const symbol = item.query.symbols[0]!;
-              item.resolve({
-                ...value,
-                symbols: [symbol],
-                prices: { [symbol]: value.prices[symbol] ?? {} },
-                actions: value.actions.filter(
-                  (action) => action.symbol === symbol,
-                ),
-              });
-            }
-          },
-          (error: unknown) => batch.forEach((item) => item.reject(error)),
-        );
+        )
+          .finally(() => {
+            for (const signal of signals)
+              signal?.removeEventListener("abort", check);
+          })
+          .then(
+            (value) => {
+              for (const item of batch) {
+                const symbol = item.query.symbols[0]!;
+                item.resolve({
+                  ...value,
+                  symbols: [symbol],
+                  prices: { [symbol]: value.prices[symbol] ?? {} },
+                  actions: value.actions.filter(
+                    (action) => action.symbol === symbol,
+                  ),
+                });
+              }
+            },
+            (error: unknown) => batch.forEach((item) => item.reject(error)),
+          );
       }
     }
   };

@@ -1,3 +1,68 @@
+// Session-scoped, in-flight only. Full history bytes remain part of identity;
+// hints never establish trust. Each consumer receives its own response stream.
+const flights = new Map<string, Promise<Response>>();
+export function fetchMarket(
+  body: MarketRequest,
+  signal: AbortSignal,
+  scope?: string,
+): Promise<Response> {
+  if (signal.aborted) return Promise.reject(new Error("ABORTED"));
+  const key = scope && !body.retry ? JSON.stringify([scope, body]) : undefined;
+  let task = key ? flights.get(key) : undefined;
+  if (!task) {
+    task = enqueueMarket(body, AbortSignal.timeout(55000)).then(
+      async (response) => {
+        if (!response.body) return response;
+        const reader = response.body.getReader();
+        const parts: Uint8Array[] = [];
+        let size = 0;
+        try {
+          while (true) {
+            const part = await reader.read();
+            if (part.done) break;
+            size += part.value.byteLength;
+            if (size > 5_000_000) throw new Error("RESPONSE_LIMIT");
+            parts.push(part.value);
+          }
+        } finally {
+          await reader.cancel().catch(() => undefined);
+          reader.releaseLock();
+        }
+        const bytes = new Uint8Array(size);
+        let offset = 0;
+        for (const part of parts) {
+          bytes.set(part, offset);
+          offset += part.byteLength;
+        }
+        return new Response(bytes, {
+          status: response.status,
+          headers: response.headers,
+        });
+      },
+    );
+    if (key && flights.size < 64) {
+      flights.set(key, task);
+      const clear = () => {
+        if (flights.get(key) === task) flights.delete(key);
+      };
+      void task.then(clear, clear);
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new Error("ABORTED"));
+    signal.addEventListener("abort", abort, { once: true });
+    void task.then(
+      (response) => {
+        signal.removeEventListener("abort", abort);
+        if (!signal.aborted) resolve(response.clone());
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", abort);
+        reject(error instanceof Error ? error : new Error("DATA_UNAVAILABLE"));
+      },
+    );
+  });
+}
 import type { MarketRequest } from "./market-contract";
 type Pending = {
   body: MarketRequest;
@@ -7,7 +72,7 @@ type Pending = {
 };
 let pending: Pending[] = [],
   scheduled = false;
-export function fetchMarket(
+function enqueueMarket(
   body: MarketRequest,
   signal: AbortSignal,
 ): Promise<Response> {

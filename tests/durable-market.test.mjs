@@ -1321,3 +1321,111 @@ test("loader interpretation changes revalidate limitations without changing auth
     assert.equal(limitation.evidenceRevision, "same-authoritative-scope");
   }
 });
+
+test("independent cold coordinators join SPY delayed beyond the former 1.2s window", async () => {
+  const f = fixture();
+  let spyCalls = 0;
+  const acquire = f.store.acquire;
+  let releaseOwner;
+  const ownerGate = new Promise((resolve) => {
+    releaseOwner = resolve;
+  });
+  f.store.acquire = async (...args) => {
+    const token = await acquire(...args);
+    if (args[0] === "asset:SPY") {
+      if (token) await ownerGate;
+      else releaseOwner();
+    }
+    return token;
+  };
+  const load = async (q) => {
+    if (q.symbol === "SPY") {
+      spyCalls++;
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+    }
+    return { feed: "sip", asset: asset(q.symbol) };
+  };
+  // Open both before either settles: distinct process-like coordinators share
+  // only transaction storage, never their in-memory running maps.
+  const a = await createDurableBacktests({ ...f.options, load })(req, "Max");
+  const b = await createDurableBacktests({ ...f.options, load })(req, "Max");
+  const results = await Promise.all([a.settled, b.settled]);
+  assert.deepEqual(
+    results.map((v) => v.status),
+    ["ready", "ready"],
+  );
+  assert.equal(spyCalls, 1);
+});
+
+test("deadline-clamped guard sleep starts no later read or acquisition", async () => {
+  const f = fixture();
+  let checks = 0,
+    acquires = 0;
+  f.store.assertReadable = async () => {
+    checks++;
+    throw new MarketFailure("REFRESH_GUARDED", undefined, undefined, "active");
+  };
+  f.store.acquire = async () => {
+    acquires++;
+    return "late";
+  };
+  const job = await createDurableBacktests({ ...f.options, timeoutMs: 100 })(
+    req,
+    "Max",
+  );
+  const view = await job.settled;
+  assert.equal(view.status, "blocked");
+  assert.equal(view.code, "REFRESH_BUSY");
+  assert.equal(checks, 1);
+  assert.equal(acquires, 0);
+  assert.equal(f.calls(), 0);
+});
+test("late acquisition, expansion, or guard completion never starts provider work", async () => {
+  for (const phase of ["acquire", "expansion", "guard"]) {
+    const f = fixture();
+    let begins = 0,
+      releases = 0,
+      finishes = 0;
+    const counts = new Map();
+    if (phase === "expansion") {
+      for (const symbol of ["AAA", "SPY"]) {
+        const narrow = asset(symbol);
+        narrow.from = sessions[1];
+        delete narrow.prices[sessions[0]];
+        for (const row of assetRecords(narrow))
+          f.rows.set(row.key, {
+            ...row,
+            checkedAt: f.options.clock().valueOf(),
+          });
+      }
+    }
+    f.store.acquire = async (key) => {
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+      if (phase === "expansion" && counts.get(key) === 1) return null;
+      if (phase !== "guard") await new Promise((r) => setTimeout(r, 60));
+      return "late-token";
+    };
+    f.store.beginRefresh = async () => {
+      begins++;
+      await new Promise((r) => setTimeout(r, 60));
+      return async () => {
+        finishes++;
+      };
+    };
+    f.store.release = async () => {
+      releases++;
+    };
+    const job = await createDurableBacktests({ ...f.options, timeoutMs: 20 })(
+      req,
+      "Max",
+    );
+    const view = await job.settled;
+    assert.equal(view.status, "blocked", phase);
+    assert.equal(view.code, "REFRESH_TIMEOUT", phase);
+    await new Promise((r) => setTimeout(r, 90));
+    assert.equal(f.calls(), 0, phase);
+    assert.equal(begins, phase === "guard" ? 2 : 0, phase);
+    assert.equal(releases, 2, phase);
+    assert.equal(finishes, phase === "guard" ? 2 : 0, phase);
+  }
+});
