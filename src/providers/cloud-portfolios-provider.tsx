@@ -25,6 +25,7 @@ import {
   allocation,
   validAmount,
   portfolioNameError,
+  hasResumablePortfolio,
   type Portfolio,
 } from "~/lib/demo";
 import {
@@ -459,6 +460,17 @@ export function CloudPortfoliosProvider({
         (conflict || autosave.status(draft.id)?.state === "conflict") &&
         JSON.stringify(cloudDefinition(p)) ===
           JSON.stringify(cloudDefinition({ ...draft, pinned: false }));
+      // Uncreated incomplete work is not a recoverable portfolio. Never discard
+      // a create with an in-flight/uncertain acknowledgement or an existing cloud row.
+      if (
+        draft &&
+        draft.id !== p.id &&
+        draft.revision === undefined &&
+        !hasResumablePortfolio(draft, portfolios) &&
+        autosave.canDiscardUncreated(draft.id)
+      ) {
+        autosave.discard(draft.id);
+      }
       if (
         draft &&
         draft.revision === undefined &&
@@ -480,6 +492,7 @@ export function CloudPortfoliosProvider({
         draft.revision === undefined &&
         !copyingConflict &&
         autosave.version(draft.id) === undefined &&
+        hasResumablePortfolio(draft, portfolios) &&
         !(await confirm({
           title: "Replace your unsaved draft?",
           description:

@@ -20,8 +20,13 @@ function AppHeader({
       <button onClick={onDashboard} aria-label="View portfolios">
         <TikrLogo />
       </button>
-      <nav className="flex items-center gap-4 text-[12px] text-stone-400 md:flex">
-        <Button variant="ghost" size="sm" onClick={onDashboard}>
+      <nav className="flex items-center gap-1 text-[12px] text-stone-400 md:flex md:gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-11"
+          onClick={onDashboard}
+        >
           Portfolios
         </Button>
         <Link
@@ -29,7 +34,7 @@ function AppHeader({
           data-slot="button"
           className={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
-            "min-h-9",
+            "h-11",
           )}
         >
           Methodology

@@ -9,7 +9,7 @@ import {
   type QueryCtx,
   type MutationCtx,
 } from "./_generated/server";
-import { authComponent } from "./auth";
+import { authComponent, assertAccountActive } from "./auth";
 import { definition } from "./portfolioFields";
 import schema from "./schema";
 import {
@@ -27,6 +27,7 @@ async function owner(ctx: QueryCtx | MutationCtx, sessionFence?: string) {
   const user = await authComponent.safeGetAuthUser(ctx);
   const identity = await ctx.auth.getUserIdentity();
   if (!user || !identity) throw new ConvexError("SIGN_IN_REQUIRED");
+  await assertAccountActive(ctx, user._id);
   if (sessionFence !== undefined && sessionFence !== identity.sessionId)
     throw new ConvexError("SESSION_CHANGED");
   const session = await ctx.runQuery(components.betterAuth.adapter.findOne, {

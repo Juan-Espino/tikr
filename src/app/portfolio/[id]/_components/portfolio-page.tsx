@@ -238,6 +238,7 @@ function PortfolioContent({ initial }: { initial: Portfolio }) {
                   busy ||
                   storageBlocked ||
                   conflict ||
+                  !draft.name.trim() ||
                   !allocation(draft.holdings).valid ||
                   !validAmount(draft.amount)
                 }

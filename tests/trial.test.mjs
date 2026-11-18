@@ -4,6 +4,7 @@ import {
   examples,
   newPortfolio,
   hasUnsavedPortfolio,
+  hasResumablePortfolio,
 } from "../src/lib/demo.ts";
 import {
   TRIAL_KEY,
@@ -109,4 +110,30 @@ test("resume only includes unsaved drafts or changed saved definitions", () => {
   assert.equal(hasUnsavedPortfolio(p, []), false);
   assert.equal(hasUnsavedPortfolio({ ...p, amount: "20000" }, [p]), true);
   assert.equal(hasUnsavedPortfolio(newPortfolio(), [p]), true);
+});
+
+test("resume listings require a name, holding, valid allocation and amount", () => {
+  const empty = newPortfolio();
+  const valid = {
+    ...empty,
+    name: "Core",
+    holdings: [{ ticker: "SPY", weight: "100.00" }],
+  };
+  for (const draft of [
+    empty,
+    { ...valid, name: " " },
+    { ...valid, holdings: [] },
+    { ...valid, amount: "" },
+    { ...valid, holdings: [{ ticker: "SPY", weight: "50" }] },
+  ]) {
+    assert.equal(hasResumablePortfolio(draft, []), false);
+    assert.equal(hasUnsavedPortfolio(draft, []), true);
+  }
+  assert.equal(hasResumablePortfolio(valid, []), true);
+  const saved = { ...valid, revision: 1 };
+  assert.equal(hasResumablePortfolio(saved, [saved]), false);
+  assert.equal(
+    hasResumablePortfolio({ ...saved, amount: "20000" }, [saved]),
+    true,
+  );
 });

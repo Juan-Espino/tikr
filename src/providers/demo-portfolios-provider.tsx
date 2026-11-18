@@ -19,7 +19,7 @@ import { isExample, readTrial, writeTrial, TRIAL_KEY } from "~/lib/trial";
 import { authClient } from "~/lib/auth-client";
 import { CloudPortfoliosProvider } from "./cloud-portfolios-provider";
 import { useRouter } from "next/navigation";
-import { type Portfolio } from "~/lib/demo";
+import { hasResumablePortfolio, type Portfolio } from "~/lib/demo";
 function usePortfolioStore() {
   const router = useRouter();
   const { confirm, dialog } = useConfirmation();
@@ -86,6 +86,7 @@ function usePortfolioStore() {
         return;
       if (
         existing &&
+        hasResumablePortfolio(existing, []) &&
         existing.id !== p.id &&
         !(await confirm({
           title: "Replace your unsaved draft?",

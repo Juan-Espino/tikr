@@ -1,3 +1,291 @@
+# Current MVP PR preparation - 2026-11-17
+
+Base: merged PR28, 11db2d00b44c7ef69a5852cc4db915fdd8d90a82.
+Owner explicitly authorizes commit, push and opening the PR. No merge or production
+configuration/deployment is authorized. Main remains untouched.
+
+## Final behavior and owner evidence
+
+- Signed-out navigation controls align with 44px targets and native Methodology
+  anchors. Approved Cabinet Grotesk/Manrope fonts remain unchanged.
+- Account deletion lives in the existing account modal. A red 3s/2s/1s countdown
+  precedes the destructive confirmation. Verified fresh sessions, bounded cleanup,
+  auth triggers and identity fences prevent late account/portfolio/AI resurrection.
+  Expected freshness refusal stays inline with fresh sign-in; uncertain requests
+  preserve their capability. There is no second delete action on the recovery page.
+- Empty/incomplete drafts do not appear in Resume listings or trigger replacement
+  prompts. Eligible unsaved work remains protected. PR27 automatic creation and
+  PR28 refresh behavior are preserved; no financial engine changes.
+- Owner personally completed DEV account deletion and reports all account work
+  gone. Owner then signed in with the same Google account and confirmed a new,
+  empty account. These are owner-observed live journeys, not independent database
+  counts or erasure claims about external backups/logs. Signed-out sign-in is also
+  owner-verified and does not need repeat acceptance.
+
+## Verification and limits
+
+150 Vitest tests / 31 files passed serially, as did lint/both TypeScript projects,
+focused trial/auth-return/name tests, changed-source formatting, diff/private/final
+newline scans and credential-cleared optimized auth-fixture builds. The final
+countdown display received the expanded desktop/mobile deletion browser suite and
+pnpm check. Prior full-suite parallel hosted-runtime timeout passed on serial rerun.
+
+Exactly one independent Sol Medium source review completed; its two P2 recovery
+findings were fixed. Terra Medium confirmed live login and deletion Cancel behavior
+plus focused tests, but later hit screenshot-frame/control failures. Do not attribute
+all live checks to Terra. The implementer verified real DEV cloud create/update/
+reload/pinning, invalid-edit preservation, SPY data, one AI query and isolated real
+guest desktop/mobile flows. Signed-in mobile screenshots remain tooling-limited;
+synthetic mobile evidence is distinct. No further independent review was started.
+
+DEV stoic-corgi-586 was explicitly identified and updated for owner review. Only
+selected existing DEV settings live in ignored local configuration. Do not copy
+those values into a release. The existing hosting build includes a Convex deploy
+step; any eventual production release must separately verify its target.
+
+Privacy contact/controller, actual infrastructure retention and restore procedures,
+public market-data rights and service capacity/abuse decisions remain owner items.
+Existing AI 20 completed/day, bounds, concurrency, leases and revocations remain;
+removed market quotas and four deferred financial reliability changes are not added.
+No final legal policy, licensed-data guarantee or external backup erasure is claimed.
+
+## Historical implementation and review notes
+
+The dated material below records earlier checkpoints. Statements that deletion or
+registration was pending, publication was unauthorized or source was uncommitted
+are historical and superseded by the current summary above and latest owner request.
+
+## Owner-verified DEV deletion - 2026-11-17
+
+Owner reports personally completing permanent account deletion and confirms that
+the account and portfolios are gone. This closes the outstanding owner-led live
+DEV deletion journey. Evidence is the owner's observed outcome, not an independent
+post-deletion database count or external backup/log erasure assertion.
+
+The patch is ready to open for PR review with existing automated/browser evidence.
+Same-Google fresh empty registration remains unverified and should be checked before
+merge. No production deployment/configuration or Git publication follows from this
+readiness assessment. Earlier pending-deletion statements below are historical.
+
+Owner countdown display correction (2026-11-17): the three-second disabled
+confirmation now shows a red 3s / 2s / 1s counter beside the permanent-delete
+button, replacing the warning below it. The countdown uses the same absolute
+deadline as the click guard, is announced politely, and resets on each opening.
+No backend or deletion behavior changed.
+
+## Current confirmation correction - 2026-11-17
+
+Owner requested a three-second disabled permanent-delete confirmation button.
+Each account-modal confirmation now starts a fresh three-second deadline, keeps
+Cancel focused/available, and checks the deadline inside the handler as well as
+native disabled state. The duplicate permanent-delete action on the recovery page
+was removed; recovery can only check/resume an existing request or sign in again.
+
+The observed REAUTH_REQUIRED console error was a known freshness refusal before
+any deletion job existed. beginDeletion now returns reauth_required as an expected
+result (accepted otherwise). The modal retains the account, states nothing was
+deleted and offers account-fenced fresh sign-in. It never enters deletion progress
+on that known refusal. Uncertain transport failures still retain the original
+capability; fresh sign-in returns to the normal app/modal for explicit confirmation.
+The server's five-minute session freshness protection remains, independently of
+the three-second deliberation delay. No real account deletion was initiated.
+
+150 tests / 31 files passed serially; lint and both TS checks passed. Expanded
+synthetic desktop/mobile browser tests passed for timer/Cancel/reopen, inline
+freshness refusal, sign-in, preserved uncertain capability and completion cleanup.
+Cleared auth-fixture optimized build passed (tikr-cleared-build-4mVBik).
+The fix was deployed to DEV stoic-corgi-586 after target identification/announcement;
+no production access, configuration or deployment. Source remains uncommitted.
+Live owner-led deletion and fresh empty re-registration remain the final smoke gap.
+Draft PR preparation is reasonable; merge/release readiness must retain that gap.
+
+## Real DEV QA results and owner deletion handoff - 2026-11-17
+
+Terra Medium found the signed-in Incognito session, verified the irreversible
+account confirmation and Cancel focus return, and passed 34 synthetic auth tests.
+Its live portfolio run hit two screenshot-frame errors and an unavailable fallback
+host. Subsequent live checks below were performed by the implementer, not Terra.
+
+In a separate signed-in tab, the implementer created DEV QA 1711 Acceptance:
+SPY at 100%, USD 10,000, one week. Account acknowledgement and reload passed.
+An update to USD 12,000 and pinning both survived reload. An invalid empty amount
+showed Changes not saved, while a second tab retained the last valid cloud amount.
+The valid amount was restored. Navigation returned the saved portfolio to the
+account dashboard without an unnecessary Resume entry. No existing owner work
+was edited and the QA portfolio remains for inspection; nothing was deleted.
+
+Live Alpaca catalog search worked. SPY and benchmark results loaded for November
+9?16 with market data as of November 16. This proves the functional path, not an
+independent financial oracle or public data rights. One Groq semiconductor query
+returned catalog matches INTC, NVDA, QCOM, AMD, TXN and MU, labeled as unverified
+relevance; allowance moved from 4 to 3 of 20. No further AI requests were made.
+
+Preview resizing twice requested 390x844 but returned 1280x800. Fresh isolated
+Edge contexts verified the real guest app at 1280, 390 and 360px: approved fonts,
+44px controls, text alignment, native anchor, Tab traversal and no overflow. Empty
+editor ? dashboard ? Create again produced no Resume entry or replacement prompt;
+Tikr returned to the landing page. Owner login cookies and storage were not cleared
+or seeded. Actual signed-in mobile screenshots remain blocked by tooling; earlier
+synthetic mobile coverage is distinct. No production operation occurred.
+
+Follow-up isolated suites passed: 19 deletion/portfolio/auth HTTP tests and 22
+AI/auth tests. Earlier 34 focused auth tests and the full 150-test serial suite
+also passed. No application source changed during this QA pass. Main remains clean.
+
+The last manual step belongs to the owner: freshly sign in with Google within
+five minutes, open avatar ? Delete account, review the irreversible ALL portfolios
+warning, then choose Permanently delete account. Agents must never click that final
+action. Real deletion, post-deletion access refusal and a fresh empty registration
+with the same Google account remain pending until the owner performs that step.
+
+## Owner-authorized real DEV preparation and Terra QA - 2026-11-17
+
+Owner approved preparing DEV with the usual market/portfolio features, then one
+Terra Medium QA agent. This supersedes prior source-only/no-DEV-deploy status for
+this step only. Production, Git publication and destructive owner-account actions
+remain unauthorized. Owner will perform permanent deletion LAST themselves; agents
+must never click final deletion or invoke beginDeletion against real DEV users.
+
+Target verified: DEV stoic-corgi-586, personal development. `pnpm.cmd exec convex
+dev --once --tail-logs disable` succeeded and installed the additive deletion
+indexes/functions. Existing SITE_URL is canonical http://localhost:5000; existing
+server AI and hosted market enable flags were verified enabled. No server-secret
+rotation or production access/configuration occurred.
+
+Only selected existing DEV configuration was privately copied from main ignored
+.env.local into this worktree's ignored .env.local: DEV bindings, market runtime
+settings and existing server-only provider/admin/gateway credentials. No values
+printed or committed; no production secret file accessed. Frontend AI switch is
+enabled for this DEV review. Existing shared admission ledger, guards, revocations,
+receipts and owner browser storage were not reset or bypassed.
+
+Real app http://localhost:5000 is running. Google sign-in is user-controlled and
+was requested if needed. One gpt-6.1-terra Medium QA task is exercising guest and
+signed-in flows, bounded representative market/AI requests, UI cancellation and
+isolated deletion tests. Real deletion remains deferred to the owner after QA.
+Results are pending, not proof of production parity or live deletion success.
+
+Verification of replacement correction: real localhost:5000 incognito guest flow
+opened empty editor, returned to dashboard, showed no Resume entry, and Create
+portfolio opened a new editor directly without replacement confirmation. Eight
+trial Node tests, 30 focused auth/autocreate/autosave Vitest tests, pnpm check
+(lint/both TS) and git diff --check passed. No owner storage was seeded/cleared.
+
+## Owner replacement-dialog correction - 2026-11-17
+
+Empty/incomplete guest trials no longer trigger Replace your unsaved draft when
+Create portfolio starts a new mix. This uses the same eligibility rule as Resume
+listings. Valid unsaved mixes still require confirmation. Account-local incomplete
+work can likewise be superseded only when the coordinator proves no in-flight or
+uncertain create and no acknowledged cloud revision. Hidden other-account trials,
+malformed storage and cross-tab compare-before-write protections remain intact.
+No browser-profile clearing or deletion of private/cloud data was performed.
+
+## Owner preview corrections - 2026-11-17
+
+The prior 43128 URL was a synthetic browser harness, not a functional owner review
+app: it omitted Next's Manrope variable, and its module-time landing mode did not
+follow later route changes. Do not offer it as a Google sign-in/portfolio environment.
+The real Next app now runs at http://localhost:5000 using only verified DEV public
+Convex bindings from main; no secrets copied, backend deployment or production change.
+The real browser confirms Cabinet Grotesk loaded for headings and Manrope for body.
+Approved font source declarations were unchanged. Native Next routing is used.
+
+Owner now requires empty/incomplete drafts absent from resume listings throughout
+landing/dashboard. Shared hasResumablePortfolio requires a nonblank name, supported
+holding, valid allocation/amount and actual unsaved changes. Incomplete editing and
+navigation guards remain separate; this does not claim a cloud save or erase stored
+browser bytes. Focused Node regression tests and pnpm check passed.
+Account deletion source is not deployed to DEV; never test deletion on the owner.
+The single independent review already completed; no new reviewer is authorized.
+
+# Current MVP status ? 2026-11-17
+
+This worktree starts at merged PR28, `11db2d00b44c7ef69a5852cc4db915fdd8d90a82`.
+PR22 introduced Google auth; PR23?26 evolved account definitions and guest trials;
+PR27 added automatic creation and PR28 preserved landing/header/refresh behavior.
+The owner has verified signed-out Sign in. Do not reopen that acceptance.
+Valid named allocated drafts automatically create after 500ms; sign-in is not a
+cloud acknowledgement. Examples remain guest-only originals. No collection import.
+
+This pass changes source only: aligned 44px header controls and permanent account
+deletion in the account modal. Cleanup fences verified identities, drains owner
+records in batches and removes auth links/sessions/user. See `account-deletion.md`
+for the data inventory, transaction boundaries and verification limitations.
+No real account was deleted. No production operations, deployment, commit or PR
+are authorized for this pass. Production smoke evidence remains separate from
+synthetic tests; the owner is already testing the prior production journeys.
+
+Privacy contact, actual backup/log retention and public market-data rights remain
+owner decisions. AI retains its existing 20 completed searches/day allowance;
+input bounds, concurrency, leases, revision fences and revocations remain. No
+removed market quotas or new abuse policy is introduced. The four owner-deferred
+financial reliability improvements remain deferred. No financial engine changes.
+
+## This pass: executed evidence and remaining work
+
+- Full Vitest: 149 tests / 31 files passed, including new isolated permanent
+  deletion tests with 205 rows in each owner application table, A/B isolation,
+  stale/guest/wrong-session denial, late-write fencing, partial drain/resume,
+  auth record removal and fresh same-email identity without old portfolios.
+- pnpm check passed (lint and both TypeScript projects).
+- Credential-cleared optimized auth-fixture build passed at
+  `tikr-cleared-build-NaNM68`; no deployed bindings or provider calls.
+- Account deletion browser fixture passed at 1440px and 390px: matching 44px
+  header geometry, native Methodology anchor/focus, strong confirmation, Cancel,
+  begin, reload and unchanged legacy bytes. Existing cloud browser suite passed
+  all ten groups (`tikr-cloud-ui-id1pfp`).
+- Source review fixture: http://127.0.0.1:43128/?deletion-qa&landing-qa
+  (`node scripts/qa-account-deletion.mjs --serve`). Mock accounts only.
+- Independent review: exactly one inherited Sol Medium read-only reviewer is
+  requested after this patch and initial tests. Findings/fixes will be recorded.
+- No backend deployment, real Google deletion, live OAuth exchange, production
+  smoke, provider call or backup/log inspection. Production rollout and any
+  destructive disposable-account test still need explicit owner authorization.
+- Owner policy decisions: privacy contact/controller, actual backup/log retention,
+  restore handling for erased users, public market rights and capacity/abuse policy.
+  Four deferred reliability improvements and existing AI 20/day remain unchanged.
+
+## Independent review and corrections
+
+Exactly one inherited Sol Medium reviewer inspected the diff and all four untracked
+files and independently ran the deletion tests. It found two P2 recovery issues:
+stale-session sign-in looping and loss of the completion capability on navigation.
+Both were corrected locally: matching-account sign-out precedes reauthentication,
+the capability survives navigation, pending/completed requests cannot be abandoned
+by that action, and fresh-session deletion needs explicit confirmation of the same
+account. No second reviewer/recheck was started.
+
+Follow-up isolated tests now exercise actual component trigger handles, proving
+session/provider insertion rollback during deletion and after user removal. The
+large cleanup fixture includes 105 additional sessions and provider links.
+Browser tests additionally reach completion, preserve pending capabilities, and
+exercise failed-begin to fresh sign-in with the token intact. These are implementer
+checks after review, not a new independent acceptance. Exact full fault injection,
+all old-JWT endpoints, live Google re-registration and infrastructure erasure remain
+outside the evidence; do not describe mocks as live OAuth or production readiness.
+
+## Final implementer verification
+
+Final serial full suite: `pnpm.cmd exec vitest run --maxWorkers=1`, 150 tests / 31
+files passed. A preceding parallel run hit the existing hosted-runtime five-second
+timeout (149 others passed); the serial rerun passed without changing that test.
+`pnpm.cmd check` passed. Twelve focused trial/name/auth-return Node tests passed.
+Final credential-cleared auth-fixture optimized build passed (`tikr-cleared-build-kJQPtp`).
+Changed-source formatting, diff whitespace, final-newline and credential-pattern
+scans passed. Main checkout status is clean. No commits, push, PR or deployment.
+
+The expanded deletion browser suite proves desktop/mobile completion, matching
+trial removal, other-account/legacy preservation, and retained capability through
+fresh sign-in. Existing cloud UI ten groups passed. No live Google or production
+smoke was performed. Remaining reviewer gaps above remain explicit rather than
+being inferred from passing synthetic checks.
+
+## Historical decisions and evidence
+
+Everything below is historical context. Latest explicit owner decisions and the
+current summary control; older explicit-Save instructions are superseded by PR27.
+
 PR follow-up verification: duplicate deletion toast reproduced before the fix;
 all four deletion races now assert exactly one success toast. Final 142 Vitest
 cases/27 files, 20 focused Node checks, pnpm check, formatting/private/newline/diff
