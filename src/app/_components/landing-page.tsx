@@ -4,7 +4,7 @@ import { useLandingActions } from "~/components/landing-surface";
 
 import { Button } from "~/components/ui/button";
 
-import { examples, newPortfolio, hasUnsavedPortfolio } from "~/lib/demo";
+import { examples, newPortfolio, hasResumablePortfolio } from "~/lib/demo";
 
 import { useDemoPortfolios } from "~/providers/demo-portfolios-provider";
 import { StorageNotice } from "~/components/app-shell";
@@ -18,7 +18,7 @@ export default function LandingPage() {
     cloud,
     prepareToLeave,
   } = useDemoPortfolios();
-  const draft = hasUnsavedPortfolio(activeDraft, portfolios)
+  const draft = hasResumablePortfolio(activeDraft, portfolios)
     ? activeDraft
     : null;
   const current = useRef({ draft, open, prepareToLeave });

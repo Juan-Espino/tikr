@@ -4,6 +4,19 @@ import { PERSONAL_SOURCE_POLICY } from "../src/lib/market-policy";
 import { portfolioFields } from "./portfolioFields";
 
 export default defineSchema({
+  deletionCompletions: defineTable({
+    token: v.string(),
+    expiresAt: v.number(),
+  }).index("by_token", ["token"]),
+  accountDeletions: defineTable({
+    userId: v.string(),
+    ownerId: v.string(),
+    token: v.string(),
+    startedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_ownerId", ["ownerId"])
+    .index("by_token", ["token"]),
   discoveryUsage: defineTable({
     ownerId: v.string(),
     day: v.string(),

@@ -16,7 +16,7 @@ const sections = [
   ],
   [
     "Dividends and splits",
-    "Ordinary splits adjust share counts without creating returns. Dividend entitlement is based on shares held for the ex-date. Cash is reinvested at the payment-date close; when payment is not a trading day, the next available session is used. Unpaid dividends remain receivables in portfolio value. Provider-reported cash amounts retain any source withholding; no extra currency conversion or tax gross-up is invented.",
+    "Ordinary splits adjust share counts without creating returns. Dividend entitlement is based on shares held for the ex-date. Cash is reinvested at the payment-date close; when payment is not a trading day, the next available session is used. Unpaid dividends remain receivables in portfolio value. For the personal Alpaca integration, reported cash is assumed to be USD per traded share or ADR; this is an application assumption, not a provider guarantee. Provider-reported cash amounts retain any source withholding; no extra currency conversion or tax gross-up is invented.",
   ],
   [
     "Returns and risk",

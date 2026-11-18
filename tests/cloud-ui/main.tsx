@@ -1,3 +1,6 @@
+import { AccountDeletionProvider } from "../../src/providers/account-deletion-provider";
+import { deletionFixture } from "./convex";
+Object.assign(window, { __deletionQA: deletionFixture });
 import "./guest-scenarios";
 import "./shared-refresh-scenario";
 import { SharedRefreshRetryQA } from "./shared-refresh-retry";
@@ -112,28 +115,33 @@ function App() {
     </DemoPortfoliosProvider>
   );
 }
+const DeletionBoundary = new URLSearchParams(location.search).has("deletion-qa")
+  ? AccountDeletionProvider
+  : ({ children }: { children: React.ReactNode }) => <>{children}</>;
 const Surface = new URLSearchParams(location.search).has("landing-qa")
   ? LandingSurface
   : ({ children }: { children: React.ReactNode }) => <>{children}</>;
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Surface>
-      <DiscoveryPreview.Provider
-        value={
-          new URLSearchParams(location.search).has("ai-preview")
-            ? discoveryFixture
-            : null
-        }
-      >
-        {new URLSearchParams(location.search).has("ai-backend") ? (
-          <DiscoveryProvider>
+    <DeletionBoundary>
+      <Surface>
+        <DiscoveryPreview.Provider
+          value={
+            new URLSearchParams(location.search).has("ai-preview")
+              ? discoveryFixture
+              : null
+          }
+        >
+          {new URLSearchParams(location.search).has("ai-backend") ? (
+            <DiscoveryProvider>
+              <App />
+            </DiscoveryProvider>
+          ) : (
             <App />
-          </DiscoveryProvider>
-        ) : (
-          <App />
-        )}
-      </DiscoveryPreview.Provider>
-      <Toaster />
-    </Surface>
+          )}
+        </DiscoveryPreview.Provider>
+        <Toaster />
+      </Surface>
+    </DeletionBoundary>
   </StrictMode>,
 );

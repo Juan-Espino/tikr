@@ -1,3 +1,13 @@
+# Current status - 2026-11-17
+
+See [plan.md](plan.md) for the controlling MVP status and [account-deletion.md](account-deletion.md)
+for deletion/privacy implementation and gaps. Latest explicit owner instructions control.
+
+## Historical decisions and evidence
+
+Everything below is historical context. Latest explicit owner decisions and the
+current summary control; older explicit-Save instructions are superseded by PR27.
+
 ## Follow-up PR preparation authorized - 2026-11-16
 
 Owner now requests a PR for the local automatic-creation/UX changes and the

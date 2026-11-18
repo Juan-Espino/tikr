@@ -10,7 +10,7 @@ import {
   DEFAULT_RANGE,
   examples,
   newPortfolio,
-  hasUnsavedPortfolio,
+  hasResumablePortfolio,
   type Range,
 } from "~/lib/demo";
 
@@ -99,7 +99,7 @@ export default function Dashboard() {
           <div className="order-1 w-full sm:order-3 sm:w-72">
             <RangePicker alignStart value={range} onChange={setRange} />
           </div>
-          {draft && hasUnsavedPortfolio(draft, portfolios) && (
+          {draft && hasResumablePortfolio(draft, portfolios) && (
             <Button
               variant="outline"
               className="order-2 max-w-full break-words whitespace-normal sm:order-1"

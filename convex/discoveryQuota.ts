@@ -129,6 +129,13 @@ export const finish = internalMutation({
     const receipt = await ctx.db.get(args.receipt);
     if (!receipt || receipt.status !== "pending") return false;
     if (
+      await ctx.db
+        .query("accountDeletions")
+        .withIndex("by_ownerId", (q) => q.eq("ownerId", receipt.ownerId))
+        .unique()
+    )
+      return false;
+    if (
       args.success &&
       (await discoveryIdentity(ctx, args.sessionFence)) !== receipt.ownerId
     )

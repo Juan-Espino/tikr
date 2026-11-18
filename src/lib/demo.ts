@@ -91,6 +91,22 @@ export function hasUnsavedPortfolio(
     ] as const
   ).some((key) => JSON.stringify(draft[key]) !== JSON.stringify(saved[key]));
 }
+// Resume listings describe work eligible to become an account portfolio.
+// Keep unsaved-change detection separate so navigation still protects incomplete edits.
+export function hasResumablePortfolio(
+  draft: Portfolio | null,
+  portfolios: Portfolio[],
+) {
+  return (
+    !!draft &&
+    !!draft.name.trim() &&
+    draft.holdings.length > 0 &&
+    draft.holdings.every((h) => validTicker(h.ticker)) &&
+    allocation(draft.holdings).valid &&
+    validAmount(draft.amount) &&
+    hasUnsavedPortfolio(draft, portfolios)
+  );
+}
 export function portfolioNameError(p: Portfolio, portfolios: Portfolio[]) {
   if (!p.name.trim()) return "Enter a portfolio name.";
   return portfolios.some(
