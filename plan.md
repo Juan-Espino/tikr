@@ -1,4 +1,66 @@
-# Current MVP PR preparation - 2026-11-17
+# Current source-publication review - 2026-11-17
+
+Owner reports PR29 merged; verified main and origin/main at
+`ea6e9c248cae3e59a46fb6f6022b77275ddb5877`, including account deletion. GitHub still
+reports PRIVATE. This summary supersedes the PR-preparation status below; dated
+implementation and DEV evidence remain historical evidence, not new production
+acceptance.
+
+Replaced the Create T3 App README with project-specific overview, implemented
+features, architecture, methodology, setup, environment boundaries, checks and
+limitations in the style requested by the owner. Expanded ignored environment
+patterns to `.env*` while explicitly retaining `.env.example`; this prevents an
+accidental `.env.production` or `.env.development` addition. No existing ignored
+file was copied, changed, staged or published.
+
+Proposed GitHub description: Historical stock and ETF portfolio lab with SPY
+comparisons, AI asset discovery, Google sign-in, and cloud portfolios.
+
+## Publication review evidence
+
+- Official Gitleaks v8.30.1, downloaded to system temp and verified against its
+  release checksum, scanned all locally reachable Git refs with full redaction:
+  zero findings. There are 1,030 reachable commits. A separate scan of 1,536 unique
+  reachable blobs found no matches for nine private local environment values or
+  the additional provider/private-key patterns, and no credential-file paths.
+  These are scoped scans, not proof that every possible secret format is absent.
+- Read-only GitHub checks found 29 PRs and no issues. Scanned 60 PR bodies,
+  conversation comments and review summaries against the private-value and
+  credential patterns: no matches and no pagination gaps. No Actions runs were
+  returned. Arbitrary externally hosted deployment logs were not audited.
+- `sampleData.jsonl` contains three generic starter tasks, not portfolio or market
+  records. Current tracked inventory contains no live account/database export.
+  Public deployment names, local development paths and dated operator notes remain
+  visible in source/history; they are not credentials. Publishing exposes that
+  history too, not just the new README.
+- The globe has a documented Natural Earth public-domain source. Cabinet Grotesk
+  is loaded from Fontshare's CDN rather than a committed font binary. A complete
+  third-party legal review was not performed. No project-wide LICENSE exists;
+  public source visibility must not be described as a selected open-source license.
+
+## Recommendation and remaining work
+
+Owner explicitly deferred dependency remediation to a later polish pass after
+reviewing these findings. The earlier recommendation to wait is not an owner
+publication restriction. `pnpm audit --prod`
+reports 11 advisories: 1 critical, 6 high and 4 moderate. The installed production
+tree includes Next.js 15.5.26, its Sharp 0.35.4 and PostCSS 8.4.31, plus Zod 3.25.76.
+The critical [Next.js image-optimization advisory](https://github.com/advisories/GHSA-2464-fhr4-w9xw)
+lists Next.js 15.5.28 / Sharp 0.35.5 as patched versions. Also assess the reported
+Next.js, PostCSS, Sharp, Zod and transitive Picomatch findings, use current upstream
+guidance, then rerun audit and relevant regression/build checks. An advisory match
+is not a demonstrated exploit: production reachability and hosting conditions were
+not tested. No dependencies, lockfile or runtime configuration were changed here.
+
+Publishing source is separate from Alpaca public display/caching rights, which
+remain unresolved in project records. Privacy contact, infrastructure log/backup
+retention and restore policies also remain operator decisions; account deletion
+does not imply external backup erasure. Owner now authorizes committing and pushing the README, ignore rules and this
+review on main. No repository visibility change, license selection, dependency
+upgrade, deployment command, provider request or production configuration change
+is included. The existing hosting integration may build after the push.
+
+## Historical MVP PR preparation - 2026-11-17
 
 Base: merged PR28, 11db2d00b44c7ef69a5852cc4db915fdd8d90a82.
 Owner explicitly authorizes commit, push and opening the PR. No merge or production
